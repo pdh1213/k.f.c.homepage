@@ -55,6 +55,8 @@ small{letter-spacing:-.12px}
 .live-dot{background:#0f827a;box-shadow:0 0 0 4px #0f827a1c}
 .offline-dot{background:#7a7a7a;box-shadow:0 0 0 4px #7a7a7a1c}
 .welcome-card,.admin-welcome{background:var(--tile-1);color:#fff}
+.admin-welcome h1,.welcome-card h1{color:#f4f8f7}
+.admin-welcome h1 span,.welcome-card h1 span{color:var(--primary-on-dark)}
 .welcome-card p{color:#c4d2d2}
 .welcome-badge{border-color:#555}
 .welcome-badge small{color:#c4d2d2}
