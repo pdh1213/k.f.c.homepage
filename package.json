@@ -1,0 +1,67 @@
+{
+  "name": "kfc-robot-club",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "용인시청소년수련관 로봇동아리 K.F.C. 공식 홈페이지와 Windows 앱",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "start": "vite --host 0.0.0.0",
+    "build:win": "vite build && electron-builder --win nsis --x64",
+    "dist:win": "node scripts/copy-installer.mjs",
+    "pack:win": "npm run build:win && npm run dist:win",
+    "lint": "node --check electron/main.cjs && node --check electron/preload.cjs",
+    "portable:package": "powershell -ExecutionPolicy Bypass -File scripts/package-portable.ps1"
+  },
+  "build": {
+    "appId": "kr.kfcrobot.club",
+    "productName": "K.F.C. 로봇동아리",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "electron/main.cjs"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "KFC-Club-Setup.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "K.F.C. 로봇동아리"
+    },
+    "npmRebuild": false
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.0.2",
+    "electron": "^38.1.2",
+    "electron-builder": "^26.0.12",
+    "vite": "^7.1.7"
+  }
+}
