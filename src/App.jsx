@@ -16,12 +16,13 @@ export default function App(){
   const notify=(message)=>{setToast(message);window.clearTimeout(notify.timer);notify.timer=window.setTimeout(()=>setToast(''),3600);};
   const go=(next)=>{history.pushState({},'',next);setPath(next);window.scrollTo(0,0);};
   useEffect(()=>{const onPop=()=>setPath(location.pathname);window.addEventListener('popstate',onPop);return()=>window.removeEventListener('popstate',onPop);},[]);
-  const refreshUser=()=>api('/api/auth/me').then(r=>setUser(r.user)).catch(()=>setUser(null));
+  const userRequestRef=useRef(0);
+  const refreshUser=async()=>{const requestId=++userRequestRef.current;try{const r=await api('/api/auth/me');if(userRequestRef.current===requestId)setUser(r.user);}catch{if(userRequestRef.current===requestId)setUser(null);}};
   useEffect(()=>{refreshUser();},[]);
-  const logout=async()=>{try{await api('/api/auth/logout',{method:'POST'});}catch{}setUser(null);go('/');notify('로그아웃했습니다.');};
+  const logout=async()=>{userRequestRef.current++;try{await api('/api/auth/logout',{method:'POST'});}catch{}setUser(null);go('/');notify('로그아웃했습니다.');};
   if(user===undefined)return <div className="boot"><div className="brand-mark small">K</div><span>연결을 확인하고 있어요…</span></div>;
   if(path==='/download')return <DownloadPage go={go} notify={notify}/>;
-  if(!user)return <AuthScreen onLogin={(u)=>{setUser(u);go(u.role==='admin'?'/admin':'/dashboard');}} notify={notify}/>;
+  if(!user)return <AuthScreen onLogin={(u)=>{userRequestRef.current++;setUser(u);go(u.role==='admin'?'/admin':'/dashboard');}} notify={notify}/>;
   if(user.mustChangePassword)return <PasswordScreen user={user} done={refreshUser} logout={logout} notify={notify}/>;
   if(user.role==='admin'){
     if(path!=='/admin')go('/admin');
@@ -285,3 +286,4 @@ function GroupRoom({group,user,onBack,notify}){
     <div className="surface inset"><div className="eyebrow">TEAM MEMBERS</div><h2>그룹 구성원</h2><div className="member-chips">{group.members.map(m=><div className="member-chip" key={m.id}><span className="avatar">{m.name.slice(0,1)}</span><b>{m.name}</b>{m.id===user.id&&<small>나</small>}</div>)}</div></div>}
   </div>;
 }
+
