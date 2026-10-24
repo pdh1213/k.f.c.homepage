@@ -1,6 +1,8 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {api,apiUrl,supabase,fmtDate,localInput} from './api.js';
 import {AdminShell,AccessDenied,Toast} from './Admin.jsx';
+import GlyphPortal from '../components/ui/glyph-portal.tsx';
+import '../components/ui/auth-portal.css';
 
 const menu=[
   {path:'/dashboard',label:'홈',icon:'⌂'},
@@ -20,9 +22,9 @@ export default function App(){
   const refreshUser=async()=>{const requestId=++userRequestRef.current;try{const r=await api('/api/auth/me');if(userRequestRef.current===requestId)setUser(r.user);}catch{if(userRequestRef.current===requestId)setUser(null);}};
   useEffect(()=>{refreshUser();},[]);
   const logout=async()=>{userRequestRef.current++;try{await api('/api/auth/logout',{method:'POST'});}catch{}setUser(null);go('/');notify('로그아웃했습니다.');};
-  if(user===undefined)return <div className="boot"><div className="brand-mark small">K</div><span>연결을 확인하고 있어요…</span></div>;
+  if(user===undefined)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>연결을 확인하고 있어요…</span></div>;
   if(path==='/download')return <DownloadPage go={go} notify={notify}/>;
-  if(!user)return <AuthScreen onLogin={(u)=>{userRequestRef.current++;setUser(u);go(u.role==='admin'?'/admin':'/dashboard');}} notify={notify}/>;
+  if(!user)return <AuthScreen go={go} onLogin={(u)=>{userRequestRef.current++;setUser(u);go(u.role==='admin'?'/admin':'/dashboard');}} notify={notify}/>;
   if(user.mustChangePassword)return <PasswordScreen user={user} done={refreshUser} logout={logout} notify={notify}/>;
   if(user.role==='admin'){
     if(path!=='/admin')go('/admin');
@@ -32,63 +34,43 @@ export default function App(){
   return <MemberShell user={user} go={go} logout={logout} notify={notify} toast={toast}/>;
 }
 
-function AuthScreen({onLogin,notify}){
+function AuthScreen({go,onLogin,notify}){
   const [mode,setMode]=useState('login'),[busy,setBusy]=useState(false);
   const [login,setLogin]=useState({username:'',password:''});
   const [form,setForm]=useState({name:'',age:'',school:'',grade:'',phone:'',username:'',password:''});
-  const [notice,setNotice]=useState('');
+  const [notice,setNotice]=useState(''); const portalRef=useRef(null);
   const change=(key,value)=>setForm(v=>({...v,[key]:value}));
-  const submitLogin=async e=>{
-    e.preventDefault();setBusy(true);setNotice('');
-    try{const r=await api('/api/auth/login',{method:'POST',body:login});onLogin(r.user);}
-    catch(err){setNotice(err.message);}
-    finally{setBusy(false);}
-  };
-  const submitRegister=async e=>{
-    e.preventDefault();setBusy(true);setNotice('');
-    try{
-      const r=await api('/api/auth/register',{method:'POST',body:form});
-      setNotice(r.message+' 신청 상태는 승인 대기입니다.');setMode('login');setLogin({username:form.username,password:''});
-      notify('가입 신청이 접수되었습니다.');
-    }catch(err){setNotice(err.message);}
-    finally{setBusy(false);}
-  };
-  return <main className="auth-layout">
-    <div className="auth-art">
-      <div className="auth-top"><div className="brand-mark">K</div><span>K.F.C. ROBOTICS CLUB</span></div>
-      <div className="hero-copy"><div className="eyebrow">용인시청소년수련관 로봇동아리</div><h1>WE ARE<br/><em>K.F.C.</em></h1><p>함께 만들고, 함께 움직이고,<br/>더 멀리 나아갑니다.</p></div>
-      <div className="robot-card"><div className="robot-eyes"><i/><i/></div><div className="robot-mouth"/><div className="robot-caption">BUILD • CODE • CREATE</div></div>
-      <div className="auth-art-footer"><span>ROBOTICS · MAKER · TEAMWORK</span><a href="/download" onClick={e=>{e.preventDefault();history.pushState({},'','/download');window.dispatchEvent(new PopStateEvent('popstate'));}}>Windows 앱 안내 ↗</a></div>
-    </div>
-    <section className="auth-panel">
-      <div className="auth-card">
-        <div className="mobile-brand"><div className="brand-mark">K</div><span>K.F.C.</span></div>
-        <div className="eyebrow">{mode==='login'?'MEMBER ACCESS':'JOIN THE CLUB'}</div>
-        <h2>{mode==='login'?'다시 만나 반가워요':'가입 신청'}</h2>
+  useEffect(()=>{const root=portalRef.current;if(!root||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    const timer=window.setTimeout(()=>root.scrollTo({top:root.scrollHeight,behavior:'smooth'}),420);
+    const stopAutoAdvance=()=>window.clearTimeout(timer);
+    root.addEventListener('wheel',stopAutoAdvance,{once:true,passive:true});root.addEventListener('touchstart',stopAutoAdvance,{once:true,passive:true});root.addEventListener('pointerdown',stopAutoAdvance,{once:true,passive:true});
+    return()=>{window.clearTimeout(timer);root.removeEventListener('wheel',stopAutoAdvance);root.removeEventListener('touchstart',stopAutoAdvance);root.removeEventListener('pointerdown',stopAutoAdvance);};
+  },[]);
+  const submitLogin=async e=>{e.preventDefault();setBusy(true);setNotice('');try{const r=await api('/api/auth/login',{method:'POST',body:login});onLogin(r.user);}catch(err){setNotice(err.message);}finally{setBusy(false);}};
+  const submitRegister=async e=>{e.preventDefault();setBusy(true);setNotice('');try{const r=await api('/api/auth/register',{method:'POST',body:form});setNotice(r.message+' 신청 상태는 승인 대기입니다.');setMode('login');setLogin({username:form.username,password:''});notify('가입 신청이 접수되었습니다.');}catch(err){setNotice(err.message);}finally{setBusy(false);}};
+  return <div className="login-portal-scroll" ref={portalRef} tabIndex={-1}>
+    <GlyphPortal word="K.F.C." focusChar="F" interactive={false} scrollLength={1.45} fontWeight={900} enterLabel="로그인 창으로 이동"
+      style={{"--gp-paper":"#ffffff","--gp-ink":"#111111","--gp-field":"#103b2d","--gp-foreground":"#ffffff"}}
+      background={<div className="portal-field-bg"><img src="/kfc-logo.png" alt=""/></div>}
+      front={<div className="portal-frontbar"><div className="portal-front-brand"><img src="/kfc-logo.png" alt=""/><span>K.F.C.</span><small>용인시청소년수련관 로봇동아리</small></div><button type="button" onClick={()=>go('/download')}>Windows 앱 안내 ↗</button></div>}>
+      <main className="auth-portal-content"><section className="auth-portal-card">
+        <div className="portal-login-brand"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/><div><b>K.F.C.</b><small>ROBOTICS CLUB · YONGIN</small></div></div>
+        <div className="eyebrow">{mode==='login'?'MEMBER ACCESS':'JOIN THE CLUB'}</div><h1>{mode==='login'?'다시 만나 반가워요':'가입 신청'}</h1>
         <p className="muted">{mode==='login'?'아이디와 비밀번호를 입력해 주세요.':'회원 정보를 작성하면 관리자 승인 후 이용할 수 있어요.'}</p>
         <div className="auth-tabs"><button className={mode==='login'?'active':''} onClick={()=>{setMode('login');setNotice('');}}>로그인</button><button className={mode==='register'?'active':''} onClick={()=>{setMode('register');setNotice('');}}>회원 가입 신청</button></div>
         {notice&&<div className="notice-box" role="status">{notice}</div>}
-        {mode==='login'?<form onSubmit={submitLogin} className="form-stack">
-          <label>로그인 아이디<input autoComplete="username" required value={login.username} onChange={e=>setLogin({...login,username:e.target.value})} placeholder="아이디를 입력해 주세요"/></label>
-          <label>비밀번호<input type="password" autoComplete="current-password" required value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} placeholder="비밀번호를 입력해 주세요"/></label>
-          <button className="button primary full" disabled={busy}>{busy?'확인 중…':'로그인'} <span>→</span></button>
-        </form>:<form onSubmit={submitRegister} className="form-stack signup-form">
-          <div className="form-grid"><label>이름<input required maxLength="40" value={form.name} onChange={e=>change('name',e.target.value)} placeholder="홍길동"/></label>
-          <label>나이<input required type="number" min="8" max="99" value={form.age} onChange={e=>change('age',e.target.value)} placeholder="15"/></label>
-          <label>학교<input required maxLength="80" value={form.school} onChange={e=>change('school',e.target.value)} placeholder="학교 이름"/></label>
-          <label>학년<input required maxLength="30" value={form.grade} onChange={e=>change('grade',e.target.value)} placeholder="예: 중학교 2학년"/></label></div>
-          <label>전화번호<input required type="tel" value={form.phone} onChange={e=>change('phone',e.target.value)} placeholder="010-1234-5678"/></label>
-          <label>로그인 아이디<input required minLength="4" maxLength="20" autoComplete="username" value={form.username} onChange={e=>change('username',e.target.value)} placeholder="영문, 숫자, 밑줄 4~20자"/></label>
-          <label>비밀번호<input required type="password" minLength="10" maxLength="128" autoComplete="new-password" value={form.password} onChange={e=>change('password',e.target.value)} placeholder="10자 이상"/></label>
-          <button className="button primary full" disabled={busy}>{busy?'접수 중…':'가입 신청하기'} <span>→</span></button>
+        {mode==='login'?<form onSubmit={submitLogin} className="form-stack"><label>로그인 아이디<input autoComplete="username" required value={login.username} onChange={e=>setLogin({...login,username:e.target.value})} placeholder="아이디를 입력해 주세요"/></label>
+          <label>비밀번호<input type="password" autoComplete="current-password" required value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} placeholder="비밀번호를 입력해 주세요"/></label><button className="button primary full" disabled={busy}>{busy?'확인 중…':'로그인'} <span>→</span></button>
+        </form>:<form onSubmit={submitRegister} className="form-stack signup-form"><div className="form-grid"><label>이름<input required maxLength="40" value={form.name} onChange={e=>change('name',e.target.value)} placeholder="홍길동"/></label>
+          <label>나이<input required type="number" min="8" max="99" value={form.age} onChange={e=>change('age',e.target.value)} placeholder="15"/></label><label>학교<input required maxLength="80" value={form.school} onChange={e=>change('school',e.target.value)} placeholder="학교 이름"/></label><label>학년<input required maxLength="30" value={form.grade} onChange={e=>change('grade',e.target.value)} placeholder="예: 중학교 2학년"/></label></div>
+          <label>전화번호<input required type="tel" value={form.phone} onChange={e=>change('phone',e.target.value)} placeholder="010-1234-5678"/></label><label>로그인 아이디<input required minLength="4" maxLength="20" autoComplete="username" value={form.username} onChange={e=>setForm(v=>({...v,username:e.target.value}))} placeholder="영문, 숫자, 밑줄 4~20자"/></label>
+          <label>비밀번호<input required type="password" minLength="10" maxLength="128" autoComplete="new-password" value={form.password} onChange={e=>change('password',e.target.value)} placeholder="10자 이상"/></label><button className="button primary full" disabled={busy}>{busy?'접수 중…':'가입 신청하기'} <span>→</span></button>
         </form>}
-        <div className="auth-footnote">가입 신청은 관리자의 승인 후 로그인할 수 있습니다.</div>
-      </div>
-      <div className="panel-footer">© K.F.C. Robotics Club · 용인시청소년수련관</div>
-    </section>
-  </main>;
+        <div className="auth-footnote">가입 신청은 관리자의 승인 후 로그인할 수 있습니다.</div><a className="auth-windows-link" href="/download" onClick={e=>{e.preventDefault();go('/download');}}>Windows 앱 안내 ↗</a>
+      </section><div className="portal-footer">© K.F.C. Robotics Club · 용인시청소년수련관</div></main>
+    </GlyphPortal>
+  </div>;
 }
-
 function PasswordScreen({user,done,logout,notify}){
   const [oldPassword,setOld]=useState(''),[newPassword,setNew]=useState(''),[confirm,setConfirm]=useState(''),[error,setError]=useState('');
   const submit=async e=>{
@@ -98,7 +80,7 @@ function PasswordScreen({user,done,logout,notify}){
     catch(e){setError(e.message);}
   };
   return <div className="center-page"><div className="password-card">
-    <div className="brand-mark">K</div><div className="eyebrow">SECURITY CHECK</div><h1>비밀번호를 변경해 주세요</h1>
+    <div className="brand-image large"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/></div><div className="eyebrow">SECURITY CHECK</div><h1>비밀번호를 변경해 주세요</h1>
     <p className="muted">{user.name}님, 안전한 이용을 위해 첫 로그인 비밀번호를 변경해야 합니다.</p>
     {error&&<div className="error-box">{error}</div>}
     <form className="form-stack" onSubmit={submit}>
@@ -114,7 +96,7 @@ function DownloadPage({go,notify}){
   const [status,setStatus]=useState(null);
   useEffect(()=>{api('/api/download-status').then(setStatus).catch(()=>setStatus({available:false}));},[]);
   return <div className="download-page">
-    <header className="public-header"><button className="brand-link" onClick={()=>go('/')}><span className="brand-mark small">K</span>K.F.C.</button><span className="eyebrow">WINDOWS APP</span></header>
+    <header className="public-header"><button className="brand-link" onClick={()=>go('/')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span>K.F.C.</button><span className="eyebrow">WINDOWS APP</span></header>
     <main className="download-content"><div className="download-icon">▣</div><div className="eyebrow">K.F.C. DESKTOP</div><h1>Windows에서도<br/>함께 만들어요.</h1>
       <p className="muted">홈페이지와 같은 계정, 공지사항, 일정, 그룹 채팅을 사용하는 Windows 앱입니다.</p>
       {status===null?<div className="download-state">Windows 앱 파일 확인 중…</div>:status.installerAvailable?

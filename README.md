@@ -20,9 +20,9 @@
 1. Node.js 20 이상에서 `npm install`을 실행합니다.
 2. `.env.example`을 참고해 `.env`에 Supabase URL과 Publishable key를 입력합니다.
 3. `npm run dev`를 실행하고 `http://localhost:4173`을 엽니다.
-4. 관리자 ID는 `admin`입니다. 초기 비밀번호는 비밀 설정으로 전달되었으며, 첫 로그인에서 변경해야 합니다. 실제 비밀번호를 공개 저장소나 브라우저 코드에 넣지 마세요.
+4. 관리자 ID는 `admin`입니다. 계정 비밀번호는 Supabase Auth에만 저장되며, 코드·브라우저 번들·공개 저장소에는 넣지 않습니다. 첫 로그인 강제 변경 화면은 표시하지 않습니다.
 
-초기 관리자 계정은 일회용 해시 토큰을 사용해 Supabase Auth에 만들었습니다. 관리자 API와 관리 화면은 비밀번호 변경을 완료할 때까지 제한됩니다.
+초기 관리자 계정은 Supabase Auth에서 관리합니다. 처음 로그인해도 별도 비밀번호 변경 창 없이 관리자 화면에 접속할 수 있습니다.
 
 ## 배포
 
@@ -32,7 +32,7 @@
 
 ### Vercel
 
-GitHub의 `pdh1213/k.f.c.wro2026`를 Vercel 프로젝트 `kfc-robot-club`에 연결합니다. 프로젝트 빌드 설정은 Vite, `npm run build`, 출력 디렉터리 `dist`입니다. 환경 변수는 Production·Preview·Development에 설정합니다.
+Vercel 프로젝트 `kfc-robot-club`은 Vite, `npm run build`, 출력 디렉터리 `dist`로 배포합니다. 현재 프로덕션 배포는 GitHub 커밋을 지정한 직접 배포입니다. 자동 배포를 쓰려면 Vercel Settings → Git에서 GitHub 로그인 연결을 완료해야 합니다. 환경 변수는 Production·Preview·Development에 설정합니다.
 
 - `VITE_SUPABASE_URL=https://mzlqksaprteljlcjnxix.supabase.co`
 - `VITE_SUPABASE_PUBLISHABLE_KEY`: Supabase의 공개용 Publishable key
@@ -54,7 +54,8 @@ EXE/ZIP은 크기 때문에 GitHub 소스나 Vercel 배포에 넣지 않습니�
 ## 확인한 사항
 
 - `npm run build` 성공
-- Supabase Edge Function 로그인 응답에서 관리자 역할과 첫 비밀번호 변경 요구 확인
+- Supabase 관리자 로그인 응답에서 role=admin 및 mustChangePassword=false 확인
 - 비로그인 요청으로 `/admin/overview` 호출 시 HTTP 401 확인
-- 관리자 API는 첫 비밀번호 변경을 요구하므로 계정 변경 후 관리자 CRUD 전체의 원격 확인은 아직 완료하지 못했습니다.
+- 인증된 관리자 API `/admin/overview`는 HTTP 200, 비로그인 요청은 HTTP 401을 반환하는 것을 확인했습니다.
 - Windows EXE 다운로드 URL은 파일 저장소가 연결되기 전까지 제공되지 않습니다.
+
