@@ -185,15 +185,35 @@ function createEngine(cv: HTMLCanvasElement, text: string, pal: Palette, onCompl
     field = { cx: W / 2, cy: H / 2, rx: Math.min(560, W * 0.4), ry: Math.min(260, H * 0.3) };
     const o = textCv.getContext("2d") as CanvasRenderingContext2D;
     o.setTransform(dpr, 0, 0, dpr, 0, 0); o.clearRect(0, 0, W, H);
-    o.font = `500 ${fs}px ${FONT_STACK}`; o.textAlign = "center"; o.textBaseline = "middle";
-    fs = Math.min(fs, fs * Math.max(1, W - 48) / Math.max(1, o.measureText(text).width));
-    o.font = "500 " + fs + "px " + FONT_STACK;
-    const m = o.measureText(text);
-    const tx = W / 2 - (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2;
-    o.fillStyle = `rgba(${pal.ink.join(",")},.95)`; o.fillText(text, tx, ty);
-    const tw = m.width;
-    const X0 = Math.max(0, Math.floor((tx - tw / 2 - 6) * dpr)), X1 = Math.min(cv.width, Math.ceil((tx + tw / 2 + 6) * dpr));
-    const Y0 = Math.max(0, Math.floor((ty - fs) * dpr)), Y1 = Math.min(cv.height, Math.ceil((ty + fs) * dpr));
+    o.textAlign = "center"; o.textBaseline = "middle";
+    const availableWidth = Math.max(1, W - 48);
+    const words = text.trim().split(/\s+/);
+    o.font = `500 ${fs}px ${FONT_STACK}`;
+    const widestWord = Math.max(1, ...words.map((word) => o.measureText(word).width));
+    fs = Math.min(fs, fs * availableWidth / widestWord);
+    let lines: string[] = [];
+    for (let attempt = 0; attempt < 3; attempt++) {
+      o.font = `500 ${fs}px ${FONT_STACK}`;
+      lines = [];
+      for (const word of words) {
+        const last = lines.length - 1;
+        if (last >= 0 && o.measureText(lines[last] + " " + word).width <= availableWidth) lines[last] += " " + word;
+        else lines.push(word);
+      }
+      if (lines.length * fs * 1.38 <= H - 24) break;
+      fs = Math.max(16, fs * Math.max(1, H - 24) / (lines.length * fs * 1.38));
+    }
+    o.font = `500 ${fs}px ${FONT_STACK}`;
+    const lineHeight = fs * 1.38;
+    const firstY = ty - (lines.length - 1) * lineHeight / 2;
+    const blockHeight = (lines.length - 1) * lineHeight + fs;
+    const widestLine = Math.max(1, ...lines.map((line) => o.measureText(line).width));
+    o.fillStyle = `rgba(${pal.ink.join(",")},.95)`;
+    lines.forEach((line, index) => o.fillText(line, W / 2, firstY + index * lineHeight));
+    const X0 = Math.max(0, Math.floor((W / 2 - widestLine / 2 - 6) * dpr));
+    const X1 = Math.min(cv.width, Math.ceil((W / 2 + widestLine / 2 + 6) * dpr));
+    const Y0 = Math.max(0, Math.floor((firstY - fs) * dpr));
+    const Y1 = Math.min(cv.height, Math.ceil((firstY + (lines.length - 1) * lineHeight + fs) * dpr));
     const d = o.getImageData(0, 0, cv.width, cv.height).data;
     let cs = Math.max(2, Math.round(3 * dpr));
     let pts: number[][];
@@ -219,7 +239,7 @@ function createEngine(cv: HTMLCanvasElement, text: string, pal: Palette, onCompl
       const u = r(), size = u < 0.62 ? 0.9 + r() * 0.8 : u < 0.9 ? 1.8 + r() * 1.4 : 3.4 + r() * 3.2;
       return {
         rx: p[0], ry: p[1], rw: p[2], rh: p[3], hx: p[4], hy: p[5], nx: (p[4] - minX) / Math.max(1, maxX - minX),
-        ny: (p[5] - (ty - fs / 2)) / fs, r1: r(), r2: r(), r3: r(), size, fx: 0, fy: 0, fc: [0, 0, 0] as RGB, lt: 0, bend: 0, pa: 0,
+        ny: (p[5] - (firstY - fs / 2)) / blockHeight, r1: r(), r2: r(), r3: r(), size, fx: 0, fy: 0, fc: [0, 0, 0] as RGB, lt: 0, bend: 0, pa: 0,
       };
     });
     ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -282,7 +302,7 @@ function createEngine(cv: HTMLCanvasElement, text: string, pal: Palette, onCompl
   }
 
   build();
-  enter("text");
+  enter("gathering");
   return {
     setActive(on) {
       if (on === active || destroyed) return;
@@ -348,7 +368,7 @@ export interface ParticleTitleProps {
 }
 
 /**
- * A title that dissolves into drifting dust inside a soft glow, then gathers back into crisp text.
+ * A title that gathers from drifting dust, holds as crisp text, then disperses.
  * One dissolve style runs after a short text hold. Pauses when off-screen or when the tab
  * is hidden, and shows plain text when prefers-reduced-motion is set.
  */
@@ -358,7 +378,7 @@ export function ParticleTitle({ text = "What will you create today?", className 
   const pal = dark ? DARK : LIGHT;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const onCompleteRef = useRef(onComplete);
-  const [canvasReady, setCanvasReady] = useState(false);
+  const [canvasReady, setCanvasReady] = useState(true);
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
 
   useEffect(() => {
@@ -371,6 +391,7 @@ export function ParticleTitle({ text = "What will you create today?", className 
     let engine: Engine | null = null;
     try { engine = createEngine(cv, text, dark ? DARK : LIGHT, () => onCompleteRef.current?.()); } catch { /* Keep the static title when canvas is unavailable. */ }
     if (!engine) {
+      setCanvasReady(false);
       const fallback = window.setTimeout(() => onCompleteRef.current?.(), 2200);
       return () => window.clearTimeout(fallback);
     }
