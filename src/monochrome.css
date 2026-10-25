@@ -44,4 +44,13 @@ body,.main-area,.download-page{background:#fff}
 .login-portal-scroll:before{opacity:.04;background-image:linear-gradient(#00000010 1px,transparent 1px),linear-gradient(90deg,#00000010 1px,transparent 1px)}
 @media(max-width:560px){.login-portal-scroll{background-attachment:scroll}}
 
+/* Improve contrast over the bright photo without changing the reveal interaction. */
+.portal-field-bg{filter:brightness(.48) contrast(1.12)}
+.portal-frontbar{color:#111;text-shadow:0 1px 2px #fff9}.portal-front-brand span{color:#111}.portal-front-brand small{color:#3d3d3d}.portal-frontbar>button{background:#171717;color:#fff;box-shadow:0 2px 8px #0003}.portal-frontbar>button:hover{background:#333}
+.login-portal-scroll .auth-portal-content{color:#171717}
+.login-portal-scroll .auth-portal-card{background:#fff;border:2px solid #333;box-shadow:0 8px 0 #151515,0 28px 72px #0005,inset 0 1px 0 #fff;backdrop-filter:none;-webkit-backdrop-filter:none}
+.login-portal-scroll .portal-login-brand img{border:1px solid #ccc;background:#fff}.login-portal-scroll .portal-login-brand b,.login-portal-scroll .auth-portal-card h1{color:#111}.login-portal-scroll .portal-login-brand small,.login-portal-scroll .auth-portal-card>.muted,.login-portal-scroll .auth-portal-card .auth-footnote,.login-portal-scroll .portal-footer{color:#555}.login-portal-scroll .auth-portal-card>.eyebrow{color:#555}
+.login-portal-scroll .auth-portal-card .auth-tabs{border-color:#ccc}.login-portal-scroll .auth-portal-card .auth-tabs button{color:#666}.login-portal-scroll .auth-portal-card .auth-tabs button.active{color:#111}.login-portal-scroll .auth-portal-card .auth-tabs button.active:after{background:#111}
+.login-portal-scroll .auth-portal-card .form-stack label{color:#222}.login-portal-scroll .auth-portal-card .form-stack input,.login-portal-scroll .auth-portal-card .form-stack select,.login-portal-scroll .auth-portal-card .form-stack textarea{color:#111;background:#fff;border-color:#aaa}.login-portal-scroll .auth-portal-card .form-stack input::placeholder{color:#777}.login-portal-scroll .auth-portal-card .form-stack input:focus,.login-portal-scroll .auth-portal-card .form-stack select:focus,.login-portal-scroll .auth-portal-card .form-stack textarea:focus{border-color:#111;box-shadow:0 0 0 3px #1112;background:#fff}
+.login-portal-scroll .auth-windows-link{color:#222;text-decoration:underline;text-underline-offset:3px}.login-portal-scroll .auth-portal-card .notice-box{background:#f0f0f0;color:#111;border:1px solid #bbb}.login-portal-scroll .auth-portal-card .error-box{background:#e9e9e9;color:#111;border-color:#999}
 
