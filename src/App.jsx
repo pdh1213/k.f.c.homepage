@@ -12,6 +12,7 @@ const menu=[
   {path:'/surveys',label:'설문',icon:'☑'},
   {path:'/groups',label:'그룹 채팅',icon:'◉'},
 ];
+const officerMenu={path:'/officers',label:'임원 공간',icon:'✦'};
 const statusText={pending:'승인 대기',approved:'승인 완료',rejected:'반려'};
 
 export default function App(){
@@ -21,6 +22,8 @@ export default function App(){
   useEffect(()=>{const onPop=()=>setPath(location.pathname);window.addEventListener('popstate',onPop);return()=>window.removeEventListener('popstate',onPop);},[]);
   const userRequestRef=useRef(0);
   const refreshUser=async()=>{const requestId=++userRequestRef.current;try{const r=await api('/api/auth/me');if(userRequestRef.current===requestId)setUser(r.user);}catch{if(userRequestRef.current===requestId)setUser(null);}};
+  useEffect(()=>{if(!user||user.role==='admin')return;const sync=()=>{if(document.visibilityState==='visible')refreshUser()};const timer=setInterval(sync,15000);window.addEventListener('focus',sync);document.addEventListener('visibilitychange',sync);return()=>{clearInterval(timer);window.removeEventListener('focus',sync);document.removeEventListener('visibilitychange',sync)}},[!!user,user?.role]);
+  useEffect(()=>{if(!user||user.role==='admin')return;let channel=supabase.channel('kfc-executive',{config:{private:true}}).on('broadcast',{event:'sync'},()=>refreshUser()).subscribe();return()=>{supabase.removeChannel(channel)}},[!!user,user?.role]);
   useEffect(()=>{if(hasSupabaseConfig)refreshUser();else setUser(null);},[]);
   const logout=async()=>{userRequestRef.current++;try{await logoutCurrentSession();}catch{}finally{setUser(null);go('/');notify('로그아웃했습니다.');}};
   if(!hasSupabaseConfig)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>서비스 연결 설정이 없어 로그인할 수 없습니다. 잠시 후 다시 시도해 주세요.</span></div>;
@@ -113,7 +116,7 @@ function DownloadPage({go,notify}){
 }
 
 function MemberShell({user,go,logout,notify,toast}){
-  const [section,setSection]=useState(()=>menu.find(m=>m.path===location.pathname)?.path||'/dashboard');
+  const [section,setSection]=useState(()=>menu.find(m=>m.path===location.pathname)?.path||(location.pathname==='/officers'?'/officers':'/dashboard'));
   const [announcements,setAnnouncements]=useState([]),[events,setEvents]=useState([]),[polls,setPolls]=useState([]),[groups,setGroups]=useState([]);
   const [loading,setLoading]=useState(true),[selectedGroup,setSelectedGroup]=useState(null);
   const load=async({quiet=false}={})=>{
@@ -128,18 +131,20 @@ function MemberShell({user,go,logout,notify,toast}){
     if(!quiet)setLoading(false);
   };
   useEffect(()=>{load();const refresh=()=>{if(document.visibilityState==='visible')load({quiet:true});};const timer=window.setInterval(refresh,12000);window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);return()=>{window.clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};},[]);
+  const navItems=user.isOfficer?[...menu,officerMenu]:menu;
+  useEffect(()=>{if(section==='/officers'&&!user.isOfficer){setSection('/dashboard');go('/dashboard');}},[section,user.isOfficer]);
   const navigate=path=>{setSection(path);setSelectedGroup(null);go(path);};
   const groupOpen=(g)=>{setSelectedGroup(g);setSection('/groups');history.pushState({},'','/groups');};
   return <div className="app-shell">
     <aside className="sidebar">
       <button className="brand-link" onClick={()=>navigate('/dashboard')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>K.F.C.<small>ROBOTICS CLUB</small></span></button>
       <div className="club-label">MEMBER SPACE</div>
-      <nav>{menu.map(m=><button key={m.path} className={section===m.path?'nav-item active':'nav-item'} onClick={()=>navigate(m.path)}><span className="nav-icon">{m.icon}</span>{m.label}{m.path==='/groups'&&groups.length>0&&<i className="nav-count">{groups.length}</i>}</button>)}</nav>
+      <nav>{navItems.map(m=><button key={m.path} className={section===m.path?'nav-item active':'nav-item'} onClick={()=>navigate(m.path)}><span className="nav-icon">{m.icon}</span>{m.label}{m.path==='/groups'&&groups.length>0&&<i className="nav-count">{groups.length}</i>}</button>)}</nav>
       <div className="sidebar-bottom"><button className="nav-item" onClick={()=>go('/download')}><span className="nav-icon">↓</span>Windows 앱</button><div className="user-card"><div className="avatar club-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><b>{user.name}</b><small>승인 회원</small></div><button className="icon-button" aria-label="로그아웃" title="로그아웃" onClick={logout}>↗</button></div></div>
     </aside>
     <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / {menu.find(m=>m.path===section)?.label||'홈'}</span><strong>회원 공간</strong></div><div className="topbar-right"><span className="brand-image small topbar-logo"><img src="/kfc-logo.png" alt="K.F.C."/></span><span className="live-dot"/>온라인</div></header>
       <div className="page-body">
-        {loading?<div className="loading-card">회원 정보를 불러오고 있어요…</div>:selectedGroup?
+        {loading?<div className="loading-card">회원 정보를 불러오고 있어요…</div>:section==='/officers'?<OfficerHub notify={notify}/> :selectedGroup?
           <GroupRoom group={selectedGroup} user={user} onBack={()=>setSelectedGroup(null)} notify={notify}/>:
           section==='/dashboard'?<Dashboard user={user} announcements={announcements} events={events} groups={groups} open={navigate} groupOpen={groupOpen}/>:
           section==='/announcements'?<Announcements announcements={announcements}/>:
@@ -150,6 +155,22 @@ function MemberShell({user,go,logout,notify,toast}){
     </main>
     {toast&&<Toast message={toast}/>}
   </div>;
+}
+
+
+function OfficerHub({notify}){
+ const [tab,setTab]=useState('meetings'),[meetings,setMeetings]=useState([]),[notes,setNotes]=useState([]),[credentials,setCredentials]=useState([]),[form,setForm]=useState({}),[busy,setBusy]=useState(false),[reveal,setReveal]=useState({}),[editing,setEditing]=useState(null);
+ const load=async()=>{try{const [m,n,c]=await Promise.all([api('/api/executive/meetings'),api('/api/executive/notes'),api('/api/executive/credentials')]);setMeetings(m.meetings||[]);setNotes(n.notes||[]);setCredentials(c.credentials||[]);}catch(e){notify(e.message)}};
+ useEffect(()=>{load();const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>{if(session?.access_token)supabase.realtime.setAuth(session.access_token)});let channel=supabase.channel('kfc-executive',{config:{private:true}}).on('broadcast',{event:'sync'},()=>load()).subscribe();const f=()=>document.visibilityState==='visible'&&load();window.addEventListener('focus',f);return()=>{subscription.unsubscribe();supabase.removeChannel(channel);window.removeEventListener('focus',f)}},[]);
+ const save=async e=>{e.preventDefault();setBusy(true);try{const key=tab==='meetings'?'meetings':tab==='notes'?'notes':'credentials';const body=tab==='meetings'?{title:form.title,description:form.description||'',startAt:new Date(form.startAt).toISOString()}:tab==='notes'?{title:form.title,content:form.content}:{label:form.label,username:form.username,...(form.password?{password:form.password}:{})};await api('/api/executive/'+key+(editing?'/'+editing.id:''),{method:editing?'PATCH':'POST',body});setForm({});setEditing(null);await load();notify(editing?'수정했습니다.':'임원 공간에 저장했습니다.')}catch(e){notify(e.message)}finally{setBusy(false)}};
+ const remove=async(key,id)=>{if(!confirm('이 항목을 삭제할까요?'))return;try{await api('/api/executive/'+key+'/'+id,{method:'DELETE'});await load();notify('삭제했습니다.')}catch(e){notify(e.message)}};
+ const list=tab==='meetings'?meetings:tab==='notes'?notes:credentials;
+ return <div className="officer-space"><section className="welcome-card"><div><div className="eyebrow light">K.F.C. OFFICERS</div><h1>임원 공간</h1><p>회의를 준비하고 함께 필요한 정보를 관리해요.</p></div><div className="welcome-badge"><div className="spark">✦</div><small>LEAD TOGETHER</small></div></section>
+ <div className="officer-tabs">{[['meetings','회의 일정'],['credentials','공용 계정'],['notes','공용 메모']].map(([k,v])=><button className={tab===k?'active':''} key={k} onClick={()=>{setTab(k);setForm({});setEditing(null)}}>{v}</button>)}</div>
+ <section className="surface officer-panel"><div className="section-heading"><div><div className="eyebrow">SHARED OFFICER SPACE</div><h2>{tab==='meetings'?'임원 회의 일정':tab==='credentials'?'공용 계정 비밀번호':'공용 메모'}</h2></div></div>
+ <form className="officer-form" onSubmit={save}>{tab==='meetings'?<><input required placeholder="회의 제목" value={form.title||''} onChange={e=>setForm({...form,title:e.target.value})}/><input required type="datetime-local" value={form.startAt||''} onChange={e=>setForm({...form,startAt:e.target.value})}/><textarea placeholder="장소·안건 등" value={form.description||''} onChange={e=>setForm({...form,description:e.target.value})}/></>:tab==='notes'?<><input required placeholder="메모 제목" value={form.title||''} onChange={e=>setForm({...form,title:e.target.value})}/><textarea required placeholder="임원 공용 메모" value={form.content||''} onChange={e=>setForm({...form,content:e.target.value})}/></>:<><input required placeholder="계정 이름 (예: 동아리 이메일)" value={form.label||''} onChange={e=>setForm({...form,label:e.target.value})}/><input placeholder="로그인 아이디" value={form.username||''} onChange={e=>setForm({...form,username:e.target.value})}/><input required={!editing} type="password" autoComplete="new-password" placeholder={editing?'바꾸려면 새 비밀번호 입력':'공용 계정 비밀번호'} value={form.password||''} onChange={e=>setForm({...form,password:e.target.value})}/></>}<button className="button primary" disabled={busy}>{busy?'저장 중…':editing?'수정 저장':'추가하기'}</button>{editing&&<button type="button" className="button subtle" onClick={()=>{setEditing(null);setForm({})}}>취소</button>}</form>
+ <div className="officer-list">{list.map(item=><article className="officer-item" key={item.id}><div><b>{item.title||item.label}</b>{tab==='meetings'?<><small>{new Date(item.startAt).toLocaleString('ko-KR')}</small>{item.description&&<p>{item.description}</p>}</>:tab==='notes'?<p>{item.content}</p>:<><small>{item.username||'아이디 없음'}</small><div className="credential-secret">{reveal[item.id]?item.password:'••••••••'} <button type="button" className="text-button" onClick={()=>setReveal({...reveal,[item.id]:!reveal[item.id]})}>{reveal[item.id]?'숨기기':'비밀번호 보기'}</button></div></>}</div><div className="button-row"><button className="button subtle" onClick={()=>{setEditing(item);setForm(tab==='meetings'?{title:item.title,description:item.description,startAt:localInput(new Date(item.startAt))}:tab==='notes'?{title:item.title,content:item.content}:{label:item.label,username:item.username,password:''})}}>수정</button><button className="button danger-outline" onClick={()=>remove(tab==='meetings'?'meetings':tab==='notes'?'notes':'credentials',item.id)}>삭제</button></div></article>)}{!list.length&&<div className="empty-state"><b>등록된 항목이 없습니다.</b></div>}</div>
+ {tab==='credentials'&&<p className="small muted">공용 비밀번호는 서버에서 암호화해 저장되며 임원과 관리자만 확인할 수 있습니다.</p>}</section></div>;
 }
 
 function Dashboard({user,announcements,events,groups,open,groupOpen}){
