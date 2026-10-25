@@ -117,24 +117,26 @@ function DownloadPage({go,notify}){
 
 function MemberShell({user,go,logout,notify,toast}){
   const [section,setSection]=useState(()=>menu.find(m=>m.path===location.pathname)?.path||(location.pathname==='/officers'?'/officers':'/dashboard'));
-  const [announcements,setAnnouncements]=useState([]),[events,setEvents]=useState([]),[polls,setPolls]=useState([]),[groups,setGroups]=useState([]);
+  const [announcements,setAnnouncements]=useState([]),[events,setEvents]=useState([]),[polls,setPolls]=useState([]),[groups,setGroups]=useState([]),[directChats,setDirectChats]=useState([]),[directory,setDirectory]=useState([]);
   const [loading,setLoading]=useState(true),[selectedGroup,setSelectedGroup]=useState(null);
   const load=async({quiet=false}={})=>{
     if(!quiet)setLoading(true);
-    const results=await Promise.allSettled([api('/api/announcements'),api('/api/events'),api('/api/polls'),api('/api/groups')]);
-    const [a,e,p,g]=results;
+    const results=await Promise.allSettled([api('/api/announcements'),api('/api/events'),api('/api/polls'),api('/api/groups'),api('/api/direct-chats'),api('/api/directory')]);
+    const [a,e,p,g,d,people]=results;
     if(a.status==='fulfilled')setAnnouncements(a.value.announcements||[]);
     if(e.status==='fulfilled')setEvents(e.value.events||[]);
     if(p.status==='fulfilled')setPolls(p.value.polls||[]);
-    if(g.status==='fulfilled')setGroups(g.value.groups||[]);
+    if(g.status==='fulfilled')setGroups(g.value.groups||[]);if(d.status==='fulfilled')setDirectChats(d.value.chats||[]);if(people.status==='fulfilled')setDirectory(people.value.members||[]);
     const failed=results.find(x=>x.status==='rejected');if(failed&&!quiet)notify(failed.reason?.message||'일부 정보를 불러오지 못했습니다.');
     if(!quiet)setLoading(false);
   };
   useEffect(()=>{load();const refresh=()=>{if(document.visibilityState==='visible')load({quiet:true});};const timer=window.setInterval(refresh,12000);window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);return()=>{window.clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};},[]);
   const navItems=user.isOfficer?[...menu,officerMenu]:menu;
   useEffect(()=>{if(section==='/officers'&&!user.isOfficer){setSection('/dashboard');go('/dashboard');}},[section,user.isOfficer]);
-  const navigate=path=>{setSection(path);setSelectedGroup(null);go(path);};
-  const groupOpen=(g)=>{setSelectedGroup(g);setSection('/groups');history.pushState({},'','/groups');};
+  const [selectedDirect,setSelectedDirect]=useState(null);
+  const navigate=path=>{setSection(path);setSelectedGroup(null);setSelectedDirect(null);go(path);};
+  const groupOpen=(g)=>{setSelectedGroup(g);setSelectedDirect(null);setSection('/groups');history.pushState({},'','/groups');};
+  const directOpen=chat=>{setSelectedDirect(chat);setSelectedGroup(null);setSection('/groups');history.pushState({},'','/groups');};
   return <div className="app-shell">
     <aside className="sidebar">
       <button className="brand-link" onClick={()=>navigate('/dashboard')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>K.F.C.<small>ROBOTICS CLUB</small></span></button>
@@ -144,13 +146,14 @@ function MemberShell({user,go,logout,notify,toast}){
     </aside>
     <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / {menu.find(m=>m.path===section)?.label||'홈'}</span><strong>회원 공간</strong></div><div className="topbar-right"><span className="brand-image small topbar-logo"><img src="/kfc-logo.png" alt="K.F.C."/></span><span className="live-dot"/>온라인</div></header>
       <div className="page-body">
-        {loading?<div className="loading-card">회원 정보를 불러오고 있어요…</div>:section==='/officers'?<OfficerHub notify={notify}/> :selectedGroup?
+        {loading?<div className="loading-card">회원 정보를 불러오고 있어요…</div>:section==='/officers'?<OfficerHub notify={notify}/> :selectedDirect?
+          <DirectRoom chat={selectedDirect} user={user} onBack={()=>{setSelectedDirect(null);load({quiet:true})}} notify={notify}/> :selectedGroup?
           <GroupRoom group={selectedGroup} user={user} onBack={()=>setSelectedGroup(null)} notify={notify}/>:
           section==='/dashboard'?<Dashboard user={user} announcements={announcements} events={events} groups={groups} open={navigate} groupOpen={groupOpen}/>:
           section==='/announcements'?<Announcements announcements={announcements}/>:
           section==='/calendar'?<Calendar events={events}/>:
           section==='/surveys'?<Surveys polls={polls} refresh={load} notify={notify}/>:
-          <Groups groups={groups} open={groupOpen}/>}
+          <Groups groups={groups} directChats={directChats} directory={directory} open={groupOpen} directOpen={directOpen} notify={notify}/>}
       </div>
     </main>
     {toast&&<Toast message={toast}/>}
@@ -198,9 +201,9 @@ function Dashboard({user,announcements,events,groups,open,groupOpen}){
 
 function Announcements({announcements}){
   const [selected,setSelected]=useState(null);
-  if(selected)return <div className="surface detail-surface"><button className="text-button" onClick={()=>setSelected(null)}>← 공지 목록</button><div className="eyebrow">NOTICE</div><h1>{selected.title}</h1><small className="muted">{fmtDate(selected.createdAt)}</small><hr/><p className="long-text">{selected.content}</p></div>;
+  if(selected)return <div className="surface detail-surface"><button className="text-button" onClick={()=>setSelected(null)}>← 공지 목록</button><div className="eyebrow">NOTICE</div><h1>{selected.title}</h1><small className="muted">{fmtDate(selected.createdAt)}</small><hr/><p className="long-text">{selected.content}</p>{selected.images?.length>0&&<div className="notice-gallery">{selected.images.map((image,i)=><a key={image.path||i} href={image.url} target="_blank" rel="noreferrer"><img src={image.url} alt={selected.title+' 사진 '+(i+1)}/></a>)}</div>}</div>;
   return <section className="surface"><div className="section-heading"><div><div className="eyebrow">CLUB NOTICE</div><h1>공지사항</h1></div><span className="count-pill">{announcements.length}건</span></div>
-    {announcements.length?announcements.map(a=><button key={a.id} className="announcement-row" onClick={()=>setSelected(a)}><span className="notice-symbol">N</span><span className="grow"><b>{a.title}</b><small>{a.content.slice(0,90)}{a.content.length>90?'…':''}</small></span><time>{fmtDate(a.createdAt,{dateStyle:'medium'})}</time><span className="row-arrow">↗</span></button>):<Empty title="등록된 공지사항이 없습니다."/>}
+    {announcements.length?announcements.map(a=><button key={a.id} className="announcement-row" onClick={()=>setSelected(a)}><span className="notice-symbol">N</span><span className="grow"><b>{a.title}</b><small>{a.content.slice(0,90)}{a.content.length>90?'…':''}{a.images?.length>0?' · 사진 '+a.images.length+'장':''}</small></span><time>{fmtDate(a.createdAt,{dateStyle:'medium'})}</time><span className="row-arrow">↗</span></button>):<Empty title="등록된 공지사항이 없습니다."/>}
   </section>;
 }
 
@@ -247,21 +250,40 @@ function Surveys({polls,refresh,notify}){
   </section>;
 }
 
-function Groups({groups,open}){
-  return <section className="surface"><div className="section-heading"><div><div className="eyebrow">TEAM SPACE</div><h1>그룹 채팅</h1><p className="muted">관리자가 배정한 그룹에서만 대화할 수 있습니다.</p></div><span className="count-pill">{groups.length}개 그룹</span></div>
-    {groups.length?<div className="group-cards">{groups.map(g=><button className="group-card large" key={g.id} onClick={()=>open(g)}><span className="group-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></span><span><b>{g.name}</b><small>{g.description||'함께 이야기하고 계획을 세워 보세요.'}</small><small>{g.members.map(m=>m.name).join(' · ')||'팀원'} · {g.members.length}명</small></span><span className="row-arrow">→</span></button>)}</div>:<Empty title="아직 배정된 그룹이 없습니다." detail="관리자가 그룹에 초대하면 이곳에 표시됩니다."/>}
-  </section>;
+function Groups({groups,directChats,directory,open,directOpen,notify}){
+ const [selected,setSelected]=useState(''),[busy,setBusy]=useState(false),[localChats,setLocalChats]=useState(directChats);useEffect(()=>setLocalChats(directChats),[directChats]);
+ const start=async()=>{if(!selected)return;setBusy(true);try{const r=await api('/api/direct-chats',{method:'POST',body:{memberId:Number(selected)}});setLocalChats(old=>old.some(c=>c.id===r.chat.id)?old:[r.chat,...old]);directOpen(r.chat)}catch(e){notify(e.message)}finally{setBusy(false)}};
+ return <div className="chat-directory"><section className="surface"><div className="section-heading"><div><div className="eyebrow">TEAM SPACE</div><h1>그룹 채팅</h1><p className="muted">배정된 그룹과 동아리원 1:1 대화를 이용할 수 있습니다.</p></div><span className="count-pill">{groups.length}개 그룹</span></div>
+ {groups.length?<div className="group-cards">{groups.map(g=><button className="group-card large" key={g.id} onClick={()=>open(g)}><span className="group-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></span><span><b>{g.name}</b><small>{g.description||'함께 이야기하고 계획을 세워 보세요.'}</small><small>{g.members.map(m=>m.name).join(' · ')||'팀원'} · {g.members.length}명</small></span><span className="row-arrow">→</span></button>)}</div>:<Empty title="아직 배정된 그룹이 없습니다." detail="관리자가 그룹에 초대하면 이곳에 표시됩니다."/>}</section>
+ <section className="surface"><div className="section-heading"><div><div className="eyebrow">PRIVATE CONVERSATIONS</div><h2>1:1 대화</h2><p className="muted">두 사람만 참여하는 비공개 대화입니다.</p></div></div>
+ {localChats.length?<div className="group-cards">{localChats.map(c=><button className="group-card" key={c.id} onClick={()=>directOpen(c)}><span className="group-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></span><span><b>{c.name}</b><small>{c.lastMessage||'대화를 시작해 보세요.'}</small></span><span className="row-arrow">→</span></button>)}</div>:<Empty title="아직 1:1 대화가 없습니다."/>}
+ <div className="direct-start"><label>대화할 동아리원<select value={selected} onChange={e=>setSelected(e.target.value)}><option value="">회원 선택</option>{directory.map(m=><option value={m.id} key={m.id}>{m.name}{localChats.some(c=>c.memberId===m.id)?' · 기존 대화':''}</option>)}</select></label><button className="button primary" disabled={!selected||busy} onClick={start}>{busy?'여는 중…':localChats.some(c=>c.memberId===Number(selected))?'대화 열기':'1:1 대화 시작'}</button></div></section></div>;
+}
+
+function DirectRoom({chat,user,onBack,notify}){
+ const members=[{id:String(user.id),name:user.name},{id:String(chat.memberId),name:chat.name}];
+ return <div className="room-layout"><div className="room-heading"><button className="text-button" onClick={onBack}>← 대화 목록</button><div className="room-title"><div className="group-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><h1>{chat.name}</h1><small>1:1 비공개 대화</small></div></div></div><ChatPanel scope="direct" scopeId={chat.id} channel={chat.name} members={members} user={user} notify={notify}/></div>;
+}
+function ChatPanel({scope,scopeId,channel,members,user,notify}){
+ const [messages,setMessages]=useState([]),[connected,setConnected]=useState(false),[content,setContent]=useState(''),[files,setFiles]=useState([]),[reply,setReply]=useState(null),[busy,setBusy]=useState(false);const endRef=useRef(null),fileRef=useRef(null),base=scope==='group'?'/api/groups/'+scopeId:'/api/direct-chats/'+scopeId;
+ const sync=async()=>{try{const r=await api(base+'/messages');setMessages(r.messages||[])}catch(e){notify(e.message)}};
+ useEffect(()=>{let live=true;const topic=(scope==='group'?'kfc-group:':'kfc-direct:')+scopeId,channelRef=supabase.channel(topic,{config:{private:true}}).on('broadcast',{event:'sync'},()=>{if(live)sync()}).subscribe(status=>{setConnected(status==='SUBSCRIBED');if(status==='SUBSCRIBED')sync()});sync();const timer=setInterval(()=>{if(live&&document.visibilityState==='visible')sync()},12000),online=()=>sync();window.addEventListener('online',online);return()=>{live=false;clearInterval(timer);window.removeEventListener('online',online);supabase.removeChannel(channelRef)}},[scope,scopeId]);
+ useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'})},[messages]);
+ const send=async e=>{e.preventDefault();if(busy||(!content.trim()&&!files.length))return;if(files.length>8)return notify('파일은 한 번에 8개까지 첨부할 수 있습니다.');setBusy(true);const paths=[];try{const attachments=[];for(const file of files){if(file.size>25*1024*1024)throw new Error('파일당 최대 크기는 25MB입니다.');const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_').slice(-120)||'file';const folder=scope==='group'?'group':'direct',path=folder+'/'+scopeId+'/'+user.id+'/'+crypto.randomUUID()+'/'+safe;const result=await supabase.storage.from('chat-attachments').upload(path,file,{upsert:false,contentType:file.type||'application/octet-stream'});if(result.error)throw result.error;paths.push(path);attachments.push({path,name:file.name.slice(0,180),type:file.type||'application/octet-stream',size:file.size})}await api(base+'/messages',{method:'POST',body:{content,attachments,replyToId:reply?.id||null}});setContent('');setFiles([]);setReply(null);if(fileRef.current)fileRef.current.value='';await sync()}catch(e){notify(e.message||'메시지 전송에 실패했습니다.')}finally{setBusy(false)}};
+ const react=async(id,emoji)=>{try{await api(base+'/messages/'+id+'/reactions',{method:'POST',body:{emoji}});await sync()}catch(e){notify(e.message)}};
+ const chooseFiles=e=>{const picked=Array.from(e.target.files||[]);if(files.length+picked.length>8){notify('파일은 한 번에 8개까지 첨부할 수 있습니다.');e.target.value='';return}setFiles([...files,...picked]);e.target.value=''};
+ return <GroupChat messages={messages.map(m=>({id:m.id,userId:String(m.userId),name:m.name,text:m.content,createdAt:m.createdAt,attachments:m.attachments,reply:m.reply,reactions:m.reactions}))} channel={channel} members={members} currentUserId={String(user.id)} connected={connected} connectionLabel={connected?'실시간 연결됨':'연결 복구 중 · 기록 동기화 중'} footerRef={endRef} onReply={setReply} onReact={react} composer={<div className="chat-compose-wrap">{reply&&<div className="reply-compose"><span><b>{reply.name}에게 답장</b><small>{reply.content||'첨부 파일'}</small></span><button type="button" className="icon-button" aria-label="답장 취소" onClick={()=>setReply(null)}>×</button></div>}{files.length>0&&<div className="pending-files">{files.map((f,i)=><span key={f.name+i}>{f.name}<button type="button" onClick={()=>setFiles(files.filter((_,n)=>n!==i))}>×</button></span>)}</div>}<form className="chat-compose" onSubmit={send}><button type="button" className="chat-attach-button" onClick={()=>fileRef.current?.click()} aria-label="파일 첨부">＋</button><input ref={fileRef} className="visually-hidden" type="file" multiple onChange={chooseFiles}/><input aria-label="메시지" value={content} onChange={e=>setContent(e.target.value)} maxLength="2000" placeholder="메시지 입력 또는 파일 첨부…"/><button className="button primary" disabled={busy||(!content.trim()&&!files.length)}>{busy?'전송 중…':'보내기 ↑'}</button></form></div>} />;
 }
 
 function GroupRoom({group,user,onBack,notify}){
-  const [tab,setTab]=useState('chat'),[messages,setMessages]=useState([]),[events,setEvents]=useState([]),[todos,setTodos]=useState([]);
-  const [connected,setConnected]=useState(false),[content,setContent]=useState(''),[busy,setBusy]=useState(false);
+  const [tab,setTab]=useState('chat'),[events,setEvents]=useState([]),[todos,setTodos]=useState([]);
+  const [connected,setConnected]=useState(false);
   const [todoTitle,setTodoTitle]=useState(''),[editingTodo,setEditingTodo]=useState(null),[eventForm,setEventForm]=useState({title:'',description:'',startAt:localInput(),endAt:localInput(new Date(Date.now()+3600000))});
-  const endRef=useRef(null),base='/api/groups/'+group.id;
+  const base='/api/groups/'+group.id;
   const sync=async()=>{
     try{
-      const [m,e,t]=await Promise.all([api(base+'/messages'),api(base+'/events'),api(base+'/todos')]);
-      setMessages(m.messages);setEvents(e.events);setTodos(t.todos);
+      const [e,t]=await Promise.all([api(base+'/events'),api(base+'/todos')]);
+      setEvents(e.events);setTodos(t.todos);
     }catch(err){notify(err.message);}
   };
   useEffect(()=>{
@@ -272,13 +294,6 @@ function GroupRoom({group,user,onBack,notify}){
     sync();const refresh=()=>{if(live&&document.visibilityState==='visible')sync();};const timer=window.setInterval(refresh,12000);window.addEventListener('focus',refresh);window.addEventListener('online',refresh);
     return()=>{live=false;window.clearInterval(timer);window.removeEventListener('focus',refresh);window.removeEventListener('online',refresh);setConnected(false);supabase.removeChannel(channel);};
   },[group.id]);
-  useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'});},[messages]);
-  const send=async e=>{
-    e.preventDefault();if(!content.trim()||busy)return;setBusy(true);
-    try{await api(base+'/messages',{method:'POST',body:{content}});setContent('');await sync();}
-    catch(e){notify(e.message);}
-    finally{setBusy(false);}
-  };
   const addTodo=async e=>{e.preventDefault();if(!todoTitle.trim())return;
     try{await api(base+'/todos',{method:'POST',body:{title:todoTitle}});setTodoTitle('');await sync();}
     catch(e){notify(e.message);}
@@ -293,7 +308,7 @@ function GroupRoom({group,user,onBack,notify}){
   return <div className="room-layout">
     <div className="room-heading"><button className="text-button" onClick={onBack}>← 그룹 목록</button><div className="room-title"><div className="group-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><h1>{group.name}</h1><small>{group.members.length}명의 팀원 · {group.description||'K.F.C. 그룹 공간'}</small></div></div><div className="room-presence"><i className={connected?'live-dot':'offline-dot'}/>{connected?'실시간 연결됨':'다시 연결 중'}</div></div>
     <div className="room-tabs">{[['chat','대화'],['schedule','그룹 일정'],['todos','공동 할 일'],['people','구성원']].map(([k,label])=><button key={k} className={tab===k?'active':''} onClick={()=>setTab(k)}>{label}</button>)}</div>
-    {tab==='chat'?<GroupChat messages={messages.map(m=>({id:m.id,userId:String(m.userId),name:m.name,text:m.content,createdAt:m.createdAt}))} channel={group.name} members={group.members.map(m=>({id:String(m.id),name:m.name}))} currentUserId={String(user.id)} connected={connected} connectionLabel={connected?'실시간 연결됨':'연결 복구 중 · 기록 동기화 중'} footerRef={endRef} composer={<form className="chat-compose" onSubmit={send}><input aria-label="메시지" value={content} onChange={e=>setContent(e.target.value)} maxLength="2000" placeholder="메시지를 입력해 주세요…"/><button className="button primary" disabled={!content.trim()||busy}>보내기 ↑</button></form>} />:
+    {tab==='chat'?<ChatPanel scope="group" scopeId={group.id} channel={group.name} members={group.members.map(m=>({id:String(m.id),name:m.name}))} user={user} notify={notify}/>:
     tab==='schedule'?<div className="room-panel"><section className="surface inset"><div className="section-heading"><div><div className="eyebrow">TEAM SCHEDULE</div><h2>그룹 일정</h2></div></div>
       {events.length?events.map(e=><EventDetail key={e.id} event={e}/>):<Empty title="그룹 일정이 없습니다."/>}
       <form className="inline-form" onSubmit={addEvent}><h3>일정 추가</h3><label>제목<input required value={eventForm.title} onChange={e=>setEventForm({...eventForm,title:e.target.value})}/></label><label>상세 내용<input value={eventForm.description} onChange={e=>setEventForm({...eventForm,description:e.target.value})}/></label><div className="form-grid"><label>시작<input type="datetime-local" required value={eventForm.startAt} onChange={e=>setEventForm({...eventForm,startAt:e.target.value})}/></label><label>종료<input type="datetime-local" required value={eventForm.endAt} onChange={e=>setEventForm({...eventForm,endAt:e.target.value})}/></label></div><button className="button secondary">그룹 일정 저장</button></form>

@@ -1,168 +1,34 @@
 "use client";
-
-/**
- * Adapted from the GroupChat component supplied by the K.F.C. project owner.
- * Consecutive messages are grouped for presentation; persisted messages stay flat.
- */
-import { Fragment, type ReactNode, type Ref } from "react";
+import { Fragment, type ReactNode, type Ref, useRef } from "react";
 import { Blobatar } from "@blobatar/react";
 import type { BlobatarOptions } from "blobatar";
 import "blobatar/motion.css";
 import "./group-chat.css";
 
-export type ChatMessage = {
-  id: string | number;
-  userId: string;
-  name: string;
-  text: string;
-  time?: string;
-  createdAt?: string;
-};
-
-export type ChatMember = { id: string; name: string };
-
-export type GroupChatProps = {
-  messages: ChatMessage[];
-  channel: string;
-  members?: ChatMember[];
-  currentUserId?: string;
-  connected?: boolean;
-  connectionLabel?: string;
-  /** Supply only a real presence event. No typing indicator is simulated. */
-  typing?: ChatMember;
-  blobatar?: BlobatarOptions;
-  className?: string;
-  /** The existing server-backed form stays in the parent. */
-  composer?: ReactNode;
-  notice?: ReactNode;
-  footerRef?: Ref<HTMLDivElement>;
-};
-
-function validDate(value?: string): Date | undefined {
-  if (!value) return undefined;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : date;
+export type ChatAttachment={name:string,type:string,size:number,url:string,isImage?:boolean};
+export type ChatMessage={id:number|string,userId:string|number,name:string,text:string,time?:string,createdAt?:string,attachments?:ChatAttachment[],reply?:{id:number|string,userId:string|number,name:string,content:string}|null,reactions?:{emoji:string,count:number,mine:boolean}[]};
+export type ChatMember={id:string,name:string};
+export type ChatChatProps={messages:ChatMessage[],channel:string,members?:ChatMember[],currentUserId?:string,connected?:boolean,connectionLabel?:string,typing?:ChatMember,blobatar?:BlobatarOptions,className?:string,composer?:ReactNode,notice?:ReactNode,footerRef?:Ref<HTMLDivElement>,onReply?:(message:ChatMessage)=>void,onReact?:(messageId:number|string,emoji:string)=>void};
+const reactionChoices=["👍","❤️","😂","😮","👏","🚀"];
+function validDate(value?:string){if(!value)return;const d=new Date(value);return Number.isNaN(d.getTime())?undefined:d}
+function dayKey(m:ChatMessage){return validDate(m.createdAt)?.toLocaleDateString("ko-KR")||""}
+export function groupConsecutiveMessages(messages:ChatMessage[]){return messages.reduce<ChatMessage[][]>((runs,m)=>{const previous=runs.at(-1),last=previous?.at(-1),start=last&&validDate(last.createdAt),next=validDate(m.createdAt),separated=!!(start&&next&&(next.getTime()-start.getTime()>300000||dayKey(last!)!==dayKey(m)));if(last&&String(last.userId)===String(m.userId)&&!separated)previous!.push(m);else runs.push([m]);return runs},[])}
+const time=(m:ChatMessage)=>m.time||validDate(m.createdAt)?.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})||"";
+const prettySize=(n:number)=>n<1024*1024?Math.max(1,Math.round(n/1024))+" KB":(n/1024/1024).toFixed(1)+" MB";
+export function GroupChat({messages,channel,members=[],currentUserId,connected=false,connectionLabel,typing,blobatar,className,composer,notice,footerRef,onReply,onReact}:ChatChatProps){
+ const runs=groupConsecutiveMessages(messages),visible=members.slice(0,5),overflow=Math.max(0,members.length-visible.length),touch=useRef<{x:number,y:number}|null>(null);
+ return <section className={["kfc-group-chat",className].filter(Boolean).join(" ")} aria-label={channel+" 채팅"}>
+ <header className="kfc-chat-header"><div className="kfc-chat-channel"><span className="kfc-chat-club-mark"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/></span><div><span className="kfc-chat-overline">{members.length===2?"DIRECT MESSAGE":"TEAM CHANNEL"}</span><h2><span aria-hidden="true">{members.length===2?"↗":"#"}</span> {channel}</h2><span className="kfc-chat-private"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3.5" y="7" width="9" height="7" rx="2"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg>{members.length===2?"1:1 대화 · 두 사람만 참여":"그룹 구성원 전용 · "+members.length+"명"}</span></div></div><div className="kfc-chat-header-right">{members.length>0&&<div className="kfc-chat-facepile" aria-label={"참여 구성원: "+members.map(m=>m.name).join(", ")}>{visible.map(m=><span key={m.id} title={m.name} className="kfc-chat-facepile-item"><Blobatar name={m.id} {...blobatar} background="circle" alt="" className="kfc-chat-face"/></span>)}{overflow>0&&<span className="kfc-chat-facepile-extra">+{overflow}</span>}</div>}<span className={"kfc-chat-connection "+(connected?"is-online":"is-connecting")} role="status"><i/>{connectionLabel||(connected?"실시간 연결됨":"연결 확인 중")}</span></div></header>
+ {notice&&<div className="kfc-chat-notice" role="status">{notice}</div>}
+ <div className="kfc-chat-scroll" tabIndex={0} aria-label="대화 기록 스크롤"><div className="kfc-chat-log" role="log" aria-live="polite" aria-relevant="additions text" aria-atomic="false" aria-label="대화 기록">
+ {!runs.length?<div className="kfc-chat-empty"><span className="kfc-chat-empty-orbit"><img src="/kfc-logo.png" alt=""/></span><span className="kfc-chat-overline">BUILD TOGETHER</span><h3>첫 대화를 시작해요</h3><p>메시지와 파일을 이곳에서 안전하게 나눌 수 있어요.</p></div>:runs.map((run,i)=>{const first=run[0]!,mine=String(first.userId)===String(currentUserId),date=validDate(first.createdAt),showDay=!!date&&(i===0||dayKey(runs[i-1]![0]!)!==dayKey(first));return <Fragment key={first.id}>{showDay&&<div className="kfc-chat-day"><time dateTime={date!.toISOString()}>{date!.toLocaleDateString("ko-KR",{year:"numeric",month:"long",day:"numeric",weekday:"short"})}</time></div>}<div className={"kfc-chat-run "+(mine?"is-mine":"")}><div className="kfc-chat-avatar"><Blobatar name={String(first.userId)} {...blobatar} animate="hover" title={first.name} className="kfc-chat-face"/></div><div className="kfc-chat-run-body"><div className="kfc-chat-sender"><b>{first.name}</b>{mine&&<span>나</span>}</div><div className="kfc-chat-bubbles">{run.map(m=><article className="kfc-chat-message" key={m.id} aria-label={m.name+"의 메시지"} onTouchStart={e=>{touch.current={x:e.touches[0].clientX,y:e.touches[0].clientY}}} onTouchEnd={e=>{if(!touch.current)return;const dx=e.changedTouches[0].clientX-touch.current.x,dy=e.changedTouches[0].clientY-touch.current.y;touch.current=null;if(Math.abs(dx)>56&&Math.abs(dx)>Math.abs(dy)*1.3)onReply?.(m)}}>
+ {m.reply&&<div className="kfc-chat-reply-quote"><b>{m.reply.name}에게 답장</b><span>{m.reply.content}</span></div>}{m.text&&<p>{m.text}</p>}{m.attachments?.map((a,j)=><div className="kfc-chat-attachment" key={a.url+j}>{a.isImage?<a href={a.url} target="_blank" rel="noreferrer"><img src={a.url} alt={a.name}/></a>:<a className="kfc-chat-file" href={a.url} target="_blank" rel="noreferrer"><span>⇩</span><div><b>{a.name}</b><small>{prettySize(a.size)}</small></div></a>}</div>)}{time(m)&&<time dateTime={validDate(m.createdAt)?.toISOString()}>{time(m)}</time>}
+ <div className="kfc-chat-message-actions"><button type="button" onClick={()=>onReply?.(m)} aria-label="이 메시지에 답장">↩ 답장</button>{reactionChoices.map(emoji=><button type="button" className={m.reactions?.find(r=>r.emoji===emoji)?.mine?"selected":""} key={emoji} aria-label={emoji+" 리액션"} onClick={()=>onReact?.(m.id,emoji)}>{emoji}{(m.reactions?.find(r=>r.emoji===emoji)?.count||0)>0&&<small>{m.reactions?.find(r=>r.emoji===emoji)?.count}</small>}</button>)}</div>
+ </article>)}</div></div></div></Fragment>})}
+ {typing&&<div className="kfc-chat-typing" role="status"><Blobatar name={typing.id} {...blobatar} alt="" className="kfc-chat-face"/><span>{typing.name}님이 입력 중입니다…</span></div>}
+ </div><div ref={footerRef} className="kfc-chat-end" aria-hidden="true"/></div>
+ {composer&&<div className="kfc-chat-composer">{composer}<p className="kfc-chat-composer-hint">파일은 최대 25MB까지 첨부할 수 있어요. 서로 존중하는 말로 대화해요.</p></div>}
+ </section>;
 }
-
-function dayKey(message: ChatMessage): string {
-  return validDate(message.createdAt)?.toLocaleDateString("ko-KR") || "";
-}
-
-/** Group by immutable author ID, preserving messages and their stable IDs. */
-export function groupConsecutiveMessages(messages: ChatMessage[]): ChatMessage[][] {
-  return messages.reduce<ChatMessage[][]>((runs, message) => {
-    const previous = runs.at(-1);
-    const last = previous?.at(-1);
-    const start = last && validDate(last.createdAt);
-    const next = validDate(message.createdAt);
-    const separated = !!(start && next && (next.getTime() - start.getTime() > 5 * 60 * 1000 || dayKey(last!) !== dayKey(message)));
-    if (last && last.userId === message.userId && !separated) previous!.push(message);
-    else runs.push([message]);
-    return runs;
-  }, []);
-}
-
-function messageTime(message: ChatMessage) {
-  return message.time || validDate(message.createdAt)?.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) || "";
-}
-
-export function GroupChat({
-  messages,
-  channel,
-  members = [],
-  currentUserId,
-  connected = false,
-  connectionLabel,
-  typing,
-  blobatar,
-  className,
-  composer,
-  notice,
-  footerRef,
-}: GroupChatProps) {
-  const runs = groupConsecutiveMessages(messages);
-  const visibleMembers = members.slice(0, 5);
-  const overflowCount = Math.max(0, members.length - visibleMembers.length);
-
-  return (
-    <section className={["kfc-group-chat", className].filter(Boolean).join(" ")} aria-label={channel + " 그룹 채팅"}>
-      <header className="kfc-chat-header">
-        <div className="kfc-chat-channel">
-          <span className="kfc-chat-club-mark"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고" /></span>
-          <div>
-            <span className="kfc-chat-overline">TEAM CHANNEL</span>
-            <h2><span aria-hidden="true">#</span> {channel}</h2>
-            <span className="kfc-chat-private"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3.5" y="7" width="9" height="7" rx="2" /><path d="M5 7V5a3 3 0 0 1 6 0v2" /></svg>그룹 구성원 전용 · {members.length}명</span>
-          </div>
-        </div>
-        <div className="kfc-chat-header-right">
-          {members.length > 0 && (
-            <div className="kfc-chat-facepile" aria-label={"참여 구성원: " + members.map(member => member.name).join(", ")}>
-              {visibleMembers.map(member => (
-                <span key={member.id} title={member.name} className="kfc-chat-facepile-item">
-                  <Blobatar name={member.id} {...blobatar} background="circle" alt="" className="kfc-chat-face" />
-                </span>
-              ))}
-              {overflowCount > 0 && <span className="kfc-chat-facepile-extra" aria-hidden="true">+{overflowCount}</span>}
-            </div>
-          )}
-          <span className={"kfc-chat-connection " + (connected ? "is-online" : "is-connecting")} role="status">
-            <i aria-hidden="true" />{connectionLabel || (connected ? "실시간 연결됨" : "연결 확인 중")}
-          </span>
-        </div>
-      </header>
-
-      {notice && <div className="kfc-chat-notice" role="status">{notice}</div>}
-
-      <div className="kfc-chat-scroll" tabIndex={0} aria-label="대화 기록 스크롤">
-        <div className="kfc-chat-log" role="log" aria-live="polite" aria-relevant="additions text" aria-atomic="false" aria-label="그룹 대화 기록">
-          {runs.length === 0 ? (
-            <div className="kfc-chat-empty">
-              <span className="kfc-chat-empty-orbit" aria-hidden="true"><img src="/kfc-logo.png" alt="" /></span>
-              <span className="kfc-chat-overline">BUILD SOMETHING TOGETHER</span>
-              <h3>우리 팀의 첫 대화를 시작해요</h3>
-              <p>아이디어부터 다음 모임까지,<br />이 그룹의 구성원들과 함께 나눠 보세요.</p>
-            </div>
-          ) : runs.map((run, runIndex) => {
-            const first = run[0]!;
-            const mine = first.userId === currentUserId;
-            const date = validDate(first.createdAt);
-            const showDay = !!date && (runIndex === 0 || dayKey(runs[runIndex - 1]![0]!) !== dayKey(first));
-            return (
-              <Fragment key={first.id}>
-                {showDay && <div className="kfc-chat-day"><time dateTime={date!.toISOString()}>{date!.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "short" })}</time></div>}
-                <div className={"kfc-chat-run " + (mine ? "is-mine" : "")}>
-                  <div className="kfc-chat-avatar">
-                    <Blobatar name={first.userId} {...blobatar} animate="hover" title={first.name} className="kfc-chat-face" />
-                  </div>
-                  <div className="kfc-chat-run-body">
-                    <div className="kfc-chat-sender"><b>{first.name}</b>{mine && <span>나</span>}</div>
-                    <div className="kfc-chat-bubbles">
-                      {run.map(message => (
-                        <article className="kfc-chat-message" key={message.id} aria-label={message.name + "의 메시지"}>
-                          <p>{message.text}</p>
-                          {messageTime(message) && <time dateTime={validDate(message.createdAt)?.toISOString()}>{messageTime(message)}</time>}
-                        </article>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </Fragment>
-            );
-          })}
-          {typing && (
-            <div className="kfc-chat-typing" role="status">
-              <Blobatar name={typing.id} {...blobatar} alt="" className="kfc-chat-face" />
-              <span>{typing.name}님이 입력 중입니다<span className="kfc-chat-typing-dots" aria-hidden="true"><i /><i /><i /></span></span>
-            </div>
-          )}
-        </div>
-        <div ref={footerRef} className="kfc-chat-end" aria-hidden="true" />
-      </div>
-      {composer && <div className="kfc-chat-composer">{composer}<p className="kfc-chat-composer-hint">서로 존중하는 말로 함께 성장해요.</p></div>}
-    </section>
-  );
-}
-
 export default GroupChat;
 

@@ -32,10 +32,13 @@ export async function api(path,options={}){
  if(((path.startsWith('/api/executive/')&&options.method&&options.method!=='GET')||(path.match(/^\/api\/admin\/members\/\d+$/)&&options.body&&typeof options.body.isOfficer==='boolean')))publishExecutiveChange().catch(()=>{});
  const groupId=groupIdFrom(path);
  if(groupId&&/\/api\/groups\/\d+\/(messages|events|todos)/.test(path)&&options.method&&options.method!=='GET')publishGroupChange(groupId).catch(()=>{});
+ const directId=path.match(/\/api\/direct-chats\/(\d+)\/messages/)?.[1];if(directId&&options.method&&options.method!=='GET')publishDirectChange(directId).catch(()=>{});
  return data;
 }
 export const fmtDate=(value,options={dateStyle:'medium',timeStyle:'short'})=>{try{return new Intl.DateTimeFormat('ko-KR',options).format(new Date(value));}catch{return value||'';}};
 export const localInput=(date=new Date())=>{const pad=n=>String(n).padStart(2,'0');return date.getFullYear()+'-'+pad(date.getMonth()+1)+'-'+pad(date.getDate())+'T'+pad(date.getHours())+':'+pad(date.getMinutes());};
 
 export async function publishExecutiveChange(){const {data:{session}}=await supabase.auth.getSession();if(!session)return;await supabase.realtime.setAuth(session.access_token);const channel=supabase.channel('kfc-executive',{config:{private:true}});await new Promise(resolve=>{const timer=setTimeout(resolve,2500);channel.subscribe(status=>{if(status==='SUBSCRIBED'){clearTimeout(timer);resolve();}})});await channel.send({type:'broadcast',event:'sync',payload:{at:Date.now()}});await supabase.removeChannel(channel);}
+
+export async function publishDirectChange(chatId){const {data:{session}}=await supabase.auth.getSession();if(!session)return;const channel=supabase.channel('kfc-direct:'+chatId,{config:{private:true}});await new Promise(resolve=>channel.subscribe(status=>{if(status==='SUBSCRIBED')resolve()}));await channel.send({type:'broadcast',event:'sync',payload:{at:Date.now()}});await supabase.removeChannel(channel);}
 
