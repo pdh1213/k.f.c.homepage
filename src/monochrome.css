@@ -34,4 +34,14 @@ body,.main-area,.download-page{background:#f5f5f5;color:#171717}
 .login-portal-scroll .auth-portal-card .form-stack label{color:#e5e5e5}.login-portal-scroll .auth-portal-card .form-stack input,.login-portal-scroll .auth-portal-card .form-stack select,.login-portal-scroll .auth-portal-card .form-stack textarea{color:#fff;background:#11111199;border-color:#ffffff38}.login-portal-scroll .auth-portal-card .form-stack input::placeholder{color:#b5b5b5}.login-portal-scroll .auth-portal-card .form-stack input:focus,.login-portal-scroll .auth-portal-card .form-stack select:focus,.login-portal-scroll .auth-portal-card .form-stack textarea:focus{border-color:#fff;box-shadow:0 0 0 3px #ffffff22;background:#111c}
 .login-portal-scroll .auth-windows-link{color:#e7e7e7}.login-portal-scroll .auth-portal-card .notice-box{background:#ededed;color:#222}
 @media(prefers-reduced-motion:reduce){.login-portal-scroll .auth-portal-card{transform:none}}
+/* Site-wide white foundation; login-only image is isolated to AuthScreen's portal. */
+:root{--parchment:#fff;--pearl:#fafafa;background:#fff}
+body,.main-area,.download-page{background:#fff}
+.surface,.quick-card,.group-card,.stat-card,.poll-card,.application-card,.group-admin-card,.modal-card,.chat-card,.download-steps>div{background:#fff}
+.login-portal-scroll{background:#fff url('/login-background.jpg') center center/cover fixed no-repeat}
+.portal-field-bg{background:linear-gradient(135deg,#ffffff26,#ffffff12),url('/login-background.jpg') center center/cover no-repeat}
+/* Keep the photo legible under the login portal while retaining the monochrome glass card. */
+.login-portal-scroll:before{opacity:.04;background-image:linear-gradient(#00000010 1px,transparent 1px),linear-gradient(90deg,#00000010 1px,transparent 1px)}
+@media(max-width:560px){.login-portal-scroll{background-attachment:scroll}}
+
 

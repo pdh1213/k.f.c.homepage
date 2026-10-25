@@ -52,7 +52,7 @@ function AuthScreen({go,onLogin,notify}){
   const submitRegister=async e=>{e.preventDefault();setBusy(true);setNotice('');try{const r=await api('/api/auth/register',{method:'POST',body:form});setNotice(r.message+' 신청 상태는 승인 대기입니다.');setMode('login');setLogin({username:form.username,password:''});notify('가입 신청이 접수되었습니다.');}catch(err){setNotice(err.message);}finally{setBusy(false);}};
   return <div className="login-portal-scroll" ref={portalRef} tabIndex={-1}>
     <GlyphPortal word="K.F.C." focusChar="F" interactive={false} scrollLength={1.2} fontWeight={900} enterLabel="로그인 창으로 이동"
-      style={{"--gp-paper":"#f3f7f6","--gp-ink":"#14232d","--gp-field":"#122a35","--gp-foreground":"#f5fbfa"}}
+      style={{"--gp-paper":"#ffffff","--gp-ink":"#111111","--gp-field":"#111111","--gp-foreground":"#ffffff"}}
       background={<div className="portal-field-bg"/>}
       front={<div className="portal-frontbar"><div className="portal-front-brand"><img src="/kfc-logo.png" alt=""/><span>K.F.C.</span><small>용인시청소년수련관 로봇동아리</small></div><button type="button" onClick={()=>go('/download')}>Windows 앱 안내 ↗</button></div>}>
       <main className="auth-portal-content"><section className="auth-portal-card">
@@ -284,4 +284,5 @@ function GroupRoom({group,user,onBack,notify}){
     <div className="surface inset"><div className="eyebrow">TEAM MEMBERS</div><h2>그룹 구성원</h2><div className="member-chips">{group.members.map(m=><div className="member-chip" key={m.id}><span className="avatar">{m.name.slice(0,1)}</span><b>{m.name}</b>{m.id===user.id&&<small>나</small>}</div>)}</div></div>}
   </div>;
 }
+
 
