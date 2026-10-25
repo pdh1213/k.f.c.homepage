@@ -1,4 +1,4 @@
-import React,{useState} from 'react';
+import React,{useEffect,useRef,useState} from 'react';
 import GroupChat from '../components/ui/group-chat.tsx';
 import {isDesktop} from './desktop.js';
 import './demo.css';
@@ -35,7 +35,9 @@ const initialDirectMessages=[
 
 export default function DemoShell({go}){
   const [section,setSection]=useState('home'),[room,setRoom]=useState(null),[notice,setNotice]=useState('');
-  const notify=message=>{setNotice(message);window.clearTimeout(notify.timer);notify.timer=window.setTimeout(()=>setNotice(''),4000)};
+  const noticeTimer=useRef(0);
+  useEffect(()=>()=>window.clearTimeout(noticeTimer.current),[]);
+  const notify=message=>{setNotice(message);window.clearTimeout(noticeTimer.current);noticeTimer.current=window.setTimeout(()=>setNotice(''),4000)};
   const navigate=id=>{setSection(id);setRoom(null);window.scrollTo(0,0)};
   return <div className="app-shell demo-shell">
     <aside className="sidebar">
