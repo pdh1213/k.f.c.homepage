@@ -67,6 +67,6 @@ if(k==="events"&&method==="GET"&&!id){let v=await all(db.from("events").select("
  if(k==="groups"&&id&&method==="PATCH"){let g=await save(db.from("groups").update({name:b.name,description:b.description,active:b.active}).eq("id",id).select("*").single());return out({group:g})}
  }}
  return bad("요청 경로를 찾을 수 없습니다.",404)
- }catch(e){let x=e as any;return bad(x?.message||"요청을 처리하지 못했습니다.",x?.status||400)}
+ }catch(e){let x=e as any;console.error("kfc-api request failed",JSON.stringify({path:pth,method,code:x?.code,message:x?.message}));return bad(x?.message||"요청을 처리하지 못했습니다.",x?.status||500)}
 });
 
