@@ -3,7 +3,7 @@ import {api,fmtDate,localInput,supabase} from './api.js';
 
 const tabs=[
   ['overview','개요'],['applications','가입 신청'],['members','회원 관리'],['announcements','공지사항'],
-  ['events','전체 일정'],['polls','설문 관리'],['groups','그룹 관리'],['security','보안 설정']
+  ['events','전체 일정'],['polls','설문 관리'],['groups','그룹 관리'],['settings','설정']
 ];
 const stateLabel={pending:'승인 대기',approved:'승인 완료',rejected:'반려'};
 export function AccessDenied({go}){return <div className="center-page"><section className="surface access-card"><div className="brand-image large"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/></div><h1>접근 권한이 없습니다</h1><p className="muted">관리자만 이 화면을 이용할 수 있습니다.</p><button className="button primary" onClick={()=>go('/dashboard')}>회원 홈으로</button></section></div>;}
@@ -12,7 +12,7 @@ function Empty({title,detail}){return <div className="empty-state"><span>✳</sp
 
 export function AdminShell({user,go,logout,notify,toast,blocked}){
   const [tab,setTab]=useState('overview'),[data,setData]=useState(null),[loading,setLoading]=useState(false),[query,setQuery]=useState('');
-  const [security,setSecurity]=useState(null);
+  const [settings,setSettings]=useState(null);
   const load=async(which=tab,q=query)=>{
     setLoading(true);
     const url={
@@ -23,9 +23,9 @@ export function AdminShell({user,go,logout,notify,toast,blocked}){
       events:'/api/admin/events',
       polls:'/api/admin/polls',
       groups:'/api/admin/groups',
-      security:'/api/admin/security'
+      settings:'/api/admin/settings'
     }[which];
-    try{const r=await api(url);setData(r);if(which==='security')setSecurity(r);}
+    try{const r=await api(url);setData(r);if(which==='settings')setSettings(r);}
     catch(e){notify(e.message);if(e.status===401||e.status===403)go('/');}
     finally{setLoading(false);}
   };
@@ -34,7 +34,7 @@ export function AdminShell({user,go,logout,notify,toast,blocked}){
   return <div className="admin-shell" inert={blocked}>
     <aside className="sidebar admin-sidebar">
       <button className="brand-link" onClick={()=>select('overview')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>K.F.C.<small>ADMIN CONSOLE</small></span></button>
-      <div className="club-label">관리자 메뉴</div><nav>{tabs.map(([key,label])=><button key={key} className={'nav-item '+(tab===key?'active':'')} onClick={()=>select(key)}><span className="nav-icon">{['overview','applications','members','announcements','events','polls','groups','security'].indexOf(key)+1}</span>{label}{key==='applications'&&data?.pending>0&&tab==='overview'&&<i className="nav-count">{data.pending}</i>}</button>)}</nav>
+      <div className="club-label">관리자 메뉴</div><nav>{tabs.map(([key,label])=><button key={key} className={'nav-item '+(tab===key?'active':'')} onClick={()=>select(key)}><span className="nav-icon">{['overview','applications','members','announcements','events','polls','groups','settings'].indexOf(key)+1}</span>{label}{key==='applications'&&data?.pending>0&&tab==='overview'&&<i className="nav-count">{data.pending}</i>}</button>)}</nav>
       <div className="sidebar-bottom"><div className="user-card"><div className="avatar club-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><b>{user.name}</b><small>관리자</small></div><button className="icon-button" aria-label="로그아웃" onClick={logout}>↗</button></div></div>
     </aside>
     <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / 관리자</span><strong>{tabs.find(t=>t[0]===tab)?.[1]}</strong></div><div className="topbar-right"><span className="shield">✓</span>관리자 인증됨</div></header>
@@ -45,7 +45,7 @@ export function AdminShell({user,go,logout,notify,toast,blocked}){
         tab==='events'?<EventAdmin data={data} refresh={()=>load('events','')} notify={notify}/>:
         tab==='polls'?<PollAdmin data={data} refresh={()=>load('polls','')} notify={notify}/>:
         tab==='groups'?<GroupAdmin data={data} refresh={()=>load('groups','')} notify={notify}/>:
-        <SecurityAdmin data={security||data} notify={notify} refresh={()=>load('security','')}/>}
+        <SettingsAdmin data={settings||data} notify={notify} refresh={()=>load('settings','')}/>}
       </div>
     </main>
     {toast&&<Toast message={toast}/>}
@@ -149,9 +149,11 @@ function GroupAdmin({data,refresh,notify}){
   return <div className="admin-manager"><section className="surface"><div className="eyebrow">NEW TEAM</div><h1>그룹 채팅방 만들기</h1><form className="form-stack" onSubmit={create}><label>그룹 이름<input required maxLength="100" value={name} onChange={e=>setName(e.target.value)}/></label><label>소개<input value={description} onChange={e=>setDescription(e.target.value)}/></label><div className="assign-list"><b>승인 회원 배정</b>{members.length?members.map(m=><label className="check-row" key={m.id}><input type="checkbox" checked={Boolean(chosen[m.id])} onChange={e=>setChosen({...chosen,[m.id]:e.target.checked})}/><span>{m.name}</span><small>@{m.username} · {m.school}</small></label>):<small className="muted">승인된 회원이 없습니다.</small>}</div><button className="button primary">그룹 만들기</button></form></section>
     <section className="surface"><div className="section-heading"><div><div className="eyebrow">TEAM ROOMS</div><h2>그룹 관리</h2></div><span className="count-pill">{groups.length}</span></div>{groups.length?groups.map(g=>{const assigned=editing[g.id]||Object.fromEntries(g.members.map(m=>[m.id,true]));return <article className="group-admin-card" key={g.id+'-'+revision}><div className="application-top"><div><h3>{g.name}</h3><span className={'status-pill '+(g.active?'approved':'rejected')}>{g.active?'운영 중':'종료'}</span></div><div className="button-row"><button className={g.active?'button danger-outline':'button secondary'} onClick={()=>toggleActive(g)}>{g.active?'그룹 종료':'다시 열기'}</button><button className="button danger-outline" onClick={()=>deleteGroup(g)}>완전 삭제</button></div></div><p className="muted">{g.description||'소개가 없습니다.'}</p><details><summary>구성원 배정 · 현재 {g.members.length}명</summary><div className="assign-list compact">{members.map(m=><label className="check-row" key={m.id}><input type="checkbox" checked={Boolean(assigned[m.id])} onChange={e=>setGroupMember(g,m.id,e.target.checked)}/><span>{m.name}</span><small>@{m.username}</small></label>)}</div><button className="button primary" onClick={async()=>{await saveMembers({...g,editing:assigned});setEditing(current=>{const next={...current};delete next[g.id];return next;});}}>구성원 저장</button></details></article>;}):<Empty title="등록된 그룹이 없습니다."/>}</section></div>;
 }
-function SecurityAdmin({data,notify,refresh}){
+function SettingsAdmin({data,notify,refresh}){
+  const [switching,setSwitching]=useState(false);
+  const toggleDemo=async()=>{setSwitching(true);try{const r=await api('/api/admin/settings',{method:'PATCH',body:{demoEnabled:!data?.demoEnabled}});notify(r.message);await refresh();}catch(e){notify(e.message);}finally{setSwitching(false);}};
   const [oldPassword,setOld]=useState(''),[newPassword,setNew]=useState(''),[confirm,setConfirm]=useState('');
   const submit=async e=>{e.preventDefault();if(newPassword!==confirm)return notify('새 비밀번호가 서로 다릅니다.');try{const r=await api('/api/auth/change-password',{method:'POST',body:{oldPassword,newPassword}});notify(r.message);setOld('');setNew('');setConfirm('');refresh();}catch(e){notify(e.message);}};
-  return <div className="admin-manager"><section className="surface"><div className="eyebrow">ACCOUNT SECURITY</div><h1>관리자 보안 설정</h1><div className="security-summary"><div><small>관리자 아이디</small><b>{data?.username||'확인 중'}</b></div><div><small>HTTPS</small><b>운영 배포 시 필수</b></div><div><small>초기 비밀번호 변경</small><b>{data?.mustChangePassword?'변경 필요':'변경 완료'}</b></div></div><p className="muted">관리자 비밀번호는 환경 변수에서 초기화하고, 로그인 후 이 화면에서 변경할 수 있습니다.</p></section>
+  return <div className="admin-manager"><section className="surface"><div className="eyebrow">SITE SETTINGS</div><h1>서비스 설정</h1><div className="setting-row"><div><h2>데모 모드</h2><p className="muted">방문자가 예시 공지·설문·채팅을 둘러볼 수 있습니다. 실제 회원 정보와 대화는 연결되지 않습니다.</p><span className={'status-pill '+(data?.demoEnabled?'approved':'rejected')}>{data?.demoEnabled?'켜짐 · 로그인 화면에 표시':'꺼짐 · 로그인 화면에서 숨김'}</span></div><button type="button" className={data?.demoEnabled?'button danger-outline':'button primary'} onClick={toggleDemo} disabled={switching||!data}>{switching?'저장 중…':data?.demoEnabled?'데모 모드 끄기':'데모 모드 켜기'}</button></div></section><section className="surface"><div className="eyebrow">ACCOUNT SECURITY</div><h1>계정 보안</h1><div className="security-summary"><div><small>관리자 아이디</small><b>{data?.username||'확인 중'}</b></div><div><small>HTTPS</small><b>운영 배포 시 필수</b></div><div><small>초기 비밀번호 변경</small><b>{data?.mustChangePassword?'변경 필요':'변경 완료'}</b></div></div><p className="muted">관리자 비밀번호는 환경 변수에서 초기화하고, 로그인 후 이 화면에서 변경할 수 있습니다.</p></section>
     <section className="surface"><h2>비밀번호 변경</h2><form className="form-stack narrow" onSubmit={submit}><label>현재 비밀번호<input type="password" autoComplete="current-password" required value={oldPassword} onChange={e=>setOld(e.target.value)}/></label><label>새 비밀번호<input type="password" minLength="10" autoComplete="new-password" required value={newPassword} onChange={e=>setNew(e.target.value)} placeholder="10자 이상"/></label><label>새 비밀번호 확인<input type="password" required value={confirm} onChange={e=>setConfirm(e.target.value)}/></label><button className="button primary">비밀번호 변경</button></form></section></div>;
 }

@@ -6,6 +6,7 @@ import '../components/ui/auth-portal.css';
 import GroupChat from '../components/ui/group-chat.tsx';
 import {isDesktop} from './desktop.js';
 import LoginWelcome from '../components/ui/login-welcome.jsx';
+import DemoShell from './Demo.jsx';
 
 const menu=[
   {path:'/dashboard',label:'홈',icon:'⌂'},
@@ -20,6 +21,7 @@ const statusText={pending:'승인 대기',approved:'승인 완료',rejected:'반
 export default function App(){
   const [user,setUser]=useState(undefined),[path,setPath]=useState(location.pathname),[toast,setToast]=useState('');
   const [showWelcome,setShowWelcome]=useState(false);
+  const [demoStatus,setDemoStatus]=useState({enabled:false,checked:false});
   const notify=(message)=>{setToast(message);window.clearTimeout(notify.timer);notify.timer=window.setTimeout(()=>setToast(''),3600);};
   const go=(next)=>{history.pushState({},'',next);setPath(next);window.scrollTo(0,0);};
   useEffect(()=>{const onPop=()=>setPath(location.pathname);window.addEventListener('popstate',onPop);return()=>window.removeEventListener('popstate',onPop);},[]);
@@ -28,11 +30,13 @@ export default function App(){
   useEffect(()=>{if(!user||user.role==='admin')return;const sync=()=>{if(document.visibilityState==='visible')refreshUser()};const timer=setInterval(sync,15000);window.addEventListener('focus',sync);document.addEventListener('visibilitychange',sync);return()=>{clearInterval(timer);window.removeEventListener('focus',sync);document.removeEventListener('visibilitychange',sync)}},[!!user,user?.role]);
   useEffect(()=>{if(!user||user.role==='admin')return;let channel=supabase.channel('kfc-executive',{config:{private:true}}).on('broadcast',{event:'sync'},()=>refreshUser()).subscribe();return()=>{supabase.removeChannel(channel)}},[!!user,user?.role]);
   useEffect(()=>{if(hasSupabaseConfig)refreshUser();else setUser(null);},[]);
+  useEffect(()=>{if(user!==null||!hasSupabaseConfig)return;let active=true;const check=async()=>{try{const r=await api('/api/demo-status',{cache:'no-store'});if(active)setDemoStatus({enabled:!!r.demoEnabled,checked:true});}catch{if(active)setDemoStatus({enabled:false,checked:true});}};check();const timer=window.setInterval(check,5000);const focus=()=>{if(document.visibilityState==='visible')check();};window.addEventListener('focus',focus);window.addEventListener('visibilitychange',focus);return()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',focus);window.removeEventListener('visibilitychange',focus);};},[user===null]);
   const logout=async()=>{userRequestRef.current++;try{await logoutCurrentSession();}catch{}finally{setShowWelcome(false);setUser(null);go('/');notify('로그아웃했습니다.');}};
   if(!hasSupabaseConfig)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>서비스 연결 설정이 없어 로그인할 수 없습니다. 잠시 후 다시 시도해 주세요.</span></div>;
   if(user===undefined)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>연결을 확인하고 있어요…</span></div>;
   if(path==='/download')return <DownloadPage go={go} notify={notify}/>;
-  if(!user)return <AuthScreen go={go} onLogin={(u)=>{userRequestRef.current++;setShowWelcome(true);setUser(u);go(u.role==='admin'?'/admin':'/dashboard');}} notify={notify}/>;
+  if(!user&&path==='/demo')return !demoStatus.checked?<div className="boot">데모 모드를 확인하고 있어요…</div>:demoStatus.enabled?<DemoShell go={go}/>:<div className="center-page"><section className="surface access-card"><h1>데모 모드가 종료되었습니다</h1><p className="muted">지금은 데모 화면을 이용할 수 없습니다.</p><button className="button primary" onClick={()=>go('/')}>로그인 화면으로</button></section></div>;
+  if(!user)return <AuthScreen go={go} demoEnabled={demoStatus.enabled} onDemo={async()=>{const r=await api('/api/demo-status',{cache:'no-store'});setDemoStatus({enabled:!!r.demoEnabled,checked:true});if(r.demoEnabled)go('/demo');return !!r.demoEnabled;}} onLogin={(u)=>{userRequestRef.current++;setShowWelcome(true);setUser(u);go(u.role==='admin'?'/admin':'/dashboard');}} notify={notify}/>;
   if(user.mustChangePassword)return <PasswordScreen user={user} done={refreshUser} logout={logout} notify={notify}/>;
   const welcome=showWelcome?<LoginWelcome onComplete={()=>setShowWelcome(false)}/>:null;
   if(user.role==='admin'){
@@ -43,7 +47,7 @@ export default function App(){
   return <><MemberShell user={user} go={go} logout={logout} notify={notify} toast={toast} blocked={showWelcome}/>{welcome}</>;
 }
 
-function AuthScreen({go,onLogin,notify}){
+function AuthScreen({go,onLogin,notify,demoEnabled,onDemo}){
   const [mode,setMode]=useState('login'),[busy,setBusy]=useState(false);
   const [login,setLogin]=useState({username:'',password:''});
   const [form,setForm]=useState({name:'',age:'',school:'',grade:'',phone:'',username:'',password:''});
@@ -56,6 +60,7 @@ function AuthScreen({go,onLogin,notify}){
     return()=>{window.clearTimeout(timer);root.removeEventListener('wheel',stopAutoAdvance);root.removeEventListener('touchstart',stopAutoAdvance);root.removeEventListener('pointerdown',stopAutoAdvance);};
   },[]);
   const submitLogin=async e=>{e.preventDefault();setBusy(true);setNotice('');try{const r=await api('/api/auth/login',{method:'POST',body:login});onLogin(r.user);}catch(err){setNotice(err.message);}finally{setBusy(false);}};
+  const enterDemo=async()=>{setBusy(true);setNotice('');try{if(!await onDemo())setNotice('데모 모드가 종료되었습니다.');}catch{setNotice('데모 모드를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');}finally{setBusy(false);}};
   const submitRegister=async e=>{e.preventDefault();setBusy(true);setNotice('');try{const r=await api('/api/auth/register',{method:'POST',body:form});setNotice(r.message+' 신청 상태는 승인 대기입니다.');setMode('login');setLogin({username:form.username,password:''});notify('가입 신청이 접수되었습니다.');}catch(err){setNotice(err.message);}finally{setBusy(false);}};
   return <div className="login-portal-scroll" ref={portalRef} tabIndex={-1}>
     <GlyphPortal word="K.F.C." focusChar="F" interactive={false} scrollLength={1.2} fontWeight={900} enterLabel="로그인 창으로 이동"
@@ -75,6 +80,7 @@ function AuthScreen({go,onLogin,notify}){
           <label>전화번호<input required type="tel" value={form.phone} onChange={e=>change('phone',e.target.value)} placeholder="010-1234-5678"/></label><label>로그인 아이디<input required minLength="4" maxLength="20" autoComplete="username" value={form.username} onChange={e=>setForm(v=>({...v,username:e.target.value}))} placeholder="영문, 숫자, 밑줄 4~20자"/></label>
           <label>비밀번호<input required type="password" minLength="10" maxLength="128" autoComplete="new-password" value={form.password} onChange={e=>change('password',e.target.value)} placeholder="10자 이상"/></label><button className="button primary full" disabled={busy}>{busy?'접수 중…':'가입 신청하기'} <span>→</span></button>
         </form>}
+        {mode==='login'&&demoEnabled&&<button type="button" className="button secondary full demo-entry" disabled={busy} onClick={enterDemo}>데모 모드 접속하기 <span>↗</span></button>}
         <div className="auth-footnote">가입 신청은 관리자의 승인 후 로그인할 수 있습니다.</div>{!isDesktop&&<a className="auth-windows-link" href="/download" onClick={e=>{e.preventDefault();go('/download');}}>Windows 앱 안내 ↗</a>}
       </section><div className="portal-footer">© K.F.C. Robotics Club · 용인시청소년수련관</div></main>
     </GlyphPortal>

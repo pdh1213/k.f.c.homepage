@@ -1,0 +1,24 @@
+.demo-banner{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding:14px 18px;border:1px solid #d7d0c4;border-radius:14px;background:#f3f0e9;color:#262522;line-height:1.5}
+.demo-banner b{white-space:nowrap;font-size:.8rem}
+.demo-banner span{flex:1;font-size:.78rem}
+.demo-banner button{border:0;background:transparent;color:#35312e;font-weight:700;text-decoration:underline;white-space:nowrap;cursor:pointer}
+.demo-top-label,.demo-room-label{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#efe8dd;color:#574937;font-size:.7rem;font-weight:800}
+.demo-groups{display:grid;gap:18px}
+.demo-groups .group-card,.demo-shell .dashboard-content>.surface .group-card{width:100%;text-align:left}
+.demo-survey .poll-card{margin-top:16px}
+.demo-survey .poll-question-answer{padding:18px 0;border-top:1px solid var(--line,#e8e3db)}
+.demo-survey .poll-question-answer h3{margin:0 0 12px;font-size:.94rem}
+.demo-survey .poll-question-answer em{font-style:normal;color:#8b4e42;font-size:.76rem}
+.demo-survey .poll-text-answer{width:100%;max-width:620px}
+.demo-result{margin:12px 0 0;padding:12px 14px;border-radius:10px;background:#eef5ea;color:#375c34;font-size:.86rem}
+.demo-shell .room-layout{min-width:0}
+.demo-shell .kfc-group-chat{min-height:480px}
+.demo-shell .room-heading{flex-wrap:wrap}
+.demo-entry{margin-top:12px;justify-content:center}
+.setting-row{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:12px}
+.setting-row h2{margin:0 0 8px;font-size:1.05rem}
+.setting-row p{margin:0 0 12px;max-width:640px;line-height:1.6}
+.setting-row button{flex-shrink:0}
+@media(max-width:700px){.demo-banner{align-items:flex-start;flex-direction:column}.demo-banner button{padding:0}.setting-row{align-items:stretch;flex-direction:column}.setting-row button{align-self:flex-start}}
+
+.demo-shell .kfc-chat-composer-hint{display:none}
