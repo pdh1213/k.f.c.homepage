@@ -60,4 +60,4 @@ Windows x64 / Node.js 22 이상에서 npm ci 후 npm run pack:win을 실행합�
 - Supabase 관리자 로그인 응답에서 role=admin 및 mustChangePassword=false 확인
 - 비로그인 요청으로 `/admin/overview` 호출 시 HTTP 401 확인
 - 인증된 관리자 API `/admin/overview`는 HTTP 200, 비로그인 요청은 HTTP 401을 반환하는 것을 확인했습니다.
-- Windows 2.0.0 설치 EXE와 자동 업데이트 파일은 GitHub Releases에 게시했습니다. 실제 사용자 기기의 구버전 → 신버전 교체는 별도 확인이 필요합니다.
+- Windows 2.1.0 설치 EXE와 자동 업데이트 파일은 GitHub Releases에 게시했습니다. 실제 사용자 기기의 구버전 → 신버전 교체는 별도 확인이 필요합니다.

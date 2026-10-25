@@ -5,6 +5,7 @@ import GlyphPortal from '../components/ui/glyph-portal.tsx';
 import '../components/ui/auth-portal.css';
 import GroupChat from '../components/ui/group-chat.tsx';
 import {isDesktop} from './desktop.js';
+import LoginWelcome from '../components/ui/login-welcome.jsx';
 
 const menu=[
   {path:'/dashboard',label:'홈',icon:'⌂'},
@@ -18,6 +19,7 @@ const statusText={pending:'승인 대기',approved:'승인 완료',rejected:'반
 
 export default function App(){
   const [user,setUser]=useState(undefined),[path,setPath]=useState(location.pathname),[toast,setToast]=useState('');
+  const [showWelcome,setShowWelcome]=useState(false);
   const notify=(message)=>{setToast(message);window.clearTimeout(notify.timer);notify.timer=window.setTimeout(()=>setToast(''),3600);};
   const go=(next)=>{history.pushState({},'',next);setPath(next);window.scrollTo(0,0);};
   useEffect(()=>{const onPop=()=>setPath(location.pathname);window.addEventListener('popstate',onPop);return()=>window.removeEventListener('popstate',onPop);},[]);
@@ -26,12 +28,13 @@ export default function App(){
   useEffect(()=>{if(!user||user.role==='admin')return;const sync=()=>{if(document.visibilityState==='visible')refreshUser()};const timer=setInterval(sync,15000);window.addEventListener('focus',sync);document.addEventListener('visibilitychange',sync);return()=>{clearInterval(timer);window.removeEventListener('focus',sync);document.removeEventListener('visibilitychange',sync)}},[!!user,user?.role]);
   useEffect(()=>{if(!user||user.role==='admin')return;let channel=supabase.channel('kfc-executive',{config:{private:true}}).on('broadcast',{event:'sync'},()=>refreshUser()).subscribe();return()=>{supabase.removeChannel(channel)}},[!!user,user?.role]);
   useEffect(()=>{if(hasSupabaseConfig)refreshUser();else setUser(null);},[]);
-  const logout=async()=>{userRequestRef.current++;try{await logoutCurrentSession();}catch{}finally{setUser(null);go('/');notify('로그아웃했습니다.');}};
+  const logout=async()=>{userRequestRef.current++;try{await logoutCurrentSession();}catch{}finally{setShowWelcome(false);setUser(null);go('/');notify('로그아웃했습니다.');}};
   if(!hasSupabaseConfig)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>서비스 연결 설정이 없어 로그인할 수 없습니다. 잠시 후 다시 시도해 주세요.</span></div>;
   if(user===undefined)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>연결을 확인하고 있어요…</span></div>;
   if(path==='/download')return <DownloadPage go={go} notify={notify}/>;
-  if(!user)return <AuthScreen go={go} onLogin={(u)=>{userRequestRef.current++;setUser(u);go(u.role==='admin'?'/admin':'/dashboard');}} notify={notify}/>;
+  if(!user)return <AuthScreen go={go} onLogin={(u)=>{userRequestRef.current++;setShowWelcome(true);setUser(u);go(u.role==='admin'?'/admin':'/dashboard');}} notify={notify}/>;
   if(user.mustChangePassword)return <PasswordScreen user={user} done={refreshUser} logout={logout} notify={notify}/>;
+  if(showWelcome)return <LoginWelcome onComplete={()=>setShowWelcome(false)}/>;
   if(user.role==='admin'){
     if(path!=='/admin')go('/admin');
     return <AdminShell user={user} go={go} logout={logout} notify={notify} toast={toast}/>;

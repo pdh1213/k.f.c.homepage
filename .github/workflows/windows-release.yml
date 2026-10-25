@@ -27,7 +27,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node --test scripts/desktop.test.mjs
+      - run: node --test scripts/*.test.mjs
       - run: npm run pack:win
       - uses: actions/upload-artifact@v4
         with:
