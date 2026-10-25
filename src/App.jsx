@@ -203,15 +203,26 @@ function EventDetail({event}){return <article className="event-detail"><span cla
 function Empty({title,detail}){return <div className="empty-state"><span>✳</span><b>{title}</b>{detail&&<small>{detail}</small>}</div>;}
 
 function Surveys({polls,refresh,notify}){
-  const [selected,setSelected]=useState({});
+  const [answers,setAnswers]=useState({}),[legacy,setLegacy]=useState({});
   const vote=async poll=>{
-    if(selected[poll.id]===undefined)return notify('응답 항목을 선택해 주세요.');
-    try{await api('/api/polls/'+poll.id+'/vote',{method:'POST',body:{optionIndex:Number(selected[poll.id])}});notify('설문 응답을 저장했습니다.');refresh();}
-    catch(e){notify(e.message);}
+    if(!poll.questions){if(legacy[poll.id]===undefined)return notify('응답 항목을 선택해 주세요.');try{await api('/api/polls/'+poll.id+'/vote',{method:'POST',body:{optionIndex:Number(legacy[poll.id])}});notify('설문 응답을 저장했습니다.');refresh();}catch(e){notify(e.message);}return;}
+    const response=answers[poll.id]||{};
+    const unanswered=poll.questions.find(q=>q.required&&(response[q.id]===undefined||response[q.id]===''||(Array.isArray(response[q.id])&&!response[q.id].length)));
+    if(unanswered)return notify('필수 질문에 답해 주세요: '+unanswered.title);
+    try{await api('/api/polls/'+poll.id+'/vote',{method:'POST',body:{answers:response}});notify('설문 응답을 저장했습니다.');refresh();}catch(e){notify(e.message);}
   };
+  const setAnswer=(pid,qid,value)=>setAnswers(x=>({...x,[pid]:{...(x[pid]||{}),[qid]:value}}));
   return <section className="surface"><div className="section-heading"><div><div className="eyebrow">YOUR VOICE</div><h1>설문</h1></div><span className="count-pill">{polls.length}건</span></div>
-    {polls.length?polls.map(p=><article className="poll-card" key={p.id}><div className="poll-top"><span className="poll-tag">{p.closed?'마감':'참여 가능'}</span><small>{fmtDate(p.createdAt,{dateStyle:'medium'})}</small></div><h2>{p.question}</h2><div className="poll-options">{p.options.map((o,i)=><label className={'radio-row '+(p.myVote===i?'chosen':'')} key={i}><input type="radio" name={'poll-'+p.id} disabled={p.closed||p.myVote!==null} checked={p.myVote===i||selected[p.id]===i} onChange={()=>setSelected({...selected,[p.id]:i})}/><span>{o}</span>{p.myVote===i&&<small>내 응답</small>}</label>)}</div>
-      {p.myVote===null&&!p.closed?<button className="button secondary" onClick={()=>vote(p)}>응답 제출</button>:<span className="muted small">{p.closed?'마감된 설문입니다.':'응답이 저장되었습니다.'}</span>}</article>):<Empty title="진행 중인 설문이 없습니다."/>}
+    {polls.length?polls.map(p=>{const structured=!!p.questions,answered=structured?!!p.myAnswers:p.myVote!==null;const own=p.myAnswers||{};return <article className="poll-card" key={p.id}><div className="poll-top"><span className="poll-tag">{p.closed?'마감':answered?'응답 완료':'참여 가능'}</span><small>{fmtDate(p.createdAt,{dateStyle:'medium'})}</small></div><h2>{p.question}</h2>{p.description&&<p className="muted">{p.description}</p>}
+      {structured?p.questions.map(q=>{const value=(answers[p.id]||{})[q.id]??own[q.id]??(q.type==='multiple_choice'?[]:'');const disabled=p.closed||answered;return <div className="poll-question-answer" key={q.id}><h3>{q.title}{q.required&&<em> · 필수</em>}</h3>{q.helpText&&<p className="muted">{q.helpText}</p>}
+        {q.type==='short_text'?<input className="poll-text-answer" maxLength="500" disabled={disabled} value={value} placeholder="답변을 입력해 주세요" onChange={e=>setAnswer(p.id,q.id,e.target.value)}/>:
+         q.type==='paragraph'?<textarea className="poll-text-answer" rows="4" maxLength="5000" disabled={disabled} value={value} placeholder="답변을 입력해 주세요" onChange={e=>setAnswer(p.id,q.id,e.target.value)}/>:
+         q.type==='date'?<input className="poll-text-answer" type="date" disabled={disabled} value={value} onChange={e=>setAnswer(p.id,q.id,e.target.value)}/>:
+         q.type==='linear_scale'?<div className="scale-answer"><span>{q.minLabel||q.scaleMin}</span>{Array.from({length:q.scaleMax-q.scaleMin+1},(_,i)=>q.scaleMin+i).map(n=><label key={n}><input type="radio" name={`poll-${p.id}-${q.id}`} disabled={disabled} checked={String(value)===String(n)} onChange={()=>setAnswer(p.id,q.id,n)}/>{n}</label>)}<span>{q.maxLabel||q.scaleMax}</span></div>:
+         q.type==='dropdown'?<select disabled={disabled} value={value} onChange={e=>setAnswer(p.id,q.id,e.target.value)}><option value="">선택해 주세요</option>{q.options.map(o=><option key={o}>{o}</option>)}</select>:
+         <div className="poll-options">{q.options.map((o,i)=><label className={'radio-row '+((q.type==='multiple_choice'?value.includes(o):value===o)?'chosen':'')} key={i}><input type={q.type==='multiple_choice'?'checkbox':'radio'} name={'poll-'+p.id+'-'+q.id} disabled={disabled} checked={q.type==='multiple_choice'?value.includes(o):value===o} onChange={e=>q.type==='multiple_choice'?setAnswer(p.id,q.id,e.target.checked?[...value,o]:value.filter(x=>x!==o)):setAnswer(p.id,q.id,o)}/><span>{o}</span></label>)}</div>}
+      </div>}):<div className="poll-options">{p.options.map((o,i)=><label className={'radio-row '+(p.myVote===i?'chosen':'')} key={i}><input type="radio" name={'poll-'+p.id} disabled={p.closed||answered} checked={p.myVote===i||legacy[p.id]===i} onChange={()=>setLegacy({...legacy,[p.id]:i})}/><span>{o}</span>{p.myVote===i&&<small>내 응답</small>}</label>)}</div>}
+      {!answered&&!p.closed?<button className="button secondary" onClick={()=>vote(p)}>응답 제출</button>:<span className="muted small">{p.closed?'마감된 설문입니다.':'응답이 저장되었습니다.'}</span>}</article>}):<Empty title="진행 중인 설문이 없습니다."/>}
   </section>;
 }
 

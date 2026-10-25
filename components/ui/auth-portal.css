@@ -11,4 +11,19 @@
 
 @media(max-height:720px) and (min-width:561px){.login-portal-scroll .auth-portal-content{justify-content:flex-start;padding-top:82px;padding-bottom:24px}.login-portal-scroll .auth-portal-card{padding:22px 28px}.portal-login-brand{margin-bottom:14px}.login-portal-scroll .auth-portal-card>.muted{margin-bottom:12px}.login-portal-scroll .auth-portal-card .auth-tabs{margin-bottom:12px}}
 @media(prefers-reduced-motion:reduce){.login-portal-scroll .auth-portal-card{transform:none}}
+/* K.F.C. glass-metal login skin: visual-only; existing login/register controls remain unchanged. */
+.login-portal-scroll{background:radial-gradient(ellipse at 18% 16%,#364d78 0,transparent 36%),radial-gradient(ellipse at 88% 82%,#186c68 0,transparent 34%),linear-gradient(135deg,#101827,#1e2b42 52%,#112a34);color:#f7f9fc}
+.login-portal-scroll:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;background-image:linear-gradient(#fff1 1px,transparent 1px),linear-gradient(90deg,#fff1 1px,transparent 1px);background-size:38px 38px;mask-image:linear-gradient(to bottom,#000,transparent 78%)}
+.login-portal-scroll [data-gp-content]{position:relative;z-index:1}
+.login-portal-scroll .auth-portal-content{color:#f7f9fc}
+.login-portal-scroll .auth-portal-card{border:1px solid #ffffff38;background:linear-gradient(145deg,#ffffff24,#ffffff0c);backdrop-filter:blur(22px) saturate(135%);-webkit-backdrop-filter:blur(22px) saturate(135%);box-shadow:0 2px 0 #ffffff25 inset,0 18px 0 #0b142280,0 42px 100px #02081580;transform:perspective(1200px) rotateX(1deg)}
+.login-portal-scroll .portal-login-brand img{border:1px solid #ffffff55;background:#f8fafc;box-shadow:0 8px 24px #02081555}
+.login-portal-scroll .portal-login-brand b{color:#f7f9fc}.login-portal-scroll .portal-login-brand small{color:#c4d0de}
+.login-portal-scroll .auth-portal-card>.eyebrow{color:#8ce1d4}.login-portal-scroll .auth-portal-card h1{color:#fff}.login-portal-scroll .auth-portal-card>.muted{color:#c7d2e0}
+.login-portal-scroll .auth-portal-card .auth-tabs{border-color:#ffffff2e}.login-portal-scroll .auth-portal-card .auth-tabs button{color:#b7c2d0}.login-portal-scroll .auth-portal-card .auth-tabs button.active{color:#fff}.login-portal-scroll .auth-portal-card .auth-tabs button.active:after{background:#77e0cb;box-shadow:0 0 14px #77e0cb88}
+.login-portal-scroll .auth-portal-card .form-stack label{color:#e0e7ef}.login-portal-scroll .auth-portal-card .form-stack input,.login-portal-scroll .auth-portal-card .form-stack select,.login-portal-scroll .auth-portal-card .form-stack textarea{color:#f8fbff;background:#101b2b99;border-color:#ffffff32}.login-portal-scroll .auth-portal-card .form-stack input::placeholder{color:#a8b7c8}.login-portal-scroll .auth-portal-card .form-stack input:focus,.login-portal-scroll .auth-portal-card .form-stack select:focus,.login-portal-scroll .auth-portal-card .form-stack textarea:focus{border-color:#82e4d1;box-shadow:0 0 0 3px #82e4d129;background:#101b2be0}
+.login-portal-scroll .auth-portal-card .button.primary{background:linear-gradient(135deg,#61d8c3,#318ec0);color:#071a24;box-shadow:0 9px 26px #2bcbb54a,inset 0 1px 0 #ffffff82}.login-portal-scroll .auth-portal-card .button.primary:hover{background:linear-gradient(135deg,#88ead7,#4aa8d5)}
+.login-portal-scroll .auth-portal-card .auth-footnote,.login-portal-scroll .portal-footer{color:#aab8c9}.login-portal-scroll .auth-windows-link{color:#8ce1d4}.login-portal-scroll .notice-box{background:#19433f;color:#c4fff2}.login-portal-scroll .error-box{background:#542e39;color:#ffd7dc}
+@media(max-width:560px){.login-portal-scroll .auth-portal-content{padding-top:70px}}
+@media(prefers-reduced-motion:reduce){.login-portal-scroll .auth-portal-card{transform:none}}
 
