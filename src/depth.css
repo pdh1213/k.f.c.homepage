@@ -1,0 +1,23 @@
+:root{--depth-shadow:0 14px 30px #12284412;--depth-line:#e3eaf2;--depth-highlight:#ffffffd9;}
+.surface,.quick-card,.group-card,.stat-card,.poll-card,.application-card,.group-admin-card,.modal-card,.download-steps>div,.password-card,.auth-portal-card{transform:translateY(0);transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease;box-shadow:0 2px 0 #d9e2ec,0 9px 22px #142b4810,inset 0 1px 0 var(--depth-highlight);}
+.quick-card,.group-card,.stat-card,.button,.download-icon,.brand-image,.brand-link .brand-image,.calendar-day,.room-tabs button,.nav-item{transition:transform .18s ease,box-shadow .18s ease,background-color .18s ease,border-color .18s ease;}
+.surface{border-color:var(--depth-line);background:linear-gradient(145deg,#fff,#fafcff);}
+.welcome-card,.admin-welcome{position:relative;isolation:isolate;overflow:hidden;box-shadow:0 8px 0 #0c1b34,0 23px 42px #14274428,inset 0 1px 0 #ffffff22;transform:perspective(1000px) rotateX(1deg);}
+.welcome-card:after,.admin-welcome:after{content:"";position:absolute;z-index:-1;inset:-40% -12% auto auto;width:46%;height:190%;transform:rotate(28deg);background:linear-gradient(90deg,transparent,#fff1,transparent);pointer-events:none;}
+.quick-card{border:1px solid #e2eaf2;box-shadow:0 4px 0 #d8e3ed,0 9px 18px #1327460c,inset 0 1px 0 #fff;}
+.group-card,.stat-card,.poll-card,.application-card,.group-admin-card{box-shadow:0 3px 0 #dfe7ef,0 8px 18px #142b480b,inset 0 1px 0 #fff;}
+.button.primary{background:linear-gradient(145deg,#1a9b90,#107d83);box-shadow:0 4px 0 #0c5e68,0 8px 14px #126f772b,inset 0 1px 0 #ffffff33;}
+.button.secondary{box-shadow:0 3px 0 #dbe4ed,0 6px 12px #142b480c,inset 0 1px 0 #fff;}
+.form-stack input,.inline-form input,.search-form input,.todo-add input,.chat-compose input,.toolbar select{box-shadow:inset 0 2px 4px #152d460c,0 1px 0 #fff;}
+.group-avatar{display:grid;place-items:center;overflow:hidden;border:1px solid #ffffffbb;box-shadow:0 4px 0 #0b223a,0 8px 16px #132b4828,inset 0 1px 0 #fff;}
+.group-avatar img{width:78%;height:78%;object-fit:contain;border-radius:10px;background:white;}
+.club-avatar{padding:2px;border:1px solid #ffffffcc;background:linear-gradient(145deg,#fff,#e3ebf2);box-shadow:0 3px 0 #cbd7e3,0 6px 12px #142b4820;}
+.club-avatar img{width:100%;height:100%;object-fit:contain;border-radius:inherit;}
+.topbar-logo{display:inline-flex;vertical-align:middle;margin-right:9px;box-shadow:0 2px 0 #dbe4ed,0 4px 10px #132b4816;}
+.calendar-day{box-shadow:inset 0 1px 0 #fff;}
+.calendar-day:active,.quick-card:active,.group-card:active,.button:active:not(:disabled){transform:translateY(2px);}
+@media(hover:hover) and (prefers-reduced-motion:no-preference){.surface:hover,.poll-card:hover,.application-card:hover,.group-admin-card:hover{transform:translateY(-2px);box-shadow:0 4px 0 #d9e2ec,0 14px 27px #142b4815,inset 0 1px 0 #fff}.quick-card:hover,.group-card:hover,.stat-card:hover{transform:translateY(-3px);box-shadow:0 7px 0 #d3dfeb,0 15px 25px #142b4819,inset 0 1px 0 #fff}.brand-image:hover{transform:translateY(-1px) rotate(-3deg);box-shadow:0 4px 0 #dbe4ed,0 9px 15px #132b4820}.download-icon{box-shadow:0 7px 0 #0c1b34,0 16px 30px #14274432,inset 0 1px 0 #ffffff25}}
+.todo-edit-row input{min-width:0;flex:1;border:1px solid var(--depth-line);border-radius:10px;padding:10px 12px;background:#f7faff;}
+@media(max-width:780px){.topbar-logo{width:32px!important;height:32px!important}.welcome-card{transform:none}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important}.surface,.quick-card,.group-card,.stat-card,.poll-card,.application-card,.group-admin-card,.welcome-card,.admin-welcome{transform:none!important}}
+

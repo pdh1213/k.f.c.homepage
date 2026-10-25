@@ -1,0 +1,132 @@
+.kfc-group-chat {
+  --chat-ink: #182841;
+  --chat-muted: #62748a;
+  --chat-line: #dce6f1;
+  --chat-cyan: #7de5e3;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  height: min(720px, 76vh);
+  height: min(720px, 76dvh);
+  min-height: 440px;
+  overflow: hidden;
+  border: 1px solid #e1ecf6;
+  border-radius: 26px;
+  background: #f1f6fb;
+  color: var(--chat-ink);
+  box-shadow: 0 22px 60px #0b254d1c, 0 7px 15px #1837530d, inset 0 1px 0 #fff;
+}
+.kfc-chat-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 21px 25px;
+  flex: none;
+  border-bottom: 1px solid #d9e8f022;
+  color: #f6fbff;
+  background: radial-gradient(ellipse at 90% -40%, #6a58b166, transparent 62%), linear-gradient(125deg, #15273d, #1b3b50);
+  box-shadow: 0 5px 14px #0c23331c, inset 0 1px 0 #ffffff17;
+}
+.kfc-chat-channel { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.kfc-chat-club-mark { display: grid; place-items: center; width: 56px; height: 56px; flex: none; border-radius: 18px; background: linear-gradient(145deg, #fff, #e7f0f5); border: 1px solid #fff; box-shadow: 0 7px 0 #09152569, 0 11px 22px #06132150; transform: rotate(-4deg); }
+.kfc-chat-club-mark img { width: 47px; height: 47px; object-fit: contain; border-radius: 12px; }
+.kfc-chat-overline { display: block; font-size: 9px; letter-spacing: .16em; font-weight: 800; color: #a3bfd3; }
+.kfc-chat-header h2 { margin: 4px 0 4px; font: inherit; font-size: clamp(16px, 2vw, 20px); font-weight: 750; line-height: 1.25; letter-spacing: -.03em; color: #f6fbff; overflow-wrap: anywhere; }
+.kfc-chat-header h2 > span { color: var(--chat-cyan); font-weight: 500; }
+.kfc-chat-private { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #bbcedd; }
+.kfc-chat-private svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 1.3; }
+.kfc-chat-header-right { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.kfc-chat-facepile { display: flex; align-items: center; padding-left: 9px; }
+.kfc-chat-facepile-item, .kfc-chat-facepile-extra { width: 32px; height: 32px; display: grid; place-items: center; overflow: hidden; margin-left: -9px; border: 2px solid #254053; border-radius: 50%; background: #e9f4fa; box-shadow: 0 3px 5px #06152430; }
+.kfc-chat-face { width: 100%; height: 100%; display: block; }
+.kfc-chat-facepile-extra { z-index: 1; font-size: 10px; font-weight: 800; color: #324d70; background: #e2e2fa; }
+.kfc-chat-connection { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; color: #bfd1df; white-space: nowrap; }
+.kfc-chat-connection i { width: 6px; height: 6px; flex: none; border-radius: 50%; background: #d7b574; box-shadow: 0 0 0 3px #d7b57413; }
+.kfc-chat-connection.is-online i { background: #81ebc4; box-shadow: 0 0 0 3px #81ebc41c, 0 0 10px #81ebc43d; }
+.kfc-chat-notice { flex: none; padding: 12px 22px; background: #f7efd9; color: #685124; border-bottom: 1px solid #e8ddbf; font-size: 12px; line-height: 1.6; }
+.kfc-chat-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding: 22px 25px 16px; scroll-padding: 18px; scrollbar-width: thin; scrollbar-color: #b6c7d7 transparent; background: radial-gradient(ellipse at 15% 4%, #dff0f76b, transparent 55%), radial-gradient(ellipse at 94% 100%, #e6e5fa70, transparent 55%), #f3f7fb; }
+.kfc-chat-scroll:focus-visible { outline: 2px solid #2f93a2; outline-offset: -3px; }
+.kfc-chat-log { display: flex; flex-direction: column; gap: 19px; min-height: 100%; }
+.kfc-chat-day { align-self: center; display: flex; align-items: center; gap: 12px; width: min(85%, 350px); margin: 1px 0 4px; font-size: 10px; color: #6b7f94; white-space: nowrap; }
+.kfc-chat-day:before, .kfc-chat-day:after { content: ""; height: 1px; background: #dce6ef; flex: 1; }
+.kfc-chat-run { display: flex; gap: 11px; align-items: flex-start; max-width: 88%; width: fit-content; }
+.kfc-chat-avatar { flex: none; width: 42px; height: 42px; padding: 3px; border: 1px solid #fff; border-radius: 15px; background: linear-gradient(145deg, #fff, #e3edf5); box-shadow: 0 4px 0 #c8d8e6, 0 7px 12px #1a365d12; }
+.kfc-chat-run-body { min-width: 0; }
+.kfc-chat-sender { display: flex; align-items: center; gap: 6px; margin: 1px 0 7px; font-size: 12px; line-height: 1.3; color: #41556d; }
+.kfc-chat-sender b { font-weight: 750; }
+.kfc-chat-sender > span { padding: 2px 5px; font-size: 9px; border-radius: 5px; color: #5c68a5; background: #e7eafb; font-weight: 700; }
+.kfc-chat-bubbles { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; }
+.kfc-chat-message { min-width: 75px; max-width: 100%; border: 1px solid #fff; border-radius: 4px 17px 17px 17px; padding: 11px 14px 8px; background: linear-gradient(155deg, #fff, #fbfdff); box-shadow: 0 3px 0 #dce6ee, 0 6px 14px #1b385d0a; overflow-wrap: anywhere; }
+.kfc-chat-message p { margin: 0; white-space: pre-wrap; font-size: 13px; line-height: 1.65; color: #23364c; }
+.kfc-chat-message time { display: block; margin: 4px 0 0; text-align: right; color: #7b8b9d; font-size: 9px; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.kfc-chat-run.is-mine { margin-left: auto; flex-direction: row-reverse; }
+.kfc-chat-run.is-mine .kfc-chat-sender { justify-content: flex-end; }
+.kfc-chat-run.is-mine .kfc-chat-bubbles { align-items: flex-end; }
+.kfc-chat-run.is-mine .kfc-chat-avatar { background: linear-gradient(145deg, #eff9ff, #dfe5fd); box-shadow: 0 4px 0 #bdc8e2, 0 7px 12px #1a365d12; }
+.kfc-chat-run.is-mine .kfc-chat-message { border-color: #7b92ce60; border-radius: 17px 4px 17px 17px; background: linear-gradient(125deg, #245d7c, #455c98); box-shadow: 0 3px 0 #1c3e66, 0 7px 17px #2a548d20, inset 0 1px 0 #ffffff22; }
+.kfc-chat-run.is-mine .kfc-chat-message p { color: #f6fbff; }
+.kfc-chat-run.is-mine .kfc-chat-message time { color: #d1e2f4; }
+.kfc-chat-empty { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; padding: 35px 16px; text-align: center; }
+.kfc-chat-empty-orbit { position: relative; width: 88px; height: 88px; display: grid; place-items: center; margin-bottom: 28px; border: 1px solid #fff; border-radius: 28px; background: linear-gradient(145deg, #fff, #e8edf7); transform: perspective(420px) rotateX(8deg) rotateY(-12deg) rotateZ(-6deg); box-shadow: 8px 11px 0 #cbd7e5, 12px 23px 30px #203d6a15; }
+.kfc-chat-empty-orbit:after { content: ""; position: absolute; width: 118px; height: 42px; border: 1px solid #7eaac466; border-radius: 50%; transform: rotate(-24deg); pointer-events: none; }
+.kfc-chat-empty-orbit img { width: 72px; height: 72px; border-radius: 20px; object-fit: contain; }
+.kfc-chat-empty .kfc-chat-overline { margin-bottom: 8px; color: #56829b; font-size: 8px; }
+.kfc-chat-empty h3 { font-size: 17px; margin: 0 0 9px; color: #253c55; }
+.kfc-chat-empty p { margin: 0; font-size: 12px; color: #6c8097; line-height: 1.8; }
+.kfc-chat-typing { display: flex; gap: 12px; align-items: center; color: #637a92; font-size: 11px; }
+.kfc-chat-typing > .kfc-chat-face { width: 36px; height: 36px; opacity: .55; }
+.kfc-chat-typing > span { display: inline-flex; align-items: center; gap: 8px; }
+.kfc-chat-typing-dots { display: inline-flex; gap: 3px; }
+.kfc-chat-typing-dots i { width: 4px; height: 4px; border-radius: 50%; background: #8197ad; animation: kfc-chat-dot 1.3s ease-in-out infinite; }
+.kfc-chat-typing-dots i:nth-child(2) { animation-delay: .15s; }
+.kfc-chat-typing-dots i:nth-child(3) { animation-delay: .3s; }
+.kfc-chat-end { height: 2px; }
+.kfc-chat-composer { flex: none; position: relative; z-index: 1; padding: 15px 20px 10px; border-top: 1px solid #e0e8f0; background: linear-gradient(#fff, #f7fafd); box-shadow: 0 -6px 18px #12365c05; }
+.kfc-chat-composer .chat-compose { padding: 0; border: 0; background: transparent; display: flex; gap: 10px; align-items: center; }
+.kfc-chat-composer .chat-compose input, .kfc-chat-composer .chat-compose textarea { min-width: 0; flex: 1; border: 1px solid #d4dfeb; border-radius: 15px; background: #edf3f9; padding: 13px 15px; box-shadow: inset 0 2px 4px #28435e09, 0 1px 0 #fff; color: #23384f; font-size: 13px; }
+.kfc-chat-composer .chat-compose input:focus, .kfc-chat-composer .chat-compose textarea:focus { outline: none; background: #fff; border-color: #5394aa; box-shadow: 0 0 0 3px #52b6c31c; }
+.kfc-chat-composer .chat-compose input::placeholder, .kfc-chat-composer .chat-compose textarea::placeholder { color: #8b9cae; }
+.kfc-chat-composer .chat-compose .button { flex: none; min-height: 43px; border-radius: 14px; padding: 10px 18px; color: #fff; background: linear-gradient(140deg, #237c91, #5263a9); border: 1px solid #466d99; box-shadow: 0 4px 0 #234966, 0 6px 12px #25496a15, inset 0 1px 0 #ffffff30; transition: transform .18s ease, box-shadow .18s ease; }
+.kfc-chat-composer .chat-compose .button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 0 #234966, 0 10px 18px #25496a21, inset 0 1px 0 #ffffff30; }
+.kfc-chat-composer .chat-compose .button:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #234966, inset 0 1px 0 #ffffff30; }
+.kfc-chat-composer .chat-compose .button:focus-visible { outline: 3px solid #50bbc8; outline-offset: 3px; }
+.kfc-chat-composer-hint { text-align: center; margin: 10px 0 0; color: #8190a1; font-size: 9px; line-height: 1.4; }
+@keyframes kfc-chat-dot { 0%, 65%, 100% { transform: translateY(0); opacity: .45; } 30% { transform: translateY(-3px); opacity: 1; } }
+@media (max-width: 600px) {
+  .kfc-group-chat { min-height: 410px; height: 70vh; height: 70dvh; border-radius: 21px; }
+  .kfc-chat-header { padding: 16px; gap: 10px; }
+  .kfc-chat-channel { gap: 10px; }
+  .kfc-chat-club-mark { width: 43px; height: 43px; border-radius: 14px; }
+  .kfc-chat-club-mark img { width: 36px; height: 36px; border-radius: 10px; }
+  .kfc-chat-header h2 { font-size: 15px; }
+  .kfc-chat-private { font-size: 9px; }
+  .kfc-chat-overline { font-size: 8px; }
+  .kfc-chat-facepile-item, .kfc-chat-facepile-extra { width: 25px; height: 25px; margin-left: -8px; }
+  .kfc-chat-connection { font-size: 8px; }
+  .kfc-chat-scroll { padding: 18px 13px 14px; }
+  .kfc-chat-run { gap: 8px; max-width: 96%; }
+  .kfc-chat-avatar { width: 33px; height: 33px; border-radius: 11px; }
+  .kfc-chat-message { padding: 9px 11px 7px; }
+  .kfc-chat-message p { font-size: 12px; }
+  .kfc-chat-sender { font-size: 10px; margin-bottom: 6px; }
+  .kfc-chat-composer { padding: 12px 11px 9px; }
+  .kfc-chat-composer .chat-compose { gap: 7px; }
+  .kfc-chat-composer .chat-compose input { padding: 12px 11px; font-size: 12px; }
+  .kfc-chat-composer .chat-compose .button { padding: 10px 12px; font-size: 12px; }
+}
+@media (max-width: 380px) {
+  .kfc-chat-header-right .kfc-chat-facepile { display: none; }
+  .kfc-chat-header { padding-inline: 12px; }
+  .kfc-chat-club-mark { width: 36px; height: 36px; border-radius: 11px; }
+  .kfc-chat-club-mark img { width: 31px; height: 31px; }
+  .kfc-chat-header h2 { font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kfc-group-chat *, .kfc-group-chat *:before, .kfc-group-chat *:after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .kfc-chat-composer .chat-compose .button:hover:not(:disabled), .kfc-chat-composer .chat-compose .button:active:not(:disabled) { transform: none; }
+}
+

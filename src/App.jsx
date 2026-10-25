@@ -3,6 +3,7 @@ import {api,apiUrl,supabase,fmtDate,localInput} from './api.js';
 import {AdminShell,AccessDenied,Toast} from './Admin.jsx';
 import GlyphPortal from '../components/ui/glyph-portal.tsx';
 import '../components/ui/auth-portal.css';
+import GroupChat from '../components/ui/group-chat.tsx';
 
 const menu=[
   {path:'/dashboard',label:'홈',icon:'⌂'},
@@ -41,7 +42,7 @@ function AuthScreen({go,onLogin,notify}){
   const [notice,setNotice]=useState(''); const portalRef=useRef(null);
   const change=(key,value)=>setForm(v=>({...v,[key]:value}));
   useEffect(()=>{const root=portalRef.current;if(!root||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-    const timer=window.setTimeout(()=>root.scrollTo({top:root.scrollHeight,behavior:'smooth'}),420);
+    const timer=window.setTimeout(()=>{const content=root.querySelector('[data-gp-content]');if(content){const y=content.getBoundingClientRect().top-root.getBoundingClientRect().top+root.scrollTop;root.scrollTo({top:y,behavior:'smooth'});}},420);
     const stopAutoAdvance=()=>window.clearTimeout(timer);
     root.addEventListener('wheel',stopAutoAdvance,{once:true,passive:true});root.addEventListener('touchstart',stopAutoAdvance,{once:true,passive:true});root.addEventListener('pointerdown',stopAutoAdvance,{once:true,passive:true});
     return()=>{window.clearTimeout(timer);root.removeEventListener('wheel',stopAutoAdvance);root.removeEventListener('touchstart',stopAutoAdvance);root.removeEventListener('pointerdown',stopAutoAdvance);};
@@ -49,7 +50,7 @@ function AuthScreen({go,onLogin,notify}){
   const submitLogin=async e=>{e.preventDefault();setBusy(true);setNotice('');try{const r=await api('/api/auth/login',{method:'POST',body:login});onLogin(r.user);}catch(err){setNotice(err.message);}finally{setBusy(false);}};
   const submitRegister=async e=>{e.preventDefault();setBusy(true);setNotice('');try{const r=await api('/api/auth/register',{method:'POST',body:form});setNotice(r.message+' 신청 상태는 승인 대기입니다.');setMode('login');setLogin({username:form.username,password:''});notify('가입 신청이 접수되었습니다.');}catch(err){setNotice(err.message);}finally{setBusy(false);}};
   return <div className="login-portal-scroll" ref={portalRef} tabIndex={-1}>
-    <GlyphPortal word="K.F.C." focusChar="F" interactive={false} scrollLength={1.45} fontWeight={900} enterLabel="로그인 창으로 이동"
+    <GlyphPortal word="K.F.C." focusChar="F" interactive={false} scrollLength={1.2} fontWeight={900} enterLabel="로그인 창으로 이동"
       style={{"--gp-paper":"#f3f7f6","--gp-ink":"#14232d","--gp-field":"#122a35","--gp-foreground":"#f5fbfa"}}
       background={<div className="portal-field-bg"/>}
       front={<div className="portal-frontbar"><div className="portal-front-brand"><img src="/kfc-logo.png" alt=""/><span>K.F.C.</span><small>용인시청소년수련관 로봇동아리</small></div><button type="button" onClick={()=>go('/download')}>Windows 앱 안내 ↗</button></div>}>
@@ -114,25 +115,28 @@ function MemberShell({user,go,logout,notify,toast}){
   const [section,setSection]=useState(()=>menu.find(m=>m.path===location.pathname)?.path||'/dashboard');
   const [announcements,setAnnouncements]=useState([]),[events,setEvents]=useState([]),[polls,setPolls]=useState([]),[groups,setGroups]=useState([]);
   const [loading,setLoading]=useState(true),[selectedGroup,setSelectedGroup]=useState(null);
-  const load=async()=>{
-    setLoading(true);
-    try{
-      const [a,e,p,g]=await Promise.all([api('/api/announcements'),api('/api/events'),api('/api/polls'),api('/api/groups')]);
-      setAnnouncements(a.announcements);setEvents(e.events);setPolls(p.polls);setGroups(g.groups);
-    }catch(err){notify(err.message);}
-    finally{setLoading(false);}
+  const load=async({quiet=false}={})=>{
+    if(!quiet)setLoading(true);
+    const results=await Promise.allSettled([api('/api/announcements'),api('/api/events'),api('/api/polls'),api('/api/groups')]);
+    const [a,e,p,g]=results;
+    if(a.status==='fulfilled')setAnnouncements(a.value.announcements||[]);
+    if(e.status==='fulfilled')setEvents(e.value.events||[]);
+    if(p.status==='fulfilled')setPolls(p.value.polls||[]);
+    if(g.status==='fulfilled')setGroups(g.value.groups||[]);
+    const failed=results.find(x=>x.status==='rejected');if(failed&&!quiet)notify(failed.reason?.message||'일부 정보를 불러오지 못했습니다.');
+    if(!quiet)setLoading(false);
   };
-  useEffect(()=>{load();},[]);
+  useEffect(()=>{load();const refresh=()=>{if(document.visibilityState==='visible')load({quiet:true});};const timer=window.setInterval(refresh,12000);window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);return()=>{window.clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};},[]);
   const navigate=path=>{setSection(path);setSelectedGroup(null);go(path);};
   const groupOpen=(g)=>{setSelectedGroup(g);setSection('/groups');history.pushState({},'','/groups');};
   return <div className="app-shell">
     <aside className="sidebar">
-      <button className="brand-link" onClick={()=>navigate('/dashboard')}><span className="brand-mark small">K</span><span>K.F.C.<small>ROBOTICS CLUB</small></span></button>
+      <button className="brand-link" onClick={()=>navigate('/dashboard')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>K.F.C.<small>ROBOTICS CLUB</small></span></button>
       <div className="club-label">MEMBER SPACE</div>
       <nav>{menu.map(m=><button key={m.path} className={section===m.path?'nav-item active':'nav-item'} onClick={()=>navigate(m.path)}><span className="nav-icon">{m.icon}</span>{m.label}{m.path==='/groups'&&groups.length>0&&<i className="nav-count">{groups.length}</i>}</button>)}</nav>
-      <div className="sidebar-bottom"><button className="nav-item" onClick={()=>go('/download')}><span className="nav-icon">↓</span>Windows 앱</button><div className="user-card"><div className="avatar">{user.name.slice(0,1)}</div><div><b>{user.name}</b><small>승인 회원</small></div><button className="icon-button" aria-label="로그아웃" title="로그아웃" onClick={logout}>↗</button></div></div>
+      <div className="sidebar-bottom"><button className="nav-item" onClick={()=>go('/download')}><span className="nav-icon">↓</span>Windows 앱</button><div className="user-card"><div className="avatar club-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><b>{user.name}</b><small>승인 회원</small></div><button className="icon-button" aria-label="로그아웃" title="로그아웃" onClick={logout}>↗</button></div></div>
     </aside>
-    <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / {menu.find(m=>m.path===section)?.label||'홈'}</span><strong>회원 공간</strong></div><div className="topbar-right"><span className="live-dot"/>온라인</div></header>
+    <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / {menu.find(m=>m.path===section)?.label||'홈'}</span><strong>회원 공간</strong></div><div className="topbar-right"><span className="brand-image small topbar-logo"><img src="/kfc-logo.png" alt="K.F.C."/></span><span className="live-dot"/>온라인</div></header>
       <div className="page-body">
         {loading?<div className="loading-card">회원 정보를 불러오고 있어요…</div>:selectedGroup?
           <GroupRoom group={selectedGroup} user={user} onBack={()=>setSelectedGroup(null)} notify={notify}/>:
@@ -165,7 +169,7 @@ function Dashboard({user,announcements,events,groups,open,groupOpen}){
       </section>
     </div>
     <section className="surface"><div className="section-heading"><div><div className="eyebrow">YOUR TEAMS</div><h2>내 그룹</h2></div><button className="text-button" onClick={()=>open('/groups')}>모두 보기 →</button></div>
-      {groups.length?<div className="group-cards">{groups.slice(0,3).map(g=><button className="group-card" key={g.id} onClick={()=>groupOpen(g)}><span className="group-avatar">K</span><span><b>{g.name}</b><small>{g.members.length}명의 팀원 · 새 메시지 확인</small></span><span className="row-arrow">→</span></button>)}</div>:<Empty title="아직 배정된 그룹이 없습니다."/>}
+      {groups.length?<div className="group-cards">{groups.slice(0,3).map(g=><button className="group-card" key={g.id} onClick={()=>groupOpen(g)}><span className="group-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></span><span><b>{g.name}</b><small>{g.members.length}명의 팀원 · 새 메시지 확인</small></span><span className="row-arrow">→</span></button>)}</div>:<Empty title="아직 배정된 그룹이 없습니다."/>}
     </section>
   </div>;
 }
@@ -212,14 +216,14 @@ function Surveys({polls,refresh,notify}){
 
 function Groups({groups,open}){
   return <section className="surface"><div className="section-heading"><div><div className="eyebrow">TEAM SPACE</div><h1>그룹 채팅</h1><p className="muted">관리자가 배정한 그룹에서만 대화할 수 있습니다.</p></div><span className="count-pill">{groups.length}개 그룹</span></div>
-    {groups.length?<div className="group-cards">{groups.map(g=><button className="group-card large" key={g.id} onClick={()=>open(g)}><span className="group-avatar">K</span><span><b>{g.name}</b><small>{g.description||'함께 이야기하고 계획을 세워 보세요.'}</small><small>{g.members.map(m=>m.name).join(' · ')||'팀원'} · {g.members.length}명</small></span><span className="row-arrow">→</span></button>)}</div>:<Empty title="아직 배정된 그룹이 없습니다." detail="관리자가 그룹에 초대하면 이곳에 표시됩니다."/>}
+    {groups.length?<div className="group-cards">{groups.map(g=><button className="group-card large" key={g.id} onClick={()=>open(g)}><span className="group-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></span><span><b>{g.name}</b><small>{g.description||'함께 이야기하고 계획을 세워 보세요.'}</small><small>{g.members.map(m=>m.name).join(' · ')||'팀원'} · {g.members.length}명</small></span><span className="row-arrow">→</span></button>)}</div>:<Empty title="아직 배정된 그룹이 없습니다." detail="관리자가 그룹에 초대하면 이곳에 표시됩니다."/>}
   </section>;
 }
 
 function GroupRoom({group,user,onBack,notify}){
   const [tab,setTab]=useState('chat'),[messages,setMessages]=useState([]),[events,setEvents]=useState([]),[todos,setTodos]=useState([]);
   const [connected,setConnected]=useState(false),[content,setContent]=useState(''),[busy,setBusy]=useState(false);
-  const [todoTitle,setTodoTitle]=useState(''),[eventForm,setEventForm]=useState({title:'',description:'',startAt:localInput(),endAt:localInput(new Date(Date.now()+3600000))});
+  const [todoTitle,setTodoTitle]=useState(''),[editingTodo,setEditingTodo]=useState(null),[eventForm,setEventForm]=useState({title:'',description:'',startAt:localInput(),endAt:localInput(new Date(Date.now()+3600000))});
   const endRef=useRef(null),base='/api/groups/'+group.id;
   const sync=async()=>{
     try{
@@ -232,38 +236,38 @@ function GroupRoom({group,user,onBack,notify}){
     const channel=supabase.channel('kfc-group:'+group.id,{config:{private:true}})
       .on('broadcast',{event:'sync'},()=>{if(live)sync();})
       .subscribe(status=>{setConnected(status==='SUBSCRIBED');if(status==='SUBSCRIBED')sync();});
-    sync();
-    return()=>{live=false;setConnected(false);supabase.removeChannel(channel);};
+    sync();const refresh=()=>{if(live&&document.visibilityState==='visible')sync();};const timer=window.setInterval(refresh,12000);window.addEventListener('focus',refresh);window.addEventListener('online',refresh);
+    return()=>{live=false;window.clearInterval(timer);window.removeEventListener('focus',refresh);window.removeEventListener('online',refresh);setConnected(false);supabase.removeChannel(channel);};
   },[group.id]);
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'});},[messages]);
   const send=async e=>{
     e.preventDefault();if(!content.trim()||busy)return;setBusy(true);
-    try{await api(base+'/messages',{method:'POST',body:{content}});setContent('');}
+    try{await api(base+'/messages',{method:'POST',body:{content}});setContent('');await sync();}
     catch(e){notify(e.message);}
     finally{setBusy(false);}
   };
   const addTodo=async e=>{e.preventDefault();if(!todoTitle.trim())return;
-    try{await api(base+'/todos',{method:'POST',body:{title:todoTitle}});setTodoTitle('');}
+    try{await api(base+'/todos',{method:'POST',body:{title:todoTitle}});setTodoTitle('');await sync();}
     catch(e){notify(e.message);}
   };
   const addEvent=async e=>{e.preventDefault();
-    try{await api(base+'/events',{method:'POST',body:{...eventForm,startAt:new Date(eventForm.startAt).toISOString(),endAt:new Date(eventForm.endAt).toISOString()}});setEventForm({...eventForm,title:'',description:''});notify('그룹 일정을 추가했습니다.');}
+    try{await api(base+'/events',{method:'POST',body:{...eventForm,startAt:new Date(eventForm.startAt).toISOString(),endAt:new Date(eventForm.endAt).toISOString()}});setEventForm({...eventForm,title:'',description:''});await sync();notify('그룹 일정을 추가했습니다.');}
     catch(e){notify(e.message);}
   };
-  const toggleTodo=async t=>{try{await api(base+'/todos/'+t.id,{method:'PATCH',body:{done:!t.done}});}catch(e){notify(e.message);}};
-  const deleteTodo=async t=>{try{await api(base+'/todos/'+t.id,{method:'DELETE'});}catch(e){notify(e.message);}};
+  const toggleTodo=async t=>{try{await api(base+'/todos/'+t.id,{method:'PATCH',body:{done:!t.done}});await sync();}catch(e){notify(e.message);}};
+  const deleteTodo=async t=>{try{await api(base+'/todos/'+t.id,{method:'DELETE'});await sync();}catch(e){notify(e.message);}};
+  const saveTodo=async e=>{e.preventDefault();if(!editingTodo?.title?.trim())return;try{await api(base+'/todos/'+editingTodo.id,{method:'PATCH',body:{title:editingTodo.title,done:editingTodo.done}});setEditingTodo(null);await sync();notify('할 일을 수정했습니다.');}catch(err){notify(err.message);}};
   return <div className="room-layout">
-    <div className="room-heading"><button className="text-button" onClick={onBack}>← 그룹 목록</button><div className="room-title"><div className="group-avatar">K</div><div><h1>{group.name}</h1><small>{group.members.length}명의 팀원 · {group.description||'K.F.C. 그룹 공간'}</small></div></div><div className="room-presence"><i className={connected?'live-dot':'offline-dot'}/>{connected?'실시간 연결됨':'다시 연결 중'}</div></div>
+    <div className="room-heading"><button className="text-button" onClick={onBack}>← 그룹 목록</button><div className="room-title"><div className="group-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><h1>{group.name}</h1><small>{group.members.length}명의 팀원 · {group.description||'K.F.C. 그룹 공간'}</small></div></div><div className="room-presence"><i className={connected?'live-dot':'offline-dot'}/>{connected?'실시간 연결됨':'다시 연결 중'}</div></div>
     <div className="room-tabs">{[['chat','대화'],['schedule','그룹 일정'],['todos','공동 할 일'],['people','구성원']].map(([k,label])=><button key={k} className={tab===k?'active':''} onClick={()=>setTab(k)}>{label}</button>)}</div>
-    {tab==='chat'?<div className="chat-card"><div className="chat-scroll">{messages.length?messages.map(m=><div className={'message-row '+(m.userId===user.id?'mine':'')} key={m.id}><div className="message-avatar">{m.name.slice(0,1)}</div><div className="message-body"><div className="message-meta"><b>{m.userId===user.id?'나':m.name}</b><time>{fmtDate(m.createdAt,{timeStyle:'short'})}</time></div><div className="bubble">{m.content}</div></div></div>):<Empty title="첫 메시지를 남겨 보세요." detail="이 그룹의 구성원만 대화를 볼 수 있습니다."/>}<div ref={endRef}/></div>
-      <form className="chat-compose" onSubmit={send}><input aria-label="메시지" value={content} onChange={e=>setContent(e.target.value)} maxLength="2000" placeholder="메시지를 입력해 주세요…" disabled={!connected}/><button className="button primary" disabled={!content.trim()||busy||!connected}>보내기 ↑</button></form></div>:
+    {tab==='chat'?<GroupChat messages={messages.map(m=>({id:m.id,userId:String(m.userId),name:m.name,text:m.content,createdAt:m.createdAt}))} channel={group.name} members={group.members.map(m=>({id:String(m.id),name:m.name}))} currentUserId={String(user.id)} connected={connected} connectionLabel={connected?'실시간 연결됨':'연결 복구 중 · 기록 동기화 중'} footerRef={endRef} composer={<form className="chat-compose" onSubmit={send}><input aria-label="메시지" value={content} onChange={e=>setContent(e.target.value)} maxLength="2000" placeholder="메시지를 입력해 주세요…"/><button className="button primary" disabled={!content.trim()||busy}>보내기 ↑</button></form>} />:
     tab==='schedule'?<div className="room-panel"><section className="surface inset"><div className="section-heading"><div><div className="eyebrow">TEAM SCHEDULE</div><h2>그룹 일정</h2></div></div>
       {events.length?events.map(e=><EventDetail key={e.id} event={e}/>):<Empty title="그룹 일정이 없습니다."/>}
       <form className="inline-form" onSubmit={addEvent}><h3>일정 추가</h3><label>제목<input required value={eventForm.title} onChange={e=>setEventForm({...eventForm,title:e.target.value})}/></label><label>상세 내용<input value={eventForm.description} onChange={e=>setEventForm({...eventForm,description:e.target.value})}/></label><div className="form-grid"><label>시작<input type="datetime-local" required value={eventForm.startAt} onChange={e=>setEventForm({...eventForm,startAt:e.target.value})}/></label><label>종료<input type="datetime-local" required value={eventForm.endAt} onChange={e=>setEventForm({...eventForm,endAt:e.target.value})}/></label></div><button className="button secondary">그룹 일정 저장</button></form>
     </section></div>:
     tab==='todos'?<div className="room-panel"><section className="surface inset"><div className="section-heading"><div><div className="eyebrow">TEAM TASKS</div><h2>공동 할 일</h2></div><span className="count-pill">{todos.filter(t=>!t.done).length}개 남음</span></div>
       <form className="todo-add" onSubmit={addTodo}><input value={todoTitle} onChange={e=>setTodoTitle(e.target.value)} maxLength="120" placeholder="새 할 일을 적어 주세요"/><button className="button primary">추가</button></form>
-      {todos.length?todos.map(t=><div className={'todo-row '+(t.done?'done':'')} key={t.id}><label><input type="checkbox" checked={t.done} onChange={()=>toggleTodo(t)}/><span>{t.title}</span></label><small>{fmtDate(t.updatedAt,{dateStyle:'short'})}</small><button className="icon-button" aria-label="할 일 삭제" onClick={()=>deleteTodo(t)}>×</button></div>):<Empty title="공동 할 일이 없습니다."/>}
+      {todos.length?todos.map(t=>editingTodo?.id===t.id?<form className="todo-row todo-edit-row" key={t.id} onSubmit={saveTodo}><input aria-label="할 일 제목 수정" value={editingTodo.title} onChange={e=>setEditingTodo({...editingTodo,title:e.target.value})}/><button className="button secondary">저장</button><button type="button" className="text-button" onClick={()=>setEditingTodo(null)}>취소</button></form>:<div className={'todo-row '+(t.done?'done':'')} key={t.id}><label><input type="checkbox" checked={t.done} onChange={()=>toggleTodo(t)}/><span>{t.title}</span></label><small>{fmtDate(t.updatedAt,{dateStyle:'short'})}</small><button className="text-button" aria-label="할 일 수정" onClick={()=>setEditingTodo({id:t.id,title:t.title,done:t.done})}>수정</button><button className="icon-button" aria-label="할 일 삭제" onClick={()=>deleteTodo(t)}>×</button></div>):<Empty title="공동 할 일이 없습니다."/>}
     </section></div>:
     <div className="surface inset"><div className="eyebrow">TEAM MEMBERS</div><h2>그룹 구성원</h2><div className="member-chips">{group.members.map(m=><div className="member-chip" key={m.id}><span className="avatar">{m.name.slice(0,1)}</span><b>{m.name}</b>{m.id===user.id&&<small>나</small>}</div>)}</div></div>}
   </div>;
