@@ -41,7 +41,7 @@ function buildMenu(){
 function createWindow(){
   mainWindow=new BrowserWindow({
     width:1280,height:850,minWidth:360,minHeight:560,show:false,
-    backgroundColor:'#f5f7fb',icon:path.join(__dirname,'kfc-icon.ico'),title:'K.F.C. 로봇동아리',
+    backgroundColor:'#faf9f5',icon:path.join(__dirname,'kfc-icon.ico'),title:'K.F.C. 로봇동아리',
     webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}
   });
   mainWindow.once('ready-to-show',()=>mainWindow.show());
