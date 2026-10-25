@@ -1,7 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
-const supabaseUrl=import.meta.env.VITE_SUPABASE_URL||'';
-const supabaseKey=import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY||'';
-export const supabase=createClient(supabaseUrl,supabaseKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const supabaseUrl=(import.meta.env.VITE_SUPABASE_URL||'').trim();
+const supabaseKey=(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY||'').trim();
+export const hasSupabaseConfig=/^https:\/\//.test(supabaseUrl)&&Boolean(supabaseKey);
+const safeSupabaseUrl=hasSupabaseConfig?supabaseUrl:'https://configuration-missing.supabase.co';
+const safeSupabaseKey=hasSupabaseConfig?supabaseKey:'configuration-missing';
+export const supabase=createClient(safeSupabaseUrl,safeSupabaseKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 export const apiBase=(import.meta.env.VITE_API_BASE_URL||supabaseUrl+'/functions/v1/kfc-api').trim().replace(/\/+$/,'');
 export const apiUrl=path=>apiBase+(path.startsWith('/')?path:'/'+path);
 const authStorageKey=()=>{try{return `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`;}catch{return 'supabase.auth.token';}};
