@@ -40,16 +40,19 @@ Vercel 프로젝트 `kfc-robot-club`은 Vite, `npm run build`, 출력 디렉터�
 
 Vercel의 `vercel.app` 주소는 HTTPS를 제공합니다. 커스텀 도메인은 선택 사항이며 필요하면 Vercel에서 도메인과 DNS를 연결합니다. 인터넷에 연결된 다른 기기에서 같은 Supabase 계정과 데이터를 이용할 수 있습니다.
 
-### Windows 앱 다운로드
+### Windows 앱 다운로드 및 자동 업데이트
 
-Windows x64에서 `npm run pack:win`을 실행하면 `outputs/KFC-Club-Setup.exe` 설치 파일을 만듭니다. 설치 후 서버 주소 입력 화면에서 배포된 홈페이지 URL을 설정하면 웹과 동일한 Supabase 백엔드를 이용합니다.
+Windows x64 / Node.js 22 이상에서 npm ci 후 npm run pack:win을 실행합니다. outputs에 설치 EXE, blockmap, latest.yml이 생성됩니다. 자세한 배포 절차는 [WINDOWS-RELEASE.md](WINDOWS-RELEASE.md)를 참고하세요.
 
-EXE/ZIP은 크기 때문에 GitHub 소스나 Vercel 배포에 넣지 않습니다. 파일을 공개 HTTPS 저장소에 올린 뒤 Supabase Function Secret에 다음 값을 설정하면 `/download`에 다운로드 링크가 표시됩니다.
+- [Windows 설치 파일](https://github.com/pdh1213/k.f.c.homepage/releases/download/windows-latest/KFC-Club-Setup.exe)
+- 앱 기본 홈페이지는 https://kfc-robot-club.vercel.app 이며, 빌드 시 KFC_SERVER_URL 또는 앱의 서버 주소 설정 메뉴에서 변경할 수 있습니다.
+- 1.1.0부터 실행 후 및 6시간마다 새 버전을 확인하고 다운로드합니다. 재시작 또는 앱 종료 시 적용하며, K.F.C. → 업데이트 확인으로 직접 확인할 수도 있습니다.
+- 기존 1.0.0은 자동 업데이트 코드가 없으므로 새 설치 파일을 한 번 실행해야 합니다. 저장된 서버 주소는 유지합니다. 웹 화면과 서버 데이터는 기존처럼 배포 사이트에서 불러옵니다.
+- 앱 내부에서는 Windows 다운로드 버튼을 숨깁니다. 일반 브라우저에는 버튼을 표시합니다.
+- GitHub Actions의 Windows installer and automatic updates가 빌드 후 windows-latest 릴리스에 EXE와 blockmap을 올리고 latest.yml을 마지막에 게시합니다. 새 앱 배포 때 package.json의 버전을 올려야 합니다.
+- Supabase Function의 KFC_WINDOWS_INSTALLER_URL / KFC_WINDOWS_DOWNLOAD_URL은 다운로드 주소 재정의용입니다. 기본 설치 주소는 위 GitHub 릴리스입니다.
 
-- `KFC_WINDOWS_INSTALLER_URL`: Windows 설치 EXE의 공개 HTTPS 주소
-- `KFC_WINDOWS_DOWNLOAD_URL`: portable ZIP의 공개 HTTPS 주소
-
-두 값은 현재 비어 있으므로 아직 다운로드할 실행 파일은 게시되지 않았습니다. 코드 서명 없이 설치 파일은 빌드할 수 있으나 SmartScreen 경고를 줄이려면 Authenticode 코드 서명 인증서가 필요합니다. Microsoft Store 게시에는 별도 개발자 계정이 필요합니다.
+코드 서명 인증서는 아직 설정하지 않았습니다. 최초 설치에서 Windows 보안 경고가 표시될 수 있습니다. Authenticode 인증서와 CSC_LINK / CSC_KEY_PASSWORD 설정을 준비하면 서명 빌드할 수 있습니다. Microsoft Store를 통하지 않는 EXE 배포에는 Store 계정이 필요하지 않습니다.
 
 ## 확인한 사항
 
@@ -57,5 +60,4 @@ EXE/ZIP은 크기 때문에 GitHub 소스나 Vercel 배포에 넣지 않습니�
 - Supabase 관리자 로그인 응답에서 role=admin 및 mustChangePassword=false 확인
 - 비로그인 요청으로 `/admin/overview` 호출 시 HTTP 401 확인
 - 인증된 관리자 API `/admin/overview`는 HTTP 200, 비로그인 요청은 HTTP 401을 반환하는 것을 확인했습니다.
-- Windows EXE 다운로드 URL은 파일 저장소가 연결되기 전까지 제공되지 않습니다.
-
+- Windows 1.1.0 설치 EXE와 자동 업데이트 파일은 GitHub Releases에 게시했습니다. 실제 사용자 기기의 구버전 → 신버전 교체는 별도 확인이 필요합니다.
