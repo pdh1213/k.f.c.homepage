@@ -3,6 +3,12 @@ name: Windows installer
 on:
   push:
     branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'electron/**'
+      - 'scripts/**'
+      - '.github/workflows/windows-installer.yml'
   workflow_dispatch:
 
 permissions:
