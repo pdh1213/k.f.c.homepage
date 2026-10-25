@@ -22,7 +22,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build Windows installer
-        run: npm run pack:win
+        run: |
+          npm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npx electron-builder --win nsis --x64 --publish never
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run dist:win
       - name: Publish installer to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
