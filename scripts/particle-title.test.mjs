@@ -88,3 +88,36 @@ test('제공된 50개 문구에서 각각 무작위 선택이 가능하다',()=>
   });
 });
 
+
+test('화면 폭이 바뀌어도 입자 모임을 처음부터 다시 시작하지 않는다',()=>{
+  const f=fixture();
+  f.frame(600);
+  f.engine.resize();
+  f.frame(800);
+  assert.equal([...f.timers.values()][0]?.delay,1800);
+  f.hold();
+  f.frame(1400);
+  assert.equal(f.completed,1);
+});
+
+test('문구 유지 중 크기가 바뀌면 남은 시간만 기다린다',()=>{
+  const f=fixture();
+  f.frame(1400);
+  f.frame(700);
+  f.engine.resize();
+  assert.equal([...f.timers.values()][0]?.delay,1100);
+  f.hold();
+  f.frame(1400);
+  assert.equal(f.completed,1);
+});
+
+test('백그라운드 복귀 후에도 진행 지점을 유지한다',()=>{
+  const f=fixture();
+  f.frame(600);
+  f.engine.setActive(false);
+  f.frame(5000);
+  f.engine.setActive(true);
+  f.frame(800);
+  assert.equal([...f.timers.values()][0]?.delay,1800);
+  f.engine.destroy();
+});

@@ -166,7 +166,7 @@ function createEngine(cv: HTMLCanvasElement, text: string, pal: Palette, onCompl
   let box: Box = { x: 0, y: 0, w: 0, h: 0 };
   let parts: Cell[] = [];
   let phase: Phase = "gathering", mode: Mode = nextMode(), phaseStart = 0, raf = 0, timer = 0;
-  let intro = true, active = true, destroyed = false;
+  let intro = true, active = true, destroyed = false, completed = false, pausedAt = 0;
 
   function reroll() {
     const r = createRng((Math.random() * 1e9) | 0);
@@ -284,20 +284,25 @@ function createEngine(cv: HTMLCanvasElement, text: string, pal: Palette, onCompl
 
   function stopWork() { clearTimeout(timer); cancelAnimationFrame(raf); raf = 0; }
 
+  function resume() {
+    if (!active || destroyed || completed) return;
+    const elapsed = performance.now() - phaseStart;
+    if (phase === "text") {
+      drawRealText();
+      timer = window.setTimeout(advance, Math.max(0, TIMING.hold - elapsed));
+    } else if (phase === "field") {
+      ctx!.setTransform(1, 0, 0, 1, 0, 0); ctx!.clearRect(0, 0, cv.width, cv.height); ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+      timer = window.setTimeout(advance, Math.max(0, TIMING.field - elapsed));
+    } else frame(performance.now());
+  }
   function enter(next: Phase) {
     phase = next; phaseStart = performance.now(); stopWork();
-    if (!active || destroyed) return;
-    if (next === "text") { intro = false; drawRealText(); timer = window.setTimeout(advance, TIMING.hold); }
-    else if (next === "field") {
-      ctx!.setTransform(1, 0, 0, 1, 0, 0); ctx!.clearRect(0, 0, cv.width, cv.height); ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
-      timer = window.setTimeout(advance, TIMING.field);
-    } else {
-      if (next === "dissolving") { mode = nextMode(); reroll(); }
-      frame(performance.now());
-    }
+    if (next === "text") intro = false;
+    if (next === "dissolving") { mode = nextMode(); reroll(); }
+    resume();
   }
   function advance() {
-    if (phase === "dissolving") { active = false; stopWork(); onComplete(); return; }
+    if (phase === "dissolving") { completed = true; active = false; stopWork(); onComplete(); return; }
     enter(phase === "text" ? "dissolving" : phase === "dissolving" ? "field" : phase === "field" ? "gathering" : "text");
   }
 
@@ -305,14 +310,16 @@ function createEngine(cv: HTMLCanvasElement, text: string, pal: Palette, onCompl
   enter("gathering");
   return {
     setActive(on) {
-      if (on === active || destroyed) return;
-      active = on;
-      if (on) enter(phase); else stopWork();
+      if (on === active || destroyed || completed) return;
+      if (!on) { pausedAt = performance.now(); active = false; stopWork(); return; }
+      active = true;
+      phaseStart += performance.now() - pausedAt;
+      resume();
     },
     resize() {
-      if (destroyed) return;
+      if (destroyed || completed) return;
       stopWork(); build();
-      if (active) enter(phase); else if (phase === "text") drawRealText();
+      if (active) resume(); else if (phase === "text") drawRealText();
     },
     destroy() { destroyed = true; active = false; stopWork(); },
   };
