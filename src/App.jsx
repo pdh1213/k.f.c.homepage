@@ -4,6 +4,7 @@ import {AdminShell,AccessDenied,Toast} from './Admin.jsx';
 import GlyphPortal from '../components/ui/glyph-portal.tsx';
 import '../components/ui/auth-portal.css';
 import GroupChat from '../components/ui/group-chat.tsx';
+import {isDesktop} from './desktop.js';
 
 const menu=[
   {path:'/dashboard',label:'홈',icon:'⌂'},
@@ -57,7 +58,7 @@ function AuthScreen({go,onLogin,notify}){
     <GlyphPortal word="K.F.C." focusChar="F" interactive={false} scrollLength={1.2} fontWeight={900} enterLabel="로그인 창으로 이동"
       style={{"--gp-paper":"#ffffff","--gp-ink":"#111111","--gp-field":"#111111","--gp-foreground":"#ffffff"}}
       background={<div className="portal-field-bg"/>}
-      front={<div className="portal-frontbar"><div className="portal-front-brand"><img src="/kfc-logo.png" alt=""/><span>K.F.C.</span><small>용인시청소년수련관 로봇동아리</small></div><button type="button" onClick={()=>go('/download')}>Windows 앱 안내 ↗</button></div>}>
+      front={<div className="portal-frontbar"><div className="portal-front-brand"><img src="/kfc-logo.png" alt=""/><span>K.F.C.</span><small>용인시청소년수련관 로봇동아리</small></div>{!isDesktop&&<button type="button" onClick={()=>go('/download')}>Windows 앱 안내 ↗</button>}</div>}>
       <main className="auth-portal-content"><section className="auth-portal-card">
         <div className="portal-login-brand"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/><div><b>K.F.C.</b><small>ROBOTICS CLUB · YONGIN</small></div></div>
         <div className="eyebrow">{mode==='login'?'MEMBER ACCESS':'JOIN THE CLUB'}</div><h1>{mode==='login'?'다시 만나 반가워요':'가입 신청'}</h1>
@@ -71,7 +72,7 @@ function AuthScreen({go,onLogin,notify}){
           <label>전화번호<input required type="tel" value={form.phone} onChange={e=>change('phone',e.target.value)} placeholder="010-1234-5678"/></label><label>로그인 아이디<input required minLength="4" maxLength="20" autoComplete="username" value={form.username} onChange={e=>setForm(v=>({...v,username:e.target.value}))} placeholder="영문, 숫자, 밑줄 4~20자"/></label>
           <label>비밀번호<input required type="password" minLength="10" maxLength="128" autoComplete="new-password" value={form.password} onChange={e=>change('password',e.target.value)} placeholder="10자 이상"/></label><button className="button primary full" disabled={busy}>{busy?'접수 중…':'가입 신청하기'} <span>→</span></button>
         </form>}
-        <div className="auth-footnote">가입 신청은 관리자의 승인 후 로그인할 수 있습니다.</div><a className="auth-windows-link" href="/download" onClick={e=>{e.preventDefault();go('/download');}}>Windows 앱 안내 ↗</a>
+        <div className="auth-footnote">가입 신청은 관리자의 승인 후 로그인할 수 있습니다.</div>{!isDesktop&&<a className="auth-windows-link" href="/download" onClick={e=>{e.preventDefault();go('/download');}}>Windows 앱 안내 ↗</a>}
       </section><div className="portal-footer">© K.F.C. Robotics Club · 용인시청소년수련관</div></main>
     </GlyphPortal>
   </div>;
@@ -99,7 +100,8 @@ function PasswordScreen({user,done,logout,notify}){
 
 function DownloadPage({go,notify}){
   const [status,setStatus]=useState(null);
-  useEffect(()=>{api('/api/download-status').then(setStatus).catch(()=>setStatus({available:false}));},[]);
+  useEffect(()=>{if(!isDesktop)api('/api/download-status').then(setStatus).catch(()=>setStatus({available:false}));},[]);
+  if(isDesktop)return <div className="center-page"><section className="password-card"><h1>Windows 앱을 사용 중입니다</h1><p>이 앱에서는 설치 파일을 다시 내려받을 필요가 없습니다.</p><p>{window.kfcDesktop?.autoUpdate?'앱 메뉴의 K.F.C. → 업데이트 확인에서 새 버전을 확인할 수 있습니다.':'이전 설치본은 자동 업데이트를 지원하지 않습니다. 브라우저에서 홈페이지를 열어 새 설치 파일을 한 번 실행하면 이후 업데이트를 자동으로 받을 수 있습니다.'}</p><button className="button primary" onClick={()=>go('/')}>홈으로 돌아가기</button></section></div>;
   return <div className="download-page">
     <header className="public-header"><button className="brand-link" onClick={()=>go('/')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span>K.F.C.</button><span className="eyebrow">WINDOWS APP</span></header>
     <main className="download-content"><div className="download-icon">▣</div><div className="eyebrow">K.F.C. DESKTOP</div><h1>Windows에서도<br/>함께 만들어요.</h1>
@@ -142,7 +144,7 @@ function MemberShell({user,go,logout,notify,toast}){
       <button className="brand-link" onClick={()=>navigate('/dashboard')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>K.F.C.<small>ROBOTICS CLUB</small></span></button>
       <div className="club-label">MEMBER SPACE</div>
       <nav>{navItems.map(m=><button key={m.path} className={section===m.path?'nav-item active':'nav-item'} onClick={()=>navigate(m.path)}><span className="nav-icon">{m.icon}</span>{m.label}{m.path==='/groups'&&groups.length>0&&<i className="nav-count">{groups.length}</i>}</button>)}</nav>
-      <div className="sidebar-bottom"><button className="nav-item" onClick={()=>go('/download')}><span className="nav-icon">↓</span>Windows 앱</button><div className="user-card"><div className="avatar club-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><b>{user.name}</b><small>승인 회원</small></div><button className="icon-button" aria-label="로그아웃" title="로그아웃" onClick={logout}>↗</button></div></div>
+      <div className="sidebar-bottom">{!isDesktop&&<button className="nav-item" onClick={()=>go('/download')}><span className="nav-icon">↓</span>Windows 앱</button>}<div className="user-card"><div className="avatar club-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><b>{user.name}</b><small>승인 회원</small></div><button className="icon-button" aria-label="로그아웃" title="로그아웃" onClick={logout}>↗</button></div></div>
     </aside>
     <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / {menu.find(m=>m.path===section)?.label||'홈'}</span><strong>회원 공간</strong></div><div className="topbar-right"><span className="brand-image small topbar-logo"><img src="/kfc-logo.png" alt="K.F.C."/></span><span className="live-dot"/>온라인</div></header>
       <div className="page-body">
@@ -320,5 +322,4 @@ function GroupRoom({group,user,onBack,notify}){
     <div className="surface inset"><div className="eyebrow">TEAM MEMBERS</div><h2>그룹 구성원</h2><div className="member-chips">{group.members.map(m=><div className="member-chip" key={m.id}><span className="avatar">{m.name.slice(0,1)}</span><b>{m.name}</b>{m.id===user.id&&<small>나</small>}</div>)}</div></div>}
   </div>;
 }
-
 

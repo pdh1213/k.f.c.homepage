@@ -1,16 +1,9 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const source = path.join(root, 'release', 'KFC-Club-Setup.exe');
-const destination = path.join(root, 'outputs', 'KFC-Club-Setup.exe');
-try {
-  await fs.access(source);
-  await fs.mkdir(path.dirname(destination), { recursive: true });
-  await fs.copyFile(source, destination);
-  console.log(`Windows 설치 파일 복사 완료: ${path.relative(root, destination)}`);
-} catch {
-  console.error('Windows 설치 파일이 없습니다. Windows NSIS 빌드가 성공한 뒤 다시 실행해 주세요.');
-  process.exitCode = 1;
-}
+const root=path.resolve(import.meta.dirname,'..');
+const version=JSON.parse(await fs.readFile(path.join(root,'package.json'),'utf8')).version;
+const names=['KFC-Club-Setup-'+version+'.exe','KFC-Club-Setup-'+version+'.exe.blockmap','latest.yml'];
+await fs.mkdir(path.join(root,'outputs'),{recursive:true});
+for(const name of names)await fs.copyFile(path.join(root,'release',name),path.join(root,'outputs',name));
+await fs.copyFile(path.join(root,'release',names[0]),path.join(root,'outputs','KFC-Club-Setup.exe'));
+console.log('설치 파일과 자동 업데이트 파일이 outputs에 준비되었습니다.');

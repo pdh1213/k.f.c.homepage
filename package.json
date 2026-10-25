@@ -1,6 +1,6 @@
 {
   "name": "kfc-robot-club",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "용인시청소년수련관 로봇동아리 K.F.C. 공식 홈페이지와 Windows 앱",
@@ -8,7 +8,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "start": "vite --host 0.0.0.0",
-    "build:win": "vite build && electron-builder --win nsis --x64",
+    "build:win": "node scripts/build-windows.mjs",
     "dist:win": "node scripts/copy-installer.mjs",
     "pack:win": "npm run build:win && npm run dist:win",
     "lint": "node --check electron/main.cjs && node --check electron/preload.cjs",
@@ -22,6 +22,7 @@
     },
     "files": [
       "electron/**/*",
+      "!electron/*-preview.png",
       "package.json"
     ],
     "extraMetadata": {
@@ -36,7 +37,8 @@
           ]
         }
       ],
-      "artifactName": "KFC-Club-Setup.exe"
+      "artifactName": "KFC-Club-Setup-${version}.exe",
+      "icon": "electron/kfc-icon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -46,13 +48,22 @@
       "createStartMenuShortcut": true,
       "shortcutName": "K.F.C. 로봇동아리"
     },
-    "npmRebuild": false
+    "npmRebuild": false,
+    "toolsets": {
+      "nsis": "1.2.1"
+    },
+    "publish": {
+      "useMultipleRangeRequest": false,
+      "provider": "generic",
+      "url": "https://github.com/pdh1213/k.f.c.homepage/releases/download/windows-latest/"
+    }
   },
   "dependencies": {
     "@blobatar/react": "2.7.0",
     "@supabase/supabase-js": "^2.118.0",
     "blobatar": "2.7.0",
     "dotenv": "^16.6.1",
+    "electron-updater": "^6.8.11",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
     "react": "^19.1.1",
@@ -67,4 +78,3 @@
     "vite": "^7.1.7"
   }
 }
-

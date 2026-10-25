@@ -1,0 +1,51 @@
+name: Windows installer and automatic updates
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "electron/**"
+      - "package.json"
+      - "package-lock.json"
+      - "public/kfc-logo.png"
+      - "scripts/build-windows.mjs"
+      - "scripts/prepare-icon.ps1"
+      - "scripts/copy-installer.mjs"
+      - ".github/workflows/windows-release.yml"
+permissions:
+  contents: write
+concurrency:
+  group: windows-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node --test scripts/desktop.test.mjs
+      - run: npm run pack:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KFC-Windows-installer
+          path: outputs/*
+      - name: Publish installer first and update manifest last
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh release view windows-latest --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create windows-latest --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "K.F.C. Windows" --notes "Windows 설치 파일 및 자동 업데이트 배포"
+            if ($LASTEXITCODE -ne 0) { throw 'Release creation failed' }
+          }
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          gh release upload windows-latest "outputs/KFC-Club-Setup-$version.exe" "outputs/KFC-Club-Setup-$version.exe.blockmap" outputs/KFC-Club-Setup.exe --clobber --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw 'Installer upload failed; update manifest was not changed' }
+          gh release upload windows-latest outputs/latest.yml --clobber --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw 'Update manifest upload failed' }

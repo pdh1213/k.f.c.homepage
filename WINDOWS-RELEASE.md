@@ -1,0 +1,31 @@
+# Windows 앱 1.1.0 배포 안내
+
+## 기존 설치자
+1.0.0에는 앱 자체의 자동 업데이트 기능이 없으므로, 1.1.0 설치 EXE를 한 번 실행해야 합니다.
+같은 appId와 설치 방식으로 덮어 설치하며 서버 주소 설정은 유지합니다.
+웹 화면·공지·대화 등 서버 데이터는 배포된 홈페이지에서 계속 불러옵니다.
+이미 설치된 1.0.0도 Electron 사용자 에이전트로 구분하므로 사이트를 새로고침하면 Windows 다운로드 버튼이 숨겨집니다.
+브라우저만으로 다른 기기의 설치 여부를 감지할 수는 없습니다. 일반 브라우저에는 다운로드 버튼이 유지됩니다.
+
+## 1.1.0 이후
+실행 12초 후 및 6시간마다 업데이트를 확인합니다. 다운로드 완료 후 다시 시작하거나 앱 종료 시 설치합니다.
+K.F.C. → 업데이트 확인 메뉴로 수동 확인할 수도 있습니다.
+배포 서버에 더 높은 버전이 게시되어야 다운로드합니다. 패키지 버전을 올리지 않으면 업데이트하지 않습니다.
+업데이트 파일은 HTTPS와 SHA-512 무결성 검사로 확인합니다. 코드 서명 인증서는 현재 설정하지 않았습니다.
+서명 인증서를 준비하면 electron-builder의 CSC_LINK / CSC_KEY_PASSWORD 비밀 설정을 사용하세요.
+
+## 빌드
+Windows Node.js 22 이상에서 npm ci 후 npm run pack:win.
+설치된 Electron runtime을 직접 사용해 다운로드 캐시 이동 권한 오류를 피합니다.
+outputs에는 버전 포함 EXE, 고정 다운로드 이름 EXE, blockmap, latest.yml이 생성됩니다.
+서버는 electron/desktop-config.json에 저장됩니다. 빌드 전 KFC_SERVER_URL 환경 변수로 기본 주소를 바꿀 수 있습니다.
+사용자가 앱 메뉴에서 저장한 서버 주소가 기본 주소보다 우선합니다.
+
+## 게시
+GitHub의 Windows installer and automatic updates 워크플로가 빌드 후 windows-latest 릴리스에 올립니다.
+워크플로에는 저장소 Contents: write 권한이 필요하며 별도 토큰을 코드에 넣지 않습니다.
+수동 게시 시 EXE와 blockmap을 먼저 올리고 latest.yml을 마지막에 올리세요.
+업데이트 주소: https://github.com/pdh1213/k.f.c.homepage/releases/download/windows-latest/
+고정 다운로드: 같은 주소의 KFC-Club-Setup.exe
+서로 다른 버전의 설치 EXE는 고유 파일 이름을 유지합니다.
+운영 배포 후 구버전→신버전 실제 교체는 별도 Windows 기기에서 확인해야 합니다.
