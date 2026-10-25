@@ -1,5 +1,5 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
-import {api,apiUrl,supabase,fmtDate,localInput,logoutCurrentSession} from './api.js';
+import {api,apiUrl,supabase,fmtDate,localInput,logoutCurrentSession,hasSupabaseConfig} from './api.js';
 import {AdminShell,AccessDenied,Toast} from './Admin.jsx';
 import GlyphPortal from '../components/ui/glyph-portal.tsx';
 import '../components/ui/auth-portal.css';
@@ -21,8 +21,9 @@ export default function App(){
   useEffect(()=>{const onPop=()=>setPath(location.pathname);window.addEventListener('popstate',onPop);return()=>window.removeEventListener('popstate',onPop);},[]);
   const userRequestRef=useRef(0);
   const refreshUser=async()=>{const requestId=++userRequestRef.current;try{const r=await api('/api/auth/me');if(userRequestRef.current===requestId)setUser(r.user);}catch{if(userRequestRef.current===requestId)setUser(null);}};
-  useEffect(()=>{refreshUser();},[]);
+  useEffect(()=>{if(hasSupabaseConfig)refreshUser();else setUser(null);},[]);
   const logout=async()=>{userRequestRef.current++;try{await logoutCurrentSession();}catch{}finally{setUser(null);go('/');notify('로그아웃했습니다.');}};
+  if(!hasSupabaseConfig)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>서비스 연결 설정이 없어 로그인할 수 없습니다. 잠시 후 다시 시도해 주세요.</span></div>;
   if(user===undefined)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>연결을 확인하고 있어요…</span></div>;
   if(path==='/download')return <DownloadPage go={go} notify={notify}/>;
   if(!user)return <AuthScreen go={go} onLogin={(u)=>{userRequestRef.current++;setUser(u);go(u.role==='admin'?'/admin':'/dashboard');}} notify={notify}/>;
