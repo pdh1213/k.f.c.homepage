@@ -34,13 +34,13 @@ export default function App(){
   if(path==='/download')return <DownloadPage go={go} notify={notify}/>;
   if(!user)return <AuthScreen go={go} onLogin={(u)=>{userRequestRef.current++;setShowWelcome(true);setUser(u);go(u.role==='admin'?'/admin':'/dashboard');}} notify={notify}/>;
   if(user.mustChangePassword)return <PasswordScreen user={user} done={refreshUser} logout={logout} notify={notify}/>;
-  if(showWelcome)return <LoginWelcome onComplete={()=>setShowWelcome(false)}/>;
+  const welcome=showWelcome?<LoginWelcome onComplete={()=>setShowWelcome(false)}/>:null;
   if(user.role==='admin'){
     if(path!=='/admin')go('/admin');
-    return <AdminShell user={user} go={go} logout={logout} notify={notify} toast={toast}/>;
+    return <><AdminShell user={user} go={go} logout={logout} notify={notify} toast={toast} blocked={showWelcome}/>{welcome}</>;
   }
   if(path==='/admin')return <AccessDenied go={go}/>;
-  return <MemberShell user={user} go={go} logout={logout} notify={notify} toast={toast}/>;
+  return <><MemberShell user={user} go={go} logout={logout} notify={notify} toast={toast} blocked={showWelcome}/>{welcome}</>;
 }
 
 function AuthScreen({go,onLogin,notify}){
@@ -120,7 +120,7 @@ function DownloadPage({go,notify}){
   </div>;
 }
 
-function MemberShell({user,go,logout,notify,toast}){
+function MemberShell({user,go,logout,notify,toast,blocked}){
   const [section,setSection]=useState(()=>menu.find(m=>m.path===location.pathname)?.path||(location.pathname==='/officers'?'/officers':'/dashboard'));
   const [announcements,setAnnouncements]=useState([]),[events,setEvents]=useState([]),[polls,setPolls]=useState([]),[groups,setGroups]=useState([]),[directChats,setDirectChats]=useState([]),[directory,setDirectory]=useState([]);
   const [loading,setLoading]=useState(true),[selectedGroup,setSelectedGroup]=useState(null);
@@ -142,7 +142,7 @@ function MemberShell({user,go,logout,notify,toast}){
   const navigate=path=>{setSection(path);setSelectedGroup(null);setSelectedDirect(null);go(path);};
   const groupOpen=(g)=>{setSelectedGroup(g);setSelectedDirect(null);setSection('/groups');history.pushState({},'','/groups');};
   const directOpen=chat=>{setSelectedDirect(chat);setSelectedGroup(null);setSection('/groups');history.pushState({},'','/groups');};
-  return <div className="app-shell">
+  return <div className="app-shell" inert={blocked}>
     <aside className="sidebar">
       <button className="brand-link" onClick={()=>navigate('/dashboard')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>K.F.C.<small>ROBOTICS CLUB</small></span></button>
       <div className="club-label">MEMBER SPACE</div>

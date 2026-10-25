@@ -10,7 +10,7 @@ export function AccessDenied({go}){return <div className="center-page"><section 
 export function Toast({message}){return message?<div className="toast" role="status"><span>✓</span>{message}</div>:null;}
 function Empty({title,detail}){return <div className="empty-state"><span>✳</span><b>{title}</b>{detail&&<small>{detail}</small>}</div>;}
 
-export function AdminShell({user,go,logout,notify,toast}){
+export function AdminShell({user,go,logout,notify,toast,blocked}){
   const [tab,setTab]=useState('overview'),[data,setData]=useState(null),[loading,setLoading]=useState(false),[query,setQuery]=useState('');
   const [security,setSecurity]=useState(null);
   const load=async(which=tab,q=query)=>{
@@ -31,7 +31,7 @@ export function AdminShell({user,go,logout,notify,toast}){
   };
   useEffect(()=>{load(tab,tab==='applications'?'pending':'');},[tab]);
   const select=key=>{setTab(key);setQuery('');setData(null);};
-  return <div className="admin-shell">
+  return <div className="admin-shell" inert={blocked}>
     <aside className="sidebar admin-sidebar">
       <button className="brand-link" onClick={()=>select('overview')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>K.F.C.<small>ADMIN CONSOLE</small></span></button>
       <div className="club-label">관리자 메뉴</div><nav>{tabs.map(([key,label])=><button key={key} className={'nav-item '+(tab===key?'active':'')} onClick={()=>select(key)}><span className="nav-icon">{['overview','applications','members','announcements','events','polls','groups','security'].indexOf(key)+1}</span>{label}{key==='applications'&&data?.pending>0&&tab==='overview'&&<i className="nav-count">{data.pending}</i>}</button>)}</nav>
@@ -155,4 +155,3 @@ function SecurityAdmin({data,notify,refresh}){
   return <div className="admin-manager"><section className="surface"><div className="eyebrow">ACCOUNT SECURITY</div><h1>관리자 보안 설정</h1><div className="security-summary"><div><small>관리자 아이디</small><b>{data?.username||'확인 중'}</b></div><div><small>HTTPS</small><b>운영 배포 시 필수</b></div><div><small>초기 비밀번호 변경</small><b>{data?.mustChangePassword?'변경 필요':'변경 완료'}</b></div></div><p className="muted">관리자 비밀번호는 환경 변수에서 초기화하고, 로그인 후 이 화면에서 변경할 수 있습니다.</p></section>
     <section className="surface"><h2>비밀번호 변경</h2><form className="form-stack narrow" onSubmit={submit}><label>현재 비밀번호<input type="password" autoComplete="current-password" required value={oldPassword} onChange={e=>setOld(e.target.value)}/></label><label>새 비밀번호<input type="password" minLength="10" autoComplete="new-password" required value={newPassword} onChange={e=>setNew(e.target.value)} placeholder="10자 이상"/></label><label>새 비밀번호 확인<input type="password" required value={confirm} onChange={e=>setConfirm(e.target.value)}/></label><button className="button primary">비밀번호 변경</button></form></section></div>;
 }
-
