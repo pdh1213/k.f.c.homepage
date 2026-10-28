@@ -68,8 +68,8 @@ function AuthScreen({go,onLogin,notify,demoEnabled,onDemo}){
     <GlyphPortal word="K.F.C." focusChar="F" interactive={false} scrollLength={1.2} fontWeight={900} enterLabel="로그인 창으로 이동"
       style={{"--gp-paper":"#faf9f5","--gp-ink":"#141413","--gp-field":"#181715","--gp-foreground":"#faf9f5"}}
       background={<div className="portal-field-bg"/>}
-      front={<div className="portal-frontbar"><div className="portal-front-brand"><img src="/kfc-logo.png" alt=""/><span>K.F.C.</span><small>용인시청소년수련관 로봇동아리</small></div>{!isDesktop&&<button type="button" onClick={()=>go('/download')}>Windows 앱 안내 ↗</button>}</div>}>
-      <main className="auth-portal-content"><section className="auth-portal-card">
+      front={<div className="portal-frontbar"><div className="portal-front-brand"><img src="/kfc-logo.png" alt=""/><span>K.F.C.</span><small>용인시청소년수련관 로봇동아리</small></div><DesktopVersion/>{!isDesktop&&<button type="button" onClick={()=>go('/download')}>Windows 앱 안내 ↗</button>}</div>}>
+      <main className="auth-portal-content"><section className="auth-portal-card"><div className="auth-desktop-version"><DesktopVersion/></div>
         <div className="portal-login-brand"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/><div><b>K.F.C.</b><small>ROBOTICS CLUB · YONGIN</small></div></div>
         <div className="eyebrow">{mode==='login'?'MEMBER ACCESS':'JOIN THE CLUB'}</div><h1>{mode==='login'?'다시 만나 반가워요':'가입 신청'}</h1>
         <p className="muted">{mode==='login'?'아이디와 비밀번호를 입력해 주세요.':'회원 정보를 작성하면 관리자 승인 후 이용할 수 있어요.'}</p>

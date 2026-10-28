@@ -21,4 +21,4 @@
 @media(max-width:780px){.topbar-logout{display:inline-flex}.topbar-right{gap:5px}.desktop-version{font-size:.57rem;padding:3px 5px}.topbar:has(.desktop-top-nav){padding:8px 13px}.topbar:has(.desktop-top-nav) .desktop-top-nav{padding:3px 0}.topbar:has(.desktop-top-nav) .desktop-top-nav button{font-size:.67rem;padding:7px 8px}.notice-popup-actions .button{flex:1}}
 
 .popup-admin .form-stack label.check-label{display:flex;flex-direction:row;align-items:center;gap:9px}.popup-admin .form-stack label.check-label input{width:18px;height:18px;min-height:0;margin:0;flex:none}
-
+.auth-desktop-version{display:flex;justify-content:flex-end;margin:-6px 0 12px}.portal-frontbar .desktop-version{background:var(--surface-dark);color:var(--on-dark);border-color:var(--surface-dark)}
