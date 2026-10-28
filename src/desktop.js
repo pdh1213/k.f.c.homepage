@@ -3,3 +3,4 @@ export function detectDesktop(scope=globalThis){
   return scope.kfcDesktop?.isDesktop===true||/\bElectron\/[\d.]+/.test(scope.navigator?.userAgent||'');
 }
 export const isDesktop=detectDesktop();
+

@@ -5,5 +5,7 @@ import './styles.css';
 import './design.css';
 import './depth.css';
 import './claude.css';
+import './feature24.css';
 
 createRoot(document.getElementById('root')).render(<React.StrictMode><App /></React.StrictMode>);
+

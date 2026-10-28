@@ -60,6 +60,7 @@ function createWindow(){
   mainWindow.on('closed',()=>{mainWindow=null;});
 }
 function fromConfig(event){return event.sender===mainWindow?.webContents&&event.senderFrame?.url===pathToFileURL(configFile).href;}
+ipcMain.handle('kfc:app-version',event=>event.sender===mainWindow?.webContents?app.getVersion():'');
 ipcMain.handle('kfc:get-server-url',event=>fromConfig(event)?currentUrl():'');
 ipcMain.handle('kfc:set-server-url',(event,value)=>fromConfig(event)?setServerUrl(value):{ok:false,message:'허용되지 않은 요청입니다.'});
 if(!app.requestSingleInstanceLock())app.quit();

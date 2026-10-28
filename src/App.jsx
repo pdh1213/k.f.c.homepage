@@ -7,6 +7,8 @@ import GroupChat from '../components/ui/group-chat.tsx';
 import {isDesktop} from './desktop.js';
 import LoginWelcome from '../components/ui/login-welcome.jsx';
 import DemoShell from './Demo.jsx';
+import NoticePopup from './NoticePopup.jsx';
+import {DesktopTabs,DesktopVersion} from './DesktopNav.jsx';
 
 const menu=[
   {path:'/dashboard',label:'홈',icon:'⌂'},
@@ -20,7 +22,7 @@ const statusText={pending:'승인 대기',approved:'승인 완료',rejected:'반
 
 export default function App(){
   const [user,setUser]=useState(undefined),[path,setPath]=useState(location.pathname),[toast,setToast]=useState('');
-  const [showWelcome,setShowWelcome]=useState(false);
+  const [showWelcome,setShowWelcome]=useState(false),[showLoginPopups,setShowLoginPopups]=useState(false);
   const [demoStatus,setDemoStatus]=useState({enabled:false,checked:false});
   const notify=(message)=>{setToast(message);window.clearTimeout(notify.timer);notify.timer=window.setTimeout(()=>setToast(''),3600);};
   const go=(next)=>{history.pushState({},'',next);setPath(next);window.scrollTo(0,0);};
@@ -31,20 +33,20 @@ export default function App(){
   useEffect(()=>{if(!user||user.role==='admin')return;let channel=supabase.channel('kfc-executive',{config:{private:true}}).on('broadcast',{event:'sync'},()=>refreshUser()).subscribe();return()=>{supabase.removeChannel(channel)}},[!!user,user?.role]);
   useEffect(()=>{if(hasSupabaseConfig)refreshUser();else setUser(null);},[]);
   useEffect(()=>{if(user!==null||!hasSupabaseConfig)return;let active=true,requestId=0;const check=async()=>{const current=++requestId;try{const r=await api('/api/demo-status',{cache:'no-store'});if(active&&current===requestId)setDemoStatus({enabled:!!r.demoEnabled,checked:true});}catch{if(active&&current===requestId)setDemoStatus({enabled:false,checked:true});}};check();const timer=window.setInterval(check,5000);const focus=()=>{if(document.visibilityState==='visible')check();};window.addEventListener('focus',focus);window.addEventListener('visibilitychange',focus);return()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',focus);window.removeEventListener('visibilitychange',focus);};},[user===null]);
-  const logout=async()=>{userRequestRef.current++;try{await logoutCurrentSession();}catch{}finally{setShowWelcome(false);setUser(null);go('/');notify('로그아웃했습니다.');}};
+  const logout=async()=>{userRequestRef.current++;try{await logoutCurrentSession();}catch{}finally{setShowWelcome(false);setShowLoginPopups(false);setUser(null);go('/');notify('로그아웃했습니다.');}};
   if(!hasSupabaseConfig)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>서비스 연결 설정이 없어 로그인할 수 없습니다. 잠시 후 다시 시도해 주세요.</span></div>;
   if(user===undefined)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>연결을 확인하고 있어요…</span></div>;
-  if(path==='/download')return <DownloadPage go={go} notify={notify}/>;
-  if(!user&&path==='/demo')return !demoStatus.checked?<div className="boot">데모 모드를 확인하고 있어요…</div>:demoStatus.enabled?<DemoShell go={go}/>:<div className="center-page"><section className="surface access-card"><h1>데모 모드가 종료되었습니다</h1><p className="muted">지금은 데모 화면을 이용할 수 없습니다.</p><button className="button primary" onClick={()=>go('/')}>로그인 화면으로</button></section></div>;
-  if(!user)return <AuthScreen go={go} demoEnabled={demoStatus.enabled} onDemo={async()=>{const r=await api('/api/demo-status',{cache:'no-store'});setDemoStatus({enabled:!!r.demoEnabled,checked:true});if(r.demoEnabled)go('/demo');return !!r.demoEnabled;}} onLogin={(u)=>{userRequestRef.current++;setShowWelcome(true);setUser(u);go(u.role==='admin'?'/admin':'/dashboard');}} notify={notify}/>;
-  if(user.mustChangePassword)return <PasswordScreen user={user} done={refreshUser} logout={logout} notify={notify}/>;
   const welcome=showWelcome?<LoginWelcome onComplete={()=>setShowWelcome(false)}/>:null;
+  if(path==='/download')return <DownloadPage go={go} notify={notify}/>;
+  if(!user&&path==='/demo')return !demoStatus.checked?<div className="boot">데모 모드를 확인하고 있어요…</div>:demoStatus.enabled?<><DemoShell go={go} blocked={showWelcome}/>{welcome}</>:<div className="center-page"><section className="surface access-card"><h1>데모 모드가 종료되었습니다</h1><p className="muted">지금은 데모 화면을 이용할 수 없습니다.</p><button className="button primary" onClick={()=>go('/')}>로그인 화면으로</button></section></div>;
+  if(!user)return <AuthScreen go={go} demoEnabled={demoStatus.enabled} onDemo={async()=>{const r=await api('/api/demo-status',{cache:'no-store'});setDemoStatus({enabled:!!r.demoEnabled,checked:true});if(r.demoEnabled){setShowWelcome(true);go('/demo');}return !!r.demoEnabled;}} onLogin={(u)=>{userRequestRef.current++;setShowWelcome(true);setShowLoginPopups(u.role!=='admin');setUser(u);go(u.role==='admin'?'/admin':'/dashboard');}} notify={notify}/>;
+  if(user.mustChangePassword)return <PasswordScreen user={user} done={refreshUser} logout={logout} notify={notify}/>;
   if(user.role==='admin'){
     if(path!=='/admin')go('/admin');
     return <><AdminShell user={user} go={go} logout={logout} notify={notify} toast={toast} blocked={showWelcome}/>{welcome}</>;
   }
   if(path==='/admin')return <AccessDenied go={go}/>;
-  return <><MemberShell user={user} go={go} logout={logout} notify={notify} toast={toast} blocked={showWelcome}/>{welcome}</>;
+  return <><MemberShell user={user} go={go} logout={logout} notify={notify} toast={toast} blocked={showWelcome} popupSession={showLoginPopups} onPopupsDone={()=>setShowLoginPopups(false)}/>{welcome}</>;
 }
 
 function AuthScreen({go,onLogin,notify,demoEnabled,onDemo}){
@@ -126,10 +128,12 @@ function DownloadPage({go,notify}){
   </div>;
 }
 
-function MemberShell({user,go,logout,notify,toast,blocked}){
+function MemberShell({user,go,logout,notify,toast,blocked,popupSession,onPopupsDone}){
   const [section,setSection]=useState(()=>menu.find(m=>m.path===location.pathname)?.path||(location.pathname==='/officers'?'/officers':'/dashboard'));
   const [announcements,setAnnouncements]=useState([]),[events,setEvents]=useState([]),[polls,setPolls]=useState([]),[groups,setGroups]=useState([]),[directChats,setDirectChats]=useState([]),[directory,setDirectory]=useState([]);
   const [loading,setLoading]=useState(true),[selectedGroup,setSelectedGroup]=useState(null);
+  const [popupItems,setPopupItems]=useState([]),[popupIndex,setPopupIndex]=useState(0),[linkedTarget,setLinkedTarget]=useState(null);
+  useEffect(()=>{if(!popupSession)return;let active=true;api('/api/notice-popups').then(r=>{if(active){setPopupItems(r.popups||[]);setPopupIndex(0);if(!r.popups?.length)onPopupsDone()}}).catch(e=>{if(active){notify(e.message);onPopupsDone()}});return()=>{active=false}},[popupSession]);
   const load=async({quiet=false}={})=>{
     if(!quiet)setLoading(true);
     const results=await Promise.allSettled([api('/api/announcements'),api('/api/events'),api('/api/polls'),api('/api/groups'),api('/api/direct-chats'),api('/api/directory')]);
@@ -145,7 +149,9 @@ function MemberShell({user,go,logout,notify,toast,blocked}){
   const navItems=user.isOfficer?[...menu,officerMenu]:menu;
   useEffect(()=>{if(section==='/officers'&&!user.isOfficer){setSection('/dashboard');go('/dashboard');}},[section,user.isOfficer]);
   const [selectedDirect,setSelectedDirect]=useState(null);
-  const navigate=path=>{setSection(path);setSelectedGroup(null);setSelectedDirect(null);go(path);};
+  const navigate=(path,target=null)=>{setSection(path);setLinkedTarget(target);setSelectedGroup(null);setSelectedDirect(null);go(path);};
+  const dismissPopup=()=>{if(popupIndex+1>=popupItems.length){setPopupItems([]);onPopupsDone()}else setPopupIndex(i=>i+1)};
+  const popupAction=item=>{if(item.linkType==='web'){try{const url=new URL(item.linkUrl);if(url.protocol==='https:')window.open(url.href,'_blank','noopener,noreferrer')}catch{notify('연결 주소를 열 수 없습니다.')}}else{const routes={poll:'/surveys',announcement:'/announcements',event:'/calendar'};const route=routes[item.linkType];if(route)navigate(route,{type:item.linkType,id:item.targetId})}dismissPopup()};
   const groupOpen=(g)=>{setSelectedGroup(g);setSelectedDirect(null);setSection('/groups');history.pushState({},'','/groups');};
   const directOpen=chat=>{setSelectedDirect(chat);setSelectedGroup(null);setSection('/groups');history.pushState({},'','/groups');};
   return <div className="app-shell" inert={blocked}>
@@ -153,21 +159,22 @@ function MemberShell({user,go,logout,notify,toast,blocked}){
       <button className="brand-link" onClick={()=>navigate('/dashboard')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>K.F.C.<small>ROBOTICS CLUB</small></span></button>
       <div className="club-label">MEMBER SPACE</div>
       <nav>{navItems.map(m=><button key={m.path} className={section===m.path?'nav-item active':'nav-item'} onClick={()=>navigate(m.path)}><span className="nav-icon">{m.icon}</span>{m.label}</button>)}</nav>
-      <div className="sidebar-bottom">{!isDesktop&&<button className="nav-item" onClick={()=>go('/download')}><span className="nav-icon">↓</span>Windows 앱</button>}<div className="user-card"><div className="avatar club-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><b>{user.name}</b><small>승인 회원</small></div><button className="icon-button" aria-label="로그아웃" title="로그아웃" onClick={logout}>↗</button></div></div>
+      <div className="sidebar-bottom">{!isDesktop&&<button className="nav-item" onClick={()=>go('/download')}><span className="nav-icon">↓</span>Windows 앱</button>}<div className="user-card"><div className="avatar club-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><b>{user.name}</b><small>승인 회원</small></div><button className="logout-button" onClick={logout}>로그아웃</button></div></div>
     </aside>
-    <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / {menu.find(m=>m.path===section)?.label||'홈'}</span><strong>회원 공간</strong></div><div className="topbar-right"><span className="brand-image small topbar-logo"><img src="/kfc-logo.png" alt="K.F.C."/></span><span className="live-dot"/>온라인</div></header>
+    <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / {menu.find(m=>m.path===section)?.label||'홈'}</span><strong>회원 공간</strong></div><DesktopTabs items={navItems.map(m=>({key:m.path,label:m.label,icon:m.icon}))} active={section} onSelect={navigate}/><div className="topbar-right"><DesktopVersion/><span className="brand-image small topbar-logo"><img src="/kfc-logo.png" alt="K.F.C."/></span><span className="live-dot"/>온라인<button className="topbar-logout" onClick={logout}>로그아웃</button></div></header>
       <div className="page-body">
         {loading?<div className="loading-card">회원 정보를 불러오고 있어요…</div>:section==='/officers'?<OfficerHub notify={notify}/> :selectedDirect?
           <DirectRoom chat={selectedDirect} user={user} onBack={()=>{setSelectedDirect(null);load({quiet:true})}} notify={notify}/> :selectedGroup?
           <GroupRoom group={selectedGroup} user={user} onBack={()=>setSelectedGroup(null)} notify={notify}/>:
           section==='/dashboard'?<Dashboard user={user} announcements={announcements} events={events} groups={groups} open={navigate} groupOpen={groupOpen}/>:
-          section==='/announcements'?<Announcements announcements={announcements}/>:
-          section==='/calendar'?<Calendar events={events}/>:
-          section==='/surveys'?<Surveys polls={polls} refresh={load} notify={notify}/>:
+          section==='/announcements'?<Announcements announcements={announcements} targetId={linkedTarget?.type==='announcement'?linkedTarget.id:null}/>:
+          section==='/calendar'?<Calendar events={events} targetId={linkedTarget?.type==='event'?linkedTarget.id:null}/>:
+          section==='/surveys'?<Surveys polls={polls} refresh={load} notify={notify} targetId={linkedTarget?.type==='poll'?linkedTarget.id:null}/>:
           <Groups groups={groups} directChats={directChats} directory={directory} open={groupOpen} directOpen={directOpen} notify={notify}/>}
       </div>
     </main>
     {toast&&<Toast message={toast}/>}
+    {!blocked&&popupSession&&popupItems[popupIndex]&&<NoticePopup item={popupItems[popupIndex]} index={popupIndex} total={popupItems.length} onClose={dismissPopup} onAction={popupAction}/>}
   </div>;
 }
 
@@ -210,17 +217,18 @@ function Dashboard({user,announcements,events,groups,open,groupOpen}){
   </div>;
 }
 
-function Announcements({announcements}){
-  const [selected,setSelected]=useState(null);
+function Announcements({announcements,targetId}){
+  const [selected,setSelected]=useState(()=>announcements.find(a=>a.id===targetId)||null);
   if(selected)return <div className="surface detail-surface"><button className="text-button" onClick={()=>setSelected(null)}>← 공지 목록</button><div className="eyebrow">NOTICE</div><h1>{selected.title}</h1><small className="muted">{fmtDate(selected.createdAt)}</small><hr/><p className="long-text">{selected.content}</p>{selected.images?.length>0&&<div className="notice-gallery">{selected.images.map((image,i)=><a key={image.path||i} href={image.url} target="_blank" rel="noreferrer"><img src={image.url} alt={selected.title+' 사진 '+(i+1)}/></a>)}</div>}</div>;
   return <section className="surface"><div className="section-heading"><div><div className="eyebrow">CLUB NOTICE</div><h1>공지사항</h1></div><span className="count-pill">{announcements.length}건</span></div>
     {announcements.length?announcements.map(a=><button key={a.id} className="announcement-row" onClick={()=>setSelected(a)}><span className="notice-symbol">N</span><span className="grow"><b>{a.title}</b><small>{a.content.slice(0,90)}{a.content.length>90?'…':''}{a.images?.length>0?' · 사진 '+a.images.length+'장':''}</small></span><time>{fmtDate(a.createdAt,{dateStyle:'medium'})}</time><span className="row-arrow">↗</span></button>):<Empty title="등록된 공지사항이 없습니다."/>}
   </section>;
 }
 
-function Calendar({events}){
-  const [month,setMonth]=useState(()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth(),1);});
-  const [selected,setSelected]=useState(null);
+function Calendar({events,targetId}){
+  const target=events.find(e=>e.id===targetId);
+  const [month,setMonth]=useState(()=>{const d=target?new Date(target.startAt):new Date();return new Date(d.getFullYear(),d.getMonth(),1);});
+  const [selected,setSelected]=useState(()=>target?new Date(target.startAt).getDate():null);
   const year=month.getFullYear(),mon=month.getMonth();
   const first=new Date(year,mon,1),days=new Date(year,mon+1,0).getDate(),offset=(first.getDay()+6)%7;
   const cells=Array.from({length:Math.ceil((offset+days)/7)*7},(_,i)=>{const day=i-offset+1;return day>0&&day<=days?day:null;});
@@ -237,7 +245,8 @@ function Calendar({events}){
 function EventDetail({event}){return <article className="event-detail"><span className="event-bar"/><div><b>{event.title}</b><small>{fmtDate(event.startAt)}{event.description?' · '+event.description:''}</small></div></article>;}
 function Empty({title,detail}){return <div className="empty-state"><span>✳</span><b>{title}</b>{detail&&<small>{detail}</small>}</div>;}
 
-function Surveys({polls,refresh,notify}){
+function Surveys({polls,refresh,notify,targetId}){
+  useEffect(()=>{if(targetId)document.getElementById('survey-'+targetId)?.scrollIntoView({behavior:'smooth',block:'center'})},[targetId,polls.length]);
   const [answers,setAnswers]=useState({}),[legacy,setLegacy]=useState({});
   const vote=async poll=>{
     if(!poll.questions){if(legacy[poll.id]===undefined)return notify('응답 항목을 선택해 주세요.');try{await api('/api/polls/'+poll.id+'/vote',{method:'POST',body:{optionIndex:Number(legacy[poll.id])}});notify('설문 응답을 저장했습니다.');refresh();}catch(e){notify(e.message);}return;}
@@ -248,7 +257,7 @@ function Surveys({polls,refresh,notify}){
   };
   const setAnswer=(pid,qid,value)=>setAnswers(x=>({...x,[pid]:{...(x[pid]||{}),[qid]:value}}));
   return <section className="surface"><div className="section-heading"><div><div className="eyebrow">YOUR VOICE</div><h1>설문</h1></div><span className="count-pill">{polls.length}건</span></div>
-    {polls.length?polls.map(p=>{const structured=!!p.questions,answered=structured?!!p.myAnswers:p.myVote!==null;const own=p.myAnswers||{};return <article className="poll-card" key={p.id}><div className="poll-top"><span className="poll-tag">{p.closed?'마감':answered?'응답 완료':'참여 가능'}</span><small>{fmtDate(p.createdAt,{dateStyle:'medium'})}</small></div><h2>{p.question}</h2>{p.description&&<p className="muted">{p.description}</p>}
+    {polls.length?polls.map(p=>{const structured=!!p.questions,answered=structured?!!p.myAnswers:p.myVote!==null;const own=p.myAnswers||{};return <article className="poll-card" id={"survey-"+p.id} key={p.id}><div className="poll-top"><span className="poll-tag">{p.closed?'마감':answered?'응답 완료':'참여 가능'}</span><small>{fmtDate(p.createdAt,{dateStyle:'medium'})}</small></div><h2>{p.question}</h2>{p.description&&<p className="muted">{p.description}</p>}
       {structured?p.questions.map(q=>{const value=(answers[p.id]||{})[q.id]??own[q.id]??(q.type==='multiple_choice'?[]:'');const disabled=p.closed||answered;return <div className="poll-question-answer" key={q.id}><h3>{q.title}{q.required&&<em> · 필수</em>}</h3>{q.helpText&&<p className="muted">{q.helpText}</p>}
         {q.type==='short_text'?<input className="poll-text-answer" maxLength="500" disabled={disabled} value={value} placeholder="답변을 입력해 주세요" onChange={e=>setAnswer(p.id,q.id,e.target.value)}/>:
          q.type==='paragraph'?<textarea className="poll-text-answer" rows="4" maxLength="5000" disabled={disabled} value={value} placeholder="답변을 입력해 주세요" onChange={e=>setAnswer(p.id,q.id,e.target.value)}/>:
