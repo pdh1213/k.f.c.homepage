@@ -1,7 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {api,fmtDate,localInput,supabase} from './api.js';
 import NoticePopupAdmin from './NoticePopupAdmin.jsx';
-import {DesktopTabs,DesktopVersion} from './DesktopNav.jsx';
 
 const tabs=[
   ['overview','개요'],['applications','가입 신청'],['members','회원 관리'],['announcements','공지사항'],
@@ -39,7 +38,7 @@ export function AdminShell({user,go,logout,notify,toast,blocked}){
       <div className="club-label">관리자 메뉴</div><nav>{tabs.map(([key,label])=><button key={key} className={'nav-item '+(tab===key?'active':'')} onClick={()=>select(key)}><span className="nav-icon">{['overview','applications','members','announcements','events','polls','groups','settings'].indexOf(key)+1}</span>{label}{key==='applications'&&data?.pending>0&&tab==='overview'&&<i className="nav-count">{data.pending}</i>}</button>)}</nav>
       <div className="sidebar-bottom"><div className="user-card"><div className="avatar club-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><b>{user.name}</b><small>관리자</small></div><button className="logout-button" onClick={logout}>로그아웃</button></div></div>
     </aside>
-    <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / 관리자</span><strong>{tabs.find(t=>t[0]===tab)?.[1]}</strong></div><DesktopTabs items={tabs.map(([key,label])=>({key,label}))} active={tab} onSelect={select}/><div className="topbar-right"><DesktopVersion/><span className="shield">✓</span>관리자 인증됨<button className="topbar-logout" onClick={logout}>로그아웃</button></div></header>
+    <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / 관리자</span><strong>{tabs.find(t=>t[0]===tab)?.[1]}</strong></div><div className="topbar-right"><span className="shield">✓</span>관리자 인증됨<button className="topbar-logout" onClick={logout}>로그아웃</button></div></header>
       <div className="page-body admin-body">{loading&&!data?<div className="loading-card">관리자 정보를 불러오고 있어요…</div>:tab==='overview'?<Overview data={data} select={select} refresh={()=>load('overview','')}/>:
         tab==='applications'?<Applications data={data} refresh={()=>load('applications',query||'pending')} notify={notify} query={query} setQuery={setQuery}/>:
         tab==='members'?<Members data={data} refresh={()=>load('members',query)} notify={notify} query={query} setQuery={setQuery}/>:
@@ -78,11 +77,12 @@ function Applications({data,refresh,notify,query,setQuery}){
   </section>;
 }
 function Members({data,refresh,notify,query,setQuery}){
-  const [search,setSearch]=useState(query),[editing,setEditing]=useState(null);
+  const [search,setSearch]=useState(query),[editing,setEditing]=useState(null),[deleting,setDeleting]=useState(null);
   const runSearch=async e=>{e.preventDefault();setQuery(search);try{const r=await api('/api/admin/members?q='+encodeURIComponent(search));data.members=r.members;}catch(e){notify(e.message);}refresh();};
+  const deleteMember=async m=>{if(!window.confirm(m.name+' 회원의 계정을 완전히 삭제할까요? 이 회원의 그룹 메시지·설문 응답과 참여한 1:1 대화방 전체가 삭제됩니다. 공유 일정과 할 일은 작성자 표시 없이 유지됩니다.'))return;setDeleting(m.id);try{const r=await api('/api/admin/members/'+m.id,{method:'DELETE'});notify(r.message);if(editing?.id===m.id)setEditing(null);await refresh()}catch(e){notify(e.message)}finally{setDeleting(null)}};
   return <section className="surface"><div className="section-heading"><div><div className="eyebrow">MEMBER DIRECTORY</div><h1>회원 관리</h1><p className="muted">이 정보는 관리자만 확인할 수 있습니다.</p></div></div>
     <form className="search-form" onSubmit={runSearch}><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="이름, 아이디, 학교 또는 전화번호 검색"/><button className="button secondary">검색</button></form>
-    {data?.members?.length?data.members.map(m=><article className="member-admin-row" key={m.id}><div className="avatar">{m.name.slice(0,1)}</div><div className="member-admin-info"><b>{m.name} <small>@{m.username}</small></b><small>{m.school} · {m.grade} · {m.age}세 · {m.phone}</small></div><span className={'status-pill '+m.status}>{stateLabel[m.status]}</span><button className={m.isOfficer?'button danger-outline':'button secondary'} disabled={m.status!=='approved'} onClick={async()=>{try{await api('/api/admin/members/'+m.id,{method:'PATCH',body:{isOfficer:!m.isOfficer}});notify(m.isOfficer?'임원 권한을 해지했습니다.':'임원으로 지정했습니다.');refresh();}catch(e){notify(e.message);}}}>{m.isOfficer?'임원 해지':'임원 지정'}</button><button className="button subtle" onClick={()=>setEditing(m)}>수정</button></article>):<Empty title="검색된 회원이 없습니다."/>}
+    {data?.members?.length?data.members.map(m=><article className="member-admin-row" key={m.id}><div className="avatar">{m.name.slice(0,1)}</div><div className="member-admin-info"><b>{m.name} <small>@{m.username}</small></b><small>{m.school} · {m.grade} · {m.age}세 · {m.phone}</small></div><span className={'status-pill '+m.status}>{stateLabel[m.status]}</span><button className={m.isOfficer?'button danger-outline':'button secondary'} disabled={m.status!=='approved'} onClick={async()=>{try{await api('/api/admin/members/'+m.id,{method:'PATCH',body:{isOfficer:!m.isOfficer}});notify(m.isOfficer?'임원 권한을 해지했습니다.':'임원으로 지정했습니다.');refresh();}catch(e){notify(e.message);}}}>{m.isOfficer?'임원 해지':'임원 지정'}</button><button className="button subtle" onClick={()=>setEditing(m)}>수정</button><button className="button danger-outline" disabled={deleting===m.id} onClick={()=>deleteMember(m)}>{deleting===m.id?'삭제 중…':'삭제'}</button></article>):<Empty title="검색된 회원이 없습니다."/>}
     {editing&&<Modal title="회원 정보 수정" close={()=>setEditing(null)}><MemberEditor member={editing} save={async body=>{try{await api('/api/admin/members/'+editing.id,{method:'PATCH',body});notify('회원 정보를 저장했습니다.');setEditing(null);refresh();}catch(e){notify(e.message);}}}/></Modal>}
   </section>;
 }

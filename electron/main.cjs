@@ -40,10 +40,11 @@ function buildMenu(){
 }
 function createWindow(){
   mainWindow=new BrowserWindow({
-    width:1280,height:850,minWidth:360,minHeight:560,show:false,
+    width:1280,height:850,minWidth:360,minHeight:560,show:false,autoHideMenuBar:true,
     backgroundColor:'#faf9f5',icon:path.join(__dirname,'kfc-icon.ico'),title:'K.F.C. 로봇동아리',
     webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}
   });
+  mainWindow.setMenuBarVisibility(false);
   mainWindow.once('ready-to-show',()=>mainWindow.show());
   mainWindow.webContents.setWindowOpenHandler(({url})=>{
     try{if(['https:','http:'].includes(new URL(url).protocol))shell.openExternal(url);}catch{}
@@ -60,7 +61,6 @@ function createWindow(){
   mainWindow.on('closed',()=>{mainWindow=null;});
 }
 function fromConfig(event){return event.sender===mainWindow?.webContents&&event.senderFrame?.url===pathToFileURL(configFile).href;}
-ipcMain.handle('kfc:app-version',event=>event.sender===mainWindow?.webContents?app.getVersion():'');
 ipcMain.handle('kfc:get-server-url',event=>fromConfig(event)?currentUrl():'');
 ipcMain.handle('kfc:set-server-url',(event,value)=>fromConfig(event)?setServerUrl(value):{ok:false,message:'허용되지 않은 요청입니다.'});
 if(!app.requestSingleInstanceLock())app.quit();

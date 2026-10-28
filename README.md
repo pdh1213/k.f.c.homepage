@@ -60,7 +60,7 @@ Windows x64 / Node.js 22 이상에서 npm ci 후 npm run pack:win을 실행합�
 - Supabase 관리자 로그인 응답에서 role=admin 및 mustChangePassword=false 확인
 - 비로그인 요청으로 `/admin/overview` 호출 시 HTTP 401 확인
 - 인증된 관리자 API `/admin/overview`는 HTTP 200, 비로그인 요청은 HTTP 401을 반환하는 것을 확인했습니다.
-- Windows 2.4.0 설치 EXE와 자동 업데이트 파일은 GitHub Releases에 게시했습니다. 실제 사용자 기기의 구버전 → 신버전 교체는 별도 확인이 필요합니다.
+- Windows 2.4.1 설치 EXE와 자동 업데이트 파일은 GitHub Releases에 게시했습니다. 실제 사용자 기기의 구버전 → 신버전 교체는 별도 확인이 필요합니다.
 
 ## 데모 모드
 관리자 `/admin` → `설정`에서 데모 모드를 켜거나 끕니다. 켜진 동안 비회원 로그인 화면에 `데모 모드 접속하기`가 표시됩니다. 데모의 공지, 일정, 설문, 그룹 채팅, 1:1 대화는 별도 예시 데이터이며 실제 회원 API·채팅방·저장소에 접근하지 않습니다. 입력한 설문·그룹 일정·할 일은 브라우저 메모리에서만 체험하고 새로고침하면 사라집니다. 채팅 전송·파일 첨부는 차단됩니다. 관리자만 서버의 `site_settings.demo_enabled` 값을 바꿀 수 있고, 공개 API는 켜짐 여부만 반환합니다.

@@ -1,5 +1,5 @@
 const {contextBridge,ipcRenderer}=require('electron');
-const desktop={isDesktop:true,autoUpdate:true,getAppVersion:()=>ipcRenderer.invoke('kfc:app-version')};
+const desktop={isDesktop:true,autoUpdate:true};
 if(location.protocol==='file:'){
   desktop.getServerUrl=()=>ipcRenderer.invoke('kfc:get-server-url');
   desktop.setServerUrl=value=>ipcRenderer.invoke('kfc:set-server-url',value);
