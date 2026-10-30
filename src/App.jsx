@@ -8,6 +8,9 @@ import {isDesktop} from './desktop.js';
 import LoginWelcome from '../components/ui/login-welcome.jsx';
 import DemoShell from './Demo.jsx';
 import NoticePopup from './NoticePopup.jsx';
+import Showroom from './Showroom.jsx';
+import MyProjects from './MyProjects.jsx';
+import LiquidNavbar,{NimbusIcons} from '../components/ui/liquid-glass-navbar.tsx';
 
 const menu=[
   {path:'/dashboard',label:'홈',icon:'⌂'},
@@ -15,6 +18,7 @@ const menu=[
   {path:'/calendar',label:'동아리 일정',icon:'▦'},
   {path:'/surveys',label:'설문',icon:'☑'},
   {path:'/groups',label:'그룹 채팅',icon:'◉'},
+  {path:'/my-projects',label:'My Projects',icon:'✳'},
 ];
 const officerMenu={path:'/officers',label:'임원 공간',icon:'✦'};
 const statusText={pending:'승인 대기',approved:'승인 완료',rejected:'반려'};
@@ -33,6 +37,7 @@ export default function App(){
   useEffect(()=>{if(hasSupabaseConfig)refreshUser();else setUser(null);},[]);
   useEffect(()=>{if(user!==null||!hasSupabaseConfig)return;let active=true,requestId=0;const check=async()=>{const current=++requestId;try{const r=await api('/api/demo-status',{cache:'no-store'});if(active&&current===requestId)setDemoStatus({enabled:!!r.demoEnabled,checked:true});}catch{if(active&&current===requestId)setDemoStatus({enabled:false,checked:true});}};check();const timer=window.setInterval(check,5000);const focus=()=>{if(document.visibilityState==='visible')check();};window.addEventListener('focus',focus);window.addEventListener('visibilitychange',focus);return()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',focus);window.removeEventListener('visibilitychange',focus);};},[user===null]);
   const logout=async()=>{userRequestRef.current++;try{await logoutCurrentSession();}catch{}finally{setShowWelcome(false);setShowLoginPopups(false);setUser(null);go('/');notify('로그아웃했습니다.');}};
+  if(path==='/'||path==='/showroom')return <Showroom go={go} user={user&&user!==undefined?user:null}/>;
   if(!hasSupabaseConfig)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>서비스 연결 설정이 없어 로그인할 수 없습니다. 잠시 후 다시 시도해 주세요.</span></div>;
   if(user===undefined)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>연결을 확인하고 있어요…</span></div>;
   const welcome=showWelcome?<LoginWelcome onComplete={()=>setShowWelcome(false)}/>:null;
@@ -121,7 +126,7 @@ function DownloadPage({go,notify}){
         <><a className="button primary download-button" href={status.portableUrl}>Windows 앱 다운로드 (.zip) <span>↓</span></a><p className="small muted">압축을 푼 뒤 폴더의 K.F.C. 로봇동아리.exe를 실행해 주세요.</p></>:
         <div className="notice-box">Windows 앱 파일이 아직 게시되지 않았습니다. 관리자가 빌드 파일을 배포하면 이곳에서 다운로드할 수 있습니다.</div>}
       <div className="download-steps"><div><b>01</b><span>{status?.portableAvailable&&!status?.installerAvailable?'압축 파일 풀기':'설치 파일 실행'}</span></div><div><b>02</b><span>서버 주소 입력</span></div><div><b>03</b><span>회원 계정으로 로그인</span></div></div>
-      <button className="text-button" onClick={()=>go('/')}>← 로그인 화면으로 돌아가기</button>
+      <button className="text-button" onClick={()=>go('/')}>← 쇼룸으로 돌아가기</button>
       {status?.message&&<p className="small muted">{status.message}</p>}
     </main>
   </div>;
@@ -158,6 +163,7 @@ function MemberShell({user,go,logout,notify,toast,blocked,popupSession,onPopupsD
       <button className="brand-link" onClick={()=>navigate('/dashboard')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>K.F.C.<small>ROBOTICS CLUB</small></span></button>
       <div className="club-label">MEMBER SPACE</div>
       <nav>{navItems.map(m=><button key={m.path} className={section===m.path?'nav-item active':'nav-item'} onClick={()=>navigate(m.path)}><span className="nav-icon">{m.icon}</span>{m.label}</button>)}</nav>
+      <div className="mobile-liquid-nav"><LiquidNavbar items={navItems.map((m,i)=>({label:m.label,icon:[NimbusIcons.home,NimbusIcons.globe,NimbusIcons.drop,NimbusIcons.plane,NimbusIcons.user][i%5],fx:['glow','spin','drop','plane','wave'][i%5]}))} active={Math.max(0,navItems.findIndex(m=>m.path===section))} onChange={index=>navigate(navItems[index].path)} tone="light" sound={false}/></div>
       <div className="sidebar-bottom">{!isDesktop&&<button className="nav-item" onClick={()=>go('/download')}><span className="nav-icon">↓</span>Windows 앱</button>}<div className="user-card"><div className="avatar club-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><b>{user.name}</b><small>승인 회원</small></div><button className="logout-button" onClick={logout}>로그아웃</button></div></div>
     </aside>
     <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / {menu.find(m=>m.path===section)?.label||'홈'}</span><strong>회원 공간</strong></div><div className="topbar-right"><span className="brand-image small topbar-logo"><img src="/kfc-logo.png" alt="K.F.C."/></span><span className="live-dot"/>온라인<button className="topbar-logout" onClick={logout}>로그아웃</button></div></header>
@@ -169,7 +175,7 @@ function MemberShell({user,go,logout,notify,toast,blocked,popupSession,onPopupsD
           section==='/announcements'?<Announcements announcements={announcements} targetId={linkedTarget?.type==='announcement'?linkedTarget.id:null}/>:
           section==='/calendar'?<Calendar events={events} targetId={linkedTarget?.type==='event'?linkedTarget.id:null}/>:
           section==='/surveys'?<Surveys polls={polls} refresh={load} notify={notify} targetId={linkedTarget?.type==='poll'?linkedTarget.id:null}/>:
-          <Groups groups={groups} directChats={directChats} directory={directory} open={groupOpen} directOpen={directOpen} notify={notify}/>}
+          section==='/my-projects'?<MyProjects user={user} notify={notify}/>:<Groups groups={groups} directChats={directChats} directory={directory} open={groupOpen} directOpen={directOpen} notify={notify}/>}
       </div>
     </main>
     {toast&&<Toast message={toast}/>}
@@ -201,6 +207,7 @@ function Dashboard({user,announcements,events,groups,open,groupOpen}){
       <button className="quick-card" onClick={()=>open('/announcements')}><span className="quick-icon orange">▤</span><b>새 공지사항</b><strong>{announcements.length}</strong><small>공지 확인하기 →</small></button>
       <button className="quick-card" onClick={()=>open('/calendar')}><span className="quick-icon blue">▦</span><b>예정된 일정</b><strong>{upcoming.length}</strong><small>달력 보기 →</small></button>
       <button className="quick-card" onClick={()=>open('/groups')}><span className="quick-icon violet">◉</span><b>내 그룹</b><strong>{groups.length}</strong><small>대화 참여하기 →</small></button>
+      <button className="quick-card" onClick={()=>open('/my-projects')}><span className="quick-icon orange">✳</span><b>My Projects</b><strong>+</strong><small>프로젝트 등록 →</small></button>
     </div>
     <div className="content-grid">
       <section className="surface"><div className="section-heading"><div><div className="eyebrow">UPDATES</div><h2>최근 공지사항</h2></div><button className="text-button" onClick={()=>open('/announcements')}>전체 보기 →</button></div>
@@ -339,4 +346,7 @@ function GroupRoom({group,user,onBack,notify}){
     <div className="surface inset"><div className="eyebrow">TEAM MEMBERS</div><h2>그룹 구성원</h2><div className="member-chips">{group.members.map(m=><div className="member-chip" key={m.id}><span className="avatar">{m.name.slice(0,1)}</span><b>{m.name}</b>{m.id===user.id&&<small>나</small>}</div>)}</div></div>}
   </div>;
 }
+
+
+
 

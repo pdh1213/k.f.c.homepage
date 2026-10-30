@@ -1,10 +1,12 @@
 import React,{useEffect,useState} from 'react';
 import {api,fmtDate,localInput,supabase} from './api.js';
 import NoticePopupAdmin from './NoticePopupAdmin.jsx';
+import LiquidNavbar,{NimbusIcons} from '../components/ui/liquid-glass-navbar.tsx';
+import './showroom.css';
 
 const tabs=[
-  ['overview','개요'],['applications','가입 신청'],['members','회원 관리'],['announcements','공지사항'],
-  ['events','전체 일정'],['polls','설문 관리'],['groups','그룹 관리'],['settings','설정']
+  ['overview','개요'],['applications','승인'],['members','회원 관리'],['announcements','공지사항'],
+  ['events','전체 일정'],['polls','설문 관리'],['groups','그룹 관리'],['showroom','쇼룸 관리'],['settings','설정']
 ];
 const stateLabel={pending:'승인 대기',approved:'승인 완료',rejected:'반려'};
 export function AccessDenied({go}){return <div className="center-page"><section className="surface access-card"><div className="brand-image large"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/></div><h1>접근 권한이 없습니다</h1><p className="muted">관리자만 이 화면을 이용할 수 있습니다.</p><button className="button primary" onClick={()=>go('/dashboard')}>회원 홈으로</button></section></div>;}
@@ -24,6 +26,7 @@ export function AdminShell({user,go,logout,notify,toast,blocked}){
       events:'/api/admin/events',
       polls:'/api/admin/polls',
       groups:'/api/admin/groups',
+      showroom:'/api/admin/competitions',
       settings:'/api/admin/settings'
     }[which];
     try{const r=await api(url);setData(r);if(which==='settings')setSettings(r);}
@@ -35,18 +38,19 @@ export function AdminShell({user,go,logout,notify,toast,blocked}){
   return <div className="admin-shell" inert={blocked}>
     <aside className="sidebar admin-sidebar">
       <button className="brand-link" onClick={()=>select('overview')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>K.F.C.<small>ADMIN CONSOLE</small></span></button>
-      <div className="club-label">관리자 메뉴</div><nav>{tabs.map(([key,label])=><button key={key} className={'nav-item '+(tab===key?'active':'')} onClick={()=>select(key)}><span className="nav-icon">{['overview','applications','members','announcements','events','polls','groups','settings'].indexOf(key)+1}</span>{label}{key==='applications'&&data?.pending>0&&tab==='overview'&&<i className="nav-count">{data.pending}</i>}</button>)}</nav>
+      <div className="club-label">관리자 메뉴</div><nav>{tabs.map(([key,label])=><button key={key} className={'nav-item '+(tab===key?'active':'')} onClick={()=>select(key)}><span className="nav-icon">{['overview','applications','members','announcements','events','polls','groups','showroom','settings'].indexOf(key)+1}</span>{label}{key==='applications'&&data?.pending>0&&tab==='overview'&&<i className="nav-count">{data.pending}</i>}</button>)}</nav>
+      <div className="mobile-liquid-nav"><LiquidNavbar items={tabs.map(([key,label],i)=>({label,icon:[NimbusIcons.home,NimbusIcons.globe,NimbusIcons.drop,NimbusIcons.plane,NimbusIcons.user][i%5],fx:['glow','spin','drop','plane','wave'][i%5]}))} active={tabs.findIndex(([key])=>key===tab)} onChange={index=>select(tabs[index][0])} tone="light" sound={false}/></div>
       <div className="sidebar-bottom"><div className="user-card"><div className="avatar club-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><b>{user.name}</b><small>관리자</small></div><button className="logout-button" onClick={logout}>로그아웃</button></div></div>
     </aside>
     <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / 관리자</span><strong>{tabs.find(t=>t[0]===tab)?.[1]}</strong></div><div className="topbar-right"><span className="shield">✓</span>관리자 인증됨<button className="topbar-logout" onClick={logout}>로그아웃</button></div></header>
       <div className="page-body admin-body">{loading&&!data?<div className="loading-card">관리자 정보를 불러오고 있어요…</div>:tab==='overview'?<Overview data={data} select={select} refresh={()=>load('overview','')}/>:
-        tab==='applications'?<Applications data={data} refresh={()=>load('applications',query||'pending')} notify={notify} query={query} setQuery={setQuery}/>:
+        tab==='applications'?<Approvals data={data} refresh={status=>load('applications',status||query||'pending')} notify={notify} query={query} setQuery={setQuery}/>:
         tab==='members'?<Members data={data} refresh={()=>load('members',query)} notify={notify} query={query} setQuery={setQuery}/>:
         tab==='announcements'?<AnnouncementAdmin data={data} refresh={()=>load('announcements','')} notify={notify} user={user}/>:
         tab==='events'?<EventAdmin data={data} refresh={()=>load('events','')} notify={notify}/>:
         tab==='polls'?<PollAdmin data={data} refresh={()=>load('polls','')} notify={notify}/>:
         tab==='groups'?<GroupAdmin data={data} refresh={()=>load('groups','')} notify={notify}/>:
-        <SettingsAdmin data={settings||data} notify={notify} refresh={()=>load('settings','')}/>}
+        tab==='showroom'?<CompetitionAdmin data={data} notify={notify} refresh={()=>load('showroom','')}/>:<SettingsAdmin data={settings||data} notify={notify} refresh={()=>load('settings','')}/>}
       </div>
     </main>
     {toast&&<Toast message={toast}/>}
@@ -58,7 +62,36 @@ function Overview({data,select,refresh}){
     <div className="surface admin-shortcuts"><div className="section-heading"><div><div className="eyebrow">SHORTCUTS</div><h2>자주 쓰는 작업</h2></div><button className="text-button" onClick={refresh}>새로고침 ↻</button></div><div className="shortcut-grid">{[['applications','가입 신청 확인'],['announcements','공지 작성'],['events','일정 등록'],['groups','그룹 만들기']].map(([key,label])=><button className="button secondary" key={key} onClick={()=>select(key)}>{label} →</button>)}</div></div>
   </div>;
 }
-function Applications({data,refresh,notify,query,setQuery}){
+
+function Approvals(props){
+  const [kind,setKind]=useState('members');
+  return <div className="admin-manager"><div className="officer-tabs approval-kind-tabs"><button className={kind==='members'?'active':''} onClick={()=>setKind('members')}>회원 가입 신청</button><button className={kind==='projects'?'active':''} onClick={()=>setKind('projects')}>프로젝트 승인</button></div>{kind==='members'?<MemberApplications {...props}/>:<ProjectApprovals notify={props.notify}/>}</div>;
+}
+function ProjectApprovals({notify}){
+  const [status,setStatus]=useState('pending'),[projects,setProjects]=useState([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(null);
+  const load=async(next=status)=>{setLoading(true);try{const r=await api('/api/admin/projects?status='+next);setProjects(r.projects||[])}catch(e){notify(e.message)}finally{setLoading(false)}};
+  useEffect(()=>{load(status)},[status]);
+  const decide=async(project,action)=>{
+    let reason='';
+    if(action==='reject'){const answer=window.prompt('반려 사유를 입력해 주세요.','');if(answer===null)return;reason=answer}
+    setBusy(project.id);
+    try{const r=await api('/api/admin/projects/'+project.id+'/decision',{method:'POST',body:{action,reason}});notify(r.message);await load(status)}catch(e){notify(e.message)}finally{setBusy(null)}
+  };
+  return <section className="surface"><div className="section-heading"><div><div className="eyebrow">SHOWROOM APPROVAL</div><h1>프로젝트 승인</h1><p className="muted">승인된 작품만 공개 쇼룸에 게시됩니다.</p></div><span className="count-pill">{projects.length}건</span></div>
+    <div className="toolbar"><label>신청 상태<select value={status} onChange={e=>setStatus(e.target.value)}><option value="pending">승인 대기</option><option value="approved">승인 완료</option><option value="rejected">반려</option></select></label><button className="button subtle" onClick={()=>load(status)}>새로고침 ↻</button></div>
+    {loading?<div className="empty-state"><b>프로젝트를 불러오고 있어요…</b></div>:projects.length?<div className="approval-project-list">{projects.map(project=><article key={project.id} className="application-card"><div className="approval-project-head"><img src={project.imageUrl} alt={project.name+' 사진'}/><div><span className="eyebrow">{project.kind==='robot'?'ROBOT PROJECT':'WEB APP'}</span><h2>{project.name}</h2><small>{project.author} @{project.username} · {new Date(project.createdAt).toLocaleDateString('ko-KR')}</small></div></div><p>{project.description}</p>{project.kind==='webapp'&&<><p><b>사용방법:</b> {project.instructions}</p><p><b>웹 URL:</b> <a href={project.webUrl} target="_blank" rel="noopener noreferrer">{project.webUrl}</a></p></>}{project.rejectionReason&&<p className="my-project-reason">반려 사유: {project.rejectionReason}</p>}{status==='pending'&&<div className="button-row"><button className="button primary" disabled={busy===project.id} onClick={()=>decide(project,'approve')}>승인 · 쇼룸 게시</button><button className="button danger-outline" disabled={busy===project.id} onClick={()=>decide(project,'reject')}>반려</button></div>}</article>)}</div>:<div className="empty-state"><b>해당 상태의 프로젝트가 없습니다.</b></div>}
+  </section>;
+}
+function CompetitionAdmin({data,notify,refresh}){
+  const blank=()=>({title:'',year:new Date().getFullYear(),result:'',description:'',published:true});
+  const [form,setForm]=useState(blank),[editing,setEditing]=useState(null),[busy,setBusy]=useState(false);
+  const save=async e=>{e.preventDefault();setBusy(true);try{const r=await api('/api/admin/competitions'+(editing?'/'+editing.id:''),{method:editing?'PATCH':'POST',body:form});notify(r.message);setForm(blank());setEditing(null);refresh()}catch(e){notify(e.message)}finally{setBusy(false)}};
+  const remove=async item=>{if(!window.confirm(item.title+' 대회 이력을 삭제할까요?'))return;try{const r=await api('/api/admin/competitions/'+item.id,{method:'DELETE'});notify(r.message);refresh()}catch(e){notify(e.message)}};
+  return <div className="admin-manager"><section className="surface"><div className="eyebrow">K.F.C. SHOWROOM</div><h1>대회 경험 관리</h1><p className="muted">실제 출전 기록을 등록하면 쇼룸에서 외부인에게 소개할 수 있습니다.</p><form className="form-stack" onSubmit={save}><label>대회 이름<input required maxLength="160" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></label><div className="form-grid"><label>연도<input type="number" min="2000" max="2100" required value={form.year} onChange={e=>setForm({...form,year:Number(e.target.value)})}/></label><label>결과 또는 참가 부문<input maxLength="160" value={form.result} onChange={e=>setForm({...form,result:e.target.value})} placeholder="예: 로봇 경진 부문 참가"/></label></div><label>활동 내용<textarea rows="4" maxLength="3000" value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="준비 과정과 경험을 적어 주세요."/></label><label className="check-label"><input type="checkbox" checked={form.published} onChange={e=>setForm({...form,published:e.target.checked})}/>쇼룸에 공개</label><div className="button-row"><button className="button primary" disabled={busy}>{busy?'저장 중…':editing?'수정 저장':'대회 이력 등록'}</button>{editing&&<button type="button" className="button subtle" onClick={()=>{setEditing(null);setForm(blank())}}>취소</button>}</div></form></section>
+    <section className="surface"><div className="section-heading"><h2>등록된 대회 경험</h2><span className="count-pill">{data?.competitions?.length||0}건</span></div>{data?.competitions?.length?data.competitions.map(c=><article className="manage-row" key={c.id}><div className="grow"><b>{c.year} · {c.title}</b><small>{c.result||'결과 미입력'} · {c.published?'공개':'비공개'}</small><p>{c.description}</p></div><button className="button subtle" onClick={()=>{setEditing(c);setForm({title:c.title,year:c.year,result:c.result,description:c.description,published:c.published})}}>수정</button><button className="button danger-outline" onClick={()=>remove(c)}>삭제</button></article>):<div className="empty-state"><b>대회 경험이 아직 없습니다.</b></div>}</section></div>;
+}
+
+function MemberApplications({data,refresh,notify,query,setQuery}){
   const [status,setStatus]=useState('pending');
   const changeStatus=async(id,action)=>{
     let reason='';
@@ -66,7 +99,7 @@ function Applications({data,refresh,notify,query,setQuery}){
     try{const r=await api('/api/admin/applications/'+id+'/decision',{method:'POST',body:{action,reason}});notify(r.message);refresh();}
     catch(e){notify(e.message);}
   };
-  const loadStatus=async(next)=>{setStatus(next);setQuery(next);try{const r=await api('/api/admin/applications?status='+next);setQuery(next);data.applications=r.applications;refresh();}catch(e){notify(e.message);}};
+  const loadStatus=(next)=>{setStatus(next);setQuery(next);refresh(next)};
   return <section className="surface"><div className="section-heading"><div><div className="eyebrow">MEMBERSHIP</div><h1>가입 신청</h1><p className="muted">승인 전 신청자는 회원 정보에 접근할 수 없습니다.</p></div><span className="count-pill">{data?.applications?.length||0}명</span></div>
     <div className="toolbar"><label>신청 상태<select value={status} onChange={e=>loadStatus(e.target.value)}><option value="pending">승인 대기</option><option value="approved">승인 완료</option><option value="rejected">반려</option></select></label><button className="button subtle" onClick={refresh}>새로고침 ↻</button></div>
     {data?.applications?.length?data.applications.map(a=><article className="application-card" key={a.id}><div className="application-top"><div><h2>{a.name}<small className="username">@{a.username}</small></h2><span className={'status-pill '+a.status}>{stateLabel[a.status]}</span></div><time>{fmtDate(a.createdAt)}</time></div>
@@ -159,3 +192,7 @@ function SettingsAdmin({data,notify,refresh}){
   return <div className="admin-manager"><section className="surface"><div className="eyebrow">SITE SETTINGS</div><h1>서비스 설정</h1><div className="setting-row"><div><h2>데모 모드</h2><p className="muted">방문자가 예시 공지·설문·채팅을 둘러볼 수 있습니다. 실제 회원 정보와 대화는 연결되지 않습니다.</p><span className={'status-pill '+(data?.demoEnabled?'approved':'rejected')}>{data?.demoEnabled?'켜짐 · 로그인 화면에 표시':'꺼짐 · 로그인 화면에서 숨김'}</span></div><button type="button" className={data?.demoEnabled?'button danger-outline':'button primary'} onClick={toggleDemo} disabled={switching||!data}>{switching?'저장 중…':data?.demoEnabled?'데모 모드 끄기':'데모 모드 켜기'}</button></div></section><NoticePopupAdmin notify={notify}/><section className="surface"><div className="eyebrow">ACCOUNT SECURITY</div><h1>계정 보안</h1><div className="security-summary"><div><small>관리자 아이디</small><b>{data?.username||'확인 중'}</b></div><div><small>HTTPS</small><b>운영 배포 시 필수</b></div><div><small>초기 비밀번호 변경</small><b>{data?.mustChangePassword?'변경 필요':'변경 완료'}</b></div></div><p className="muted">관리자 비밀번호는 환경 변수에서 초기화하고, 로그인 후 이 화면에서 변경할 수 있습니다.</p></section>
     <section className="surface"><h2>비밀번호 변경</h2><form className="form-stack narrow" onSubmit={submit}><label>현재 비밀번호<input type="password" autoComplete="current-password" required value={oldPassword} onChange={e=>setOld(e.target.value)}/></label><label>새 비밀번호<input type="password" minLength="10" autoComplete="new-password" required value={newPassword} onChange={e=>setNew(e.target.value)} placeholder="10자 이상"/></label><label>새 비밀번호 확인<input type="password" required value={confirm} onChange={e=>setConfirm(e.target.value)}/></label><button className="button primary">비밀번호 변경</button></form></section></div>;
 }
+
+
+
+

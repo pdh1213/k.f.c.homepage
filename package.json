@@ -1,6 +1,6 @@
 {
   "name": "kfc-robot-club",
-  "version": "2.4.1",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "description": "용인시청소년수련관 로봇동아리 K.F.C. 공식 홈페이지와 Windows 앱",
@@ -78,3 +78,4 @@
     "vite": "^7.1.7"
   }
 }
+
