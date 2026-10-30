@@ -47,3 +47,7 @@
 
 .showroom-activity h2{color:#fff}
 
+.desktop-liquid-nav{position:sticky;top:78px;z-index:3;display:flex;justify-content:center;padding:9px 18px;background:#f9f8f5ed;border-bottom:1px solid #e8e4dd;overflow-x:auto;scrollbar-width:none;backdrop-filter:blur(16px)}
+.desktop-liquid-nav::-webkit-scrollbar{display:none}
+.desktop-liquid-nav .nimbus-nav{flex:none}
+@media(max-width:780px){.desktop-liquid-nav{display:none}}

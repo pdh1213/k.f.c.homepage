@@ -1,7 +1,6 @@
 import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {api,apiUrl,supabase,fmtDate,localInput,logoutCurrentSession,hasSupabaseConfig} from './api.js';
 import {AdminShell,AccessDenied,Toast} from './Admin.jsx';
-import GlyphPortal from '../components/ui/glyph-portal.tsx';
 import '../components/ui/auth-portal.css';
 import GroupChat from '../components/ui/group-chat.tsx';
 import {isDesktop} from './desktop.js';
@@ -38,10 +37,10 @@ export default function App(){
   useEffect(()=>{if(user!==null||!hasSupabaseConfig)return;let active=true,requestId=0;const check=async()=>{const current=++requestId;try{const r=await api('/api/demo-status',{cache:'no-store'});if(active&&current===requestId)setDemoStatus({enabled:!!r.demoEnabled,checked:true});}catch{if(active&&current===requestId)setDemoStatus({enabled:false,checked:true});}};check();const timer=window.setInterval(check,5000);const focus=()=>{if(document.visibilityState==='visible')check();};window.addEventListener('focus',focus);window.addEventListener('visibilitychange',focus);return()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',focus);window.removeEventListener('visibilitychange',focus);};},[user===null]);
   const logout=async()=>{userRequestRef.current++;try{await logoutCurrentSession();}catch{}finally{setShowWelcome(false);setShowLoginPopups(false);setUser(null);go('/');notify('로그아웃했습니다.');}};
   if(path==='/'||path==='/showroom')return <Showroom go={go} user={user&&user!==undefined?user:null}/>;
+  if(path==='/download')return <DownloadPage go={go} notify={notify}/>;
   if(!hasSupabaseConfig)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>서비스 연결 설정이 없어 로그인할 수 없습니다. 잠시 후 다시 시도해 주세요.</span></div>;
   if(user===undefined)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>연결을 확인하고 있어요…</span></div>;
   const welcome=showWelcome?<LoginWelcome onComplete={()=>setShowWelcome(false)}/>:null;
-  if(path==='/download')return <DownloadPage go={go} notify={notify}/>;
   if(!user&&path==='/demo')return !demoStatus.checked?<div className="boot">데모 모드를 확인하고 있어요…</div>:demoStatus.enabled?<><DemoShell go={go} blocked={showWelcome}/>{welcome}</>:<div className="center-page"><section className="surface access-card"><h1>데모 모드가 종료되었습니다</h1><p className="muted">지금은 데모 화면을 이용할 수 없습니다.</p><button className="button primary" onClick={()=>go('/')}>로그인 화면으로</button></section></div>;
   if(!user)return <AuthScreen go={go} demoEnabled={demoStatus.enabled} onDemo={async()=>{const r=await api('/api/demo-status',{cache:'no-store'});setDemoStatus({enabled:!!r.demoEnabled,checked:true});if(r.demoEnabled){setShowWelcome(true);go('/demo');}return !!r.demoEnabled;}} onLogin={(u)=>{userRequestRef.current++;setShowWelcome(true);setShowLoginPopups(u.role!=='admin');setUser(u);go(u.role==='admin'?'/admin':'/dashboard');}} notify={notify}/>;
   if(user.mustChangePassword)return <PasswordScreen user={user} done={refreshUser} logout={logout} notify={notify}/>;
@@ -57,23 +56,15 @@ function AuthScreen({go,onLogin,notify,demoEnabled,onDemo}){
   const [mode,setMode]=useState('login'),[busy,setBusy]=useState(false);
   const [login,setLogin]=useState({username:'',password:''});
   const [form,setForm]=useState({name:'',age:'',school:'',grade:'',phone:'',username:'',password:''});
-  const [notice,setNotice]=useState(''); const portalRef=useRef(null);
+  const [notice,setNotice]=useState('');
   const change=(key,value)=>setForm(v=>({...v,[key]:value}));
-  useEffect(()=>{const root=portalRef.current;if(!root||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-    const timer=window.setTimeout(()=>{const content=root.querySelector('[data-gp-content]');if(content){const y=content.getBoundingClientRect().top-root.getBoundingClientRect().top+root.scrollTop;root.scrollTo({top:y,behavior:'smooth'});}},420);
-    const stopAutoAdvance=()=>window.clearTimeout(timer);
-    root.addEventListener('wheel',stopAutoAdvance,{once:true,passive:true});root.addEventListener('touchstart',stopAutoAdvance,{once:true,passive:true});root.addEventListener('pointerdown',stopAutoAdvance,{once:true,passive:true});
-    return()=>{window.clearTimeout(timer);root.removeEventListener('wheel',stopAutoAdvance);root.removeEventListener('touchstart',stopAutoAdvance);root.removeEventListener('pointerdown',stopAutoAdvance);};
-  },[]);
   const submitLogin=async e=>{e.preventDefault();setBusy(true);setNotice('');try{const r=await api('/api/auth/login',{method:'POST',body:login});onLogin(r.user);}catch(err){setNotice(err.message);}finally{setBusy(false);}};
   const enterDemo=async()=>{setBusy(true);setNotice('');try{if(!await onDemo())setNotice('데모 모드가 종료되었습니다.');}catch{setNotice('데모 모드를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');}finally{setBusy(false);}};
   const submitRegister=async e=>{e.preventDefault();setBusy(true);setNotice('');try{const r=await api('/api/auth/register',{method:'POST',body:form});setNotice(r.message+' 신청 상태는 승인 대기입니다.');setMode('login');setLogin({username:form.username,password:''});notify('가입 신청이 접수되었습니다.');}catch(err){setNotice(err.message);}finally{setBusy(false);}};
-  return <div className="login-portal-scroll" ref={portalRef} tabIndex={-1}>
-    <GlyphPortal word="K.F.C." focusChar="F" interactive={false} scrollLength={1.2} fontWeight={900} enterLabel="로그인 창으로 이동"
-      style={{"--gp-paper":"#faf9f5","--gp-ink":"#141413","--gp-field":"#181715","--gp-foreground":"#faf9f5"}}
-      background={<div className="portal-field-bg"/>}
-      front={<div className="portal-frontbar"><div className="portal-front-brand"><img src="/kfc-logo.png" alt=""/><span>K.F.C.</span><small>용인시청소년수련관 로봇동아리</small></div>{!isDesktop&&<button type="button" onClick={()=>go('/download')}>Windows 앱 안내 ↗</button>}</div>}>
-      <main className="auth-portal-content"><section className="auth-portal-card">
+  return <div className="login-portal-scroll" tabIndex={-1}>
+      <div className="portal-field-bg" aria-hidden="true"/>
+      <div className="portal-frontbar"><button type="button" className="portal-front-brand" onClick={()=>go('/')}><img src="/kfc-logo.png" alt=""/><span>K.F.C.</span><small>용인시청소년수련관 로봇동아리</small></button>{!isDesktop&&<button type="button" onClick={()=>go('/download')}>Windows 앱 안내 ↗</button>}</div>
+      <main className="auth-portal-content" data-gp-content><section className="auth-portal-card">
         <div className="portal-login-brand"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/><div><b>K.F.C.</b><small>ROBOTICS CLUB · YONGIN</small></div></div>
         <div className="eyebrow">{mode==='login'?'MEMBER ACCESS':'JOIN THE CLUB'}</div><h1>{mode==='login'?'다시 만나 반가워요':'가입 신청'}</h1>
         <p className="muted">{mode==='login'?'아이디와 비밀번호를 입력해 주세요.':'회원 정보를 작성하면 관리자 승인 후 이용할 수 있어요.'}</p>
@@ -89,7 +80,6 @@ function AuthScreen({go,onLogin,notify,demoEnabled,onDemo}){
         {mode==='login'&&demoEnabled&&<button type="button" className="button secondary full demo-entry" disabled={busy} onClick={enterDemo}>데모 모드 접속하기 <span>↗</span></button>}
         <div className="auth-footnote">가입 신청은 관리자의 승인 후 로그인할 수 있습니다.</div>{!isDesktop&&<a className="auth-windows-link" href="/download" onClick={e=>{e.preventDefault();go('/download');}}>Windows 앱 안내 ↗</a>}
       </section><div className="portal-footer">© K.F.C. Robotics Club · 용인시청소년수련관</div></main>
-    </GlyphPortal>
   </div>;
 }
 function PasswordScreen({user,done,logout,notify}){
@@ -167,6 +157,7 @@ function MemberShell({user,go,logout,notify,toast,blocked,popupSession,onPopupsD
       <div className="sidebar-bottom">{!isDesktop&&<button className="nav-item" onClick={()=>go('/download')}><span className="nav-icon">↓</span>Windows 앱</button>}<div className="user-card"><div className="avatar club-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><b>{user.name}</b><small>승인 회원</small></div><button className="logout-button" onClick={logout}>로그아웃</button></div></div>
     </aside>
     <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / {menu.find(m=>m.path===section)?.label||'홈'}</span><strong>회원 공간</strong></div><div className="topbar-right"><span className="brand-image small topbar-logo"><img src="/kfc-logo.png" alt="K.F.C."/></span><span className="live-dot"/>온라인<button className="topbar-logout" onClick={logout}>로그아웃</button></div></header>
+      <div className="desktop-liquid-nav"><LiquidNavbar items={navItems.map((m,i)=>({label:m.label,icon:[NimbusIcons.home,NimbusIcons.globe,NimbusIcons.drop,NimbusIcons.plane,NimbusIcons.user][i%5],fx:['glow','spin','drop','plane','wave'][i%5]}))} active={Math.max(0,navItems.findIndex(m=>m.path===section))} onChange={index=>navigate(navItems[index].path)} tone="light" sound={false}/></div>
       <div className="page-body">
         {loading?<div className="loading-card">회원 정보를 불러오고 있어요…</div>:section==='/officers'?<OfficerHub notify={notify}/> :selectedDirect?
           <DirectRoom chat={selectedDirect} user={user} onBack={()=>{setSelectedDirect(null);load({quiet:true})}} notify={notify}/> :selectedGroup?
@@ -346,7 +337,6 @@ function GroupRoom({group,user,onBack,notify}){
     <div className="surface inset"><div className="eyebrow">TEAM MEMBERS</div><h2>그룹 구성원</h2><div className="member-chips">{group.members.map(m=><div className="member-chip" key={m.id}><span className="avatar">{m.name.slice(0,1)}</span><b>{m.name}</b>{m.id===user.id&&<small>나</small>}</div>)}</div></div>}
   </div>;
 }
-
 
 
 
