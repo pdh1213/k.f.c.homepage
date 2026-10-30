@@ -3,7 +3,7 @@
 .showroom-main{background:#f9f8f5;min-height:100vh}
 .showroom-nav-wrap{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:13px clamp(18px,5vw,70px);background:#f9f8f5e8;backdrop-filter:blur(18px);border-bottom:1px solid #e5e1da}
 .showroom-brand{display:flex;align-items:center;gap:10px;white-space:nowrap;font-weight:800;font-size:17px}.showroom-brand img{width:34px;height:34px;object-fit:contain;border-radius:50%}
-.showroom-nav-scroll{max-width:100%;overflow-x:auto;scrollbar-width:none}.showroom-nav-scroll::-webkit-scrollbar{display:none}
+.showroom-nav-scroll{max-width:100%;overflow-x:auto;scrollbar-width:none;padding:12px 18px;margin:-12px -18px;border-radius:999px;isolation:isolate}.showroom-nav-scroll::-webkit-scrollbar{display:none}
 .showroom-hero{min-height:76vh;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:80px clamp(24px,8vw,130px);background:radial-gradient(circle at 78% 45%,#e2d8c8 0,#f5f1e9 42%,#f9f8f5 68%)}
 .showroom-eyebrow{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#9e583c}
 .showroom-hero h1{position:relative;z-index:1;font-size:clamp(44px,7vw,92px);line-height:1.09;letter-spacing:-.065em;margin:22px 0;color:#181816}.showroom-hero h1 em{font-style:normal;color:#bd7255}
@@ -47,7 +47,22 @@
 
 .showroom-activity h2{color:#fff}
 
-.desktop-liquid-nav{position:sticky;top:78px;z-index:3;display:flex;justify-content:center;padding:9px 18px;background:#f9f8f5ed;border-bottom:1px solid #e8e4dd;overflow-x:auto;scrollbar-width:none;backdrop-filter:blur(16px)}
+.desktop-liquid-nav{position:sticky;top:78px;z-index:3;display:flex;justify-content:safe center;padding:12px 22px;background:#f9f8f5f2;border-bottom:1px solid #e8e4dd;overflow-x:auto;scrollbar-width:none;backdrop-filter:blur(16px)}
 .desktop-liquid-nav::-webkit-scrollbar{display:none}
 .desktop-liquid-nav .nimbus-nav{flex:none}
-@media(max-width:780px){.desktop-liquid-nav{display:none}}
+@media(max-width:780px){.desktop-liquid-nav{top:65px;justify-content:flex-start;padding:10px 16px}.desktop-liquid-nav .nimbus-nav{min-width:max-content}.desktop-liquid-nav .nimbus-item{height:42px;padding:0 12px}.desktop-liquid-nav .nimbus-label{position:static!important;width:auto!important;height:auto!important;clip:auto!important;font-size:11px}}
+
+/* One navigation surface for signed-in member and administrator screens. */
+.app-shell>.sidebar,.admin-shell>.sidebar{display:none!important}
+.app-shell>.main-area,.admin-shell>.main-area{margin-left:0;min-height:100vh;padding-bottom:0;background:#f9f8f5}
+.app-shell .topbar,.admin-shell .topbar{background:#f9f8f5;border-bottom-color:#e8e4dd}
+.app-shell .page-body,.admin-shell .page-body{max-width:1320px}
+.app-shell .welcome-card,.admin-shell .welcome-card{background:linear-gradient(120deg,#252523,#3a3935 65%,#514d47)}
+.app-shell .welcome-card h1 span{color:#f2d4c2}
+@media(max-width:780px){.app-shell>.main-area,.admin-shell>.main-area{padding-bottom:0}.app-shell .page-body,.admin-shell .page-body{padding-bottom:48px}}
+
+.download-page{background:#f9f8f5;color:#242321}
+.download-page .public-header{background:#f9f8f5;border-bottom-color:#e8e4dd}
+.download-page .download-icon{background:#292824;color:#f9f8f5;box-shadow:0 14px 30px #29282422}
+.download-page .download-steps>div{border-color:#e8e4dd;box-shadow:0 8px 24px #24211d0a}
+.download-page .download-steps b{color:#a8664e}

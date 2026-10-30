@@ -20,6 +20,7 @@ const menu=[
   {path:'/my-projects',label:'My Projects',icon:'✳'},
 ];
 const officerMenu={path:'/officers',label:'임원 공간',icon:'✦'};
+const liquidMemberLabels={'/dashboard':'Home','/announcements':'Notices','/calendar':'Calendar','/surveys':'Surveys','/groups':'Chats','/my-projects':'My Projects','/officers':'Officers'};
 const statusText={pending:'승인 대기',approved:'승인 완료',rejected:'반려'};
 
 export default function App(){
@@ -153,11 +154,11 @@ function MemberShell({user,go,logout,notify,toast,blocked,popupSession,onPopupsD
       <button className="brand-link" onClick={()=>navigate('/dashboard')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>K.F.C.<small>ROBOTICS CLUB</small></span></button>
       <div className="club-label">MEMBER SPACE</div>
       <nav>{navItems.map(m=><button key={m.path} className={section===m.path?'nav-item active':'nav-item'} onClick={()=>navigate(m.path)}><span className="nav-icon">{m.icon}</span>{m.label}</button>)}</nav>
-      <div className="mobile-liquid-nav"><LiquidNavbar items={navItems.map((m,i)=>({label:m.label,icon:[NimbusIcons.home,NimbusIcons.globe,NimbusIcons.drop,NimbusIcons.plane,NimbusIcons.user][i%5],fx:['glow','spin','drop','plane','wave'][i%5]}))} active={Math.max(0,navItems.findIndex(m=>m.path===section))} onChange={index=>navigate(navItems[index].path)} tone="light" sound={false}/></div>
+      <div className="mobile-liquid-nav"><LiquidNavbar items={navItems.map((m,i)=>({label:liquidMemberLabels[m.path],icon:[NimbusIcons.home,NimbusIcons.globe,NimbusIcons.drop,NimbusIcons.plane,NimbusIcons.user][i%5],fx:['glow','spin','drop','plane','wave'][i%5]}))} active={Math.max(0,navItems.findIndex(m=>m.path===section))} onChange={index=>navigate(navItems[index].path)} tone="light" sound={false}/></div>
       <div className="sidebar-bottom">{!isDesktop&&<button className="nav-item" onClick={()=>go('/download')}><span className="nav-icon">↓</span>Windows 앱</button>}<div className="user-card"><div className="avatar club-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><b>{user.name}</b><small>승인 회원</small></div><button className="logout-button" onClick={logout}>로그아웃</button></div></div>
     </aside>
     <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / {menu.find(m=>m.path===section)?.label||'홈'}</span><strong>회원 공간</strong></div><div className="topbar-right"><span className="brand-image small topbar-logo"><img src="/kfc-logo.png" alt="K.F.C."/></span><span className="live-dot"/>온라인<button className="topbar-logout" onClick={logout}>로그아웃</button></div></header>
-      <div className="desktop-liquid-nav"><LiquidNavbar items={navItems.map((m,i)=>({label:m.label,icon:[NimbusIcons.home,NimbusIcons.globe,NimbusIcons.drop,NimbusIcons.plane,NimbusIcons.user][i%5],fx:['glow','spin','drop','plane','wave'][i%5]}))} active={Math.max(0,navItems.findIndex(m=>m.path===section))} onChange={index=>navigate(navItems[index].path)} tone="light" sound={false}/></div>
+      <div className="desktop-liquid-nav"><LiquidNavbar items={navItems.map((m,i)=>({label:liquidMemberLabels[m.path],icon:[NimbusIcons.home,NimbusIcons.globe,NimbusIcons.drop,NimbusIcons.plane,NimbusIcons.user][i%5],fx:['glow','spin','drop','plane','wave'][i%5]}))} active={Math.max(0,navItems.findIndex(m=>m.path===section))} onChange={index=>navigate(navItems[index].path)} tone="light" sound={false}/></div>
       <div className="page-body">
         {loading?<div className="loading-card">회원 정보를 불러오고 있어요…</div>:section==='/officers'?<OfficerHub notify={notify}/> :selectedDirect?
           <DirectRoom chat={selectedDirect} user={user} onBack={()=>{setSelectedDirect(null);load({quiet:true})}} notify={notify}/> :selectedGroup?
