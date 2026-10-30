@@ -66,3 +66,7 @@
 .download-page .download-icon{background:#292824;color:#f9f8f5;box-shadow:0 14px 30px #29282422}
 .download-page .download-steps>div{border-color:#e8e4dd;box-shadow:0 8px 24px #24211d0a}
 .download-page .download-steps b{color:#a8664e}
+
+.app-shell .topbar-logout,.admin-shell .topbar-logout{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:8px 14px;border:1px solid #ded9d1;border-radius:999px;background:#fff;color:#302e2a;font-size:12px;font-weight:700;box-shadow:0 3px 10px #24211d0d;cursor:pointer}
+.app-shell .topbar-logout:hover,.admin-shell .topbar-logout:hover{background:#efede8;color:#1f1e1b}
+.app-shell .topbar-logout:focus-visible,.admin-shell .topbar-logout:focus-visible{outline:2px solid #5d6268;outline-offset:2px}
