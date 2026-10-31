@@ -60,6 +60,31 @@ Deno.serve(async req=>{
   const saved=await save(db.from("showroom_projects").insert({owner_id:x.id,kind,name:text(b.name,120,"프로젝트 이름"),description:text(b.description,2000,"간단한 설명"),instructions,web_url:webUrl,image_path:imagePath}).select("id").single());
   return out({id:saved.id,message:"프로젝트 승인 신청을 접수했습니다."},201);
  }
+ const ownProject=pth.match(/^my-projects\/(\d+)$/);
+ if(ownProject&&["PATCH","DELETE"].includes(method)){
+  const x=member();if(x.role!=="member")return bad("회원 계정으로 이용해 주세요.",403);
+  const id=Number(ownProject[1]),old=await one(db.from("showroom_projects").select("*").eq("id",id).eq("owner_id",x.id));
+  if(!old)return bad("본인의 프로젝트를 찾을 수 없습니다.",404);
+  if(method==="DELETE"){
+   const removed=await db.from("showroom_projects").delete().eq("id",id).eq("owner_id",x.id).select("id");
+   if(removed.error)throw removed.error;if(!removed.data?.length)return bad("프로젝트를 찾을 수 없습니다.",404);
+   const image=await db.storage.from("project-images").remove([old.image_path]);if(image.error)console.error("project image cleanup failed",image.error.message);
+   return out({message:"프로젝트를 삭제했습니다."});
+  }
+  const kind=String(b.kind||old.kind);if(!["robot","webapp"].includes(kind))return bad("로봇 또는 웹앱을 선택해 주세요.");
+  const imagePath=String(b.imagePath||old.image_path);
+  if(imagePath.length>300||!imagePath.startsWith("projects/"+x.id+"/")||imagePath.includes("..")||!/\.(png|jpe?g|webp|gif|avif)$/i.test(imagePath))return bad("본인이 올린 프로젝트 사진을 선택해 주세요.");
+  if(imagePath!==old.image_path){const image=await db.storage.from("project-images").info(imagePath);if(image.error)return bad("프로젝트 사진을 찾을 수 없습니다. 다시 올려 주세요.")}
+  let webUrl:null|string=null,instructions="";
+  if(kind==="webapp"){
+   instructions=text(b.instructions,3000,"사용방법");if(String(b.webUrl||"").length>2000)return bad("웹앱 주소는 2,000자 이내로 입력해 주세요.");
+   try{const url=new URL(String(b.webUrl||""));if(url.protocol!=="https:"||url.username||url.password)throw Error();webUrl=url.href}catch{return bad("웹앱 주소는 https:// 주소로 입력해 주세요.")}
+  }
+  const changed=await db.from("showroom_projects").update({kind,name:text(b.name,120,"프로젝트 이름"),description:text(b.description,2000,"간단한 설명"),instructions,web_url:webUrl,image_path:imagePath,status:"pending",rejection_reason:"",reviewed_at:null,reviewed_by:null}).eq("id",id).eq("owner_id",x.id).select("id");
+  if(changed.error)throw changed.error;if(!changed.data?.length)return bad("프로젝트를 찾을 수 없습니다.",404);
+  if(imagePath!==old.image_path){const image=await db.storage.from("project-images").remove([old.image_path]);if(image.error)console.error("project image cleanup failed",image.error.message)}
+  return out({message:"수정 내용을 저장했습니다. 다시 승인 대기 상태로 전환되었습니다."});
+ }
 
  if(pth==="notice-popups"&&method==="GET"){const x=member();if(x.role==="admin")return out({popups:[]});const rows=await all(db.from("notice_popups").select("id,title,content,link_type,link_url,target_id").eq("active",true).order("created_at",{ascending:false}).limit(20));return out({popups:rows.map((z:any)=>({id:z.id,title:z.title,content:z.content,linkType:z.link_type,linkUrl:z.link_url,targetId:z.target_id}))})}
  if(pth==="announcements"&&method==="GET"){member();let rows=await all(db.from("announcements").select("*").eq("published",true).order("created_at",{ascending:false}));return out({announcements:await Promise.all(rows.map(async(z:any)=>({id:z.id,title:z.title,content:z.content,published:z.published,createdAt:z.created_at,images:await signFiles((z.image_paths||[]).map((path:string)=>({path,name:path.split("/").pop(),type:path.match(/\.png$/i)?"image/png":path.match(/\.gif$/i)?"image/gif":path.match(/\.webp$/i)?"image/webp":path.match(/\.avif$/i)?"image/avif":"image/jpeg",size:0})),"announcement-images")})))})}
@@ -88,6 +113,16 @@ Deno.serve(async req=>{
   if(!["pending","approved","rejected"].includes(status))return bad("승인 상태를 확인해 주세요.");
   const rows=await all(db.from("showroom_projects").select("id,kind,name,description,instructions,web_url,image_path,status,rejection_reason,created_at,users!showroom_projects_owner_id_fkey(id,name,username)").eq("status",status).order("created_at",{ascending:false}).limit(200));
   return out({projects:await Promise.all(rows.map(async(z:any)=>{const signed=await db.storage.from("project-images").createSignedUrl(z.image_path,3600);return{id:z.id,kind:z.kind,name:z.name,description:z.description,instructions:z.instructions,webUrl:z.web_url,imageUrl:signed.data?.signedUrl||"",status:z.status,rejectionReason:z.rejection_reason,author:z.users?.name||"삭제된 회원",username:z.users?.username||"",createdAt:z.created_at}}))});
+ }
+ const adminProject=s.match(/^projects\/(\d+)$/);
+ if(adminProject&&method==="DELETE"){
+  const id=Number(adminProject[1]),project=await one(db.from("showroom_projects").select("id,image_path,status").eq("id",id));
+  if(!project)return bad("프로젝트를 찾을 수 없습니다.",404);
+  if(project.status!=="approved")return bad("게시된 프로젝트만 쇼룸 관리에서 삭제할 수 있습니다.",409);
+  const removed=await db.from("showroom_projects").delete().eq("id",id).eq("status","approved").select("id");
+  if(removed.error)throw removed.error;if(!removed.data?.length)return bad("이미 변경된 프로젝트입니다.",409);
+  const image=await db.storage.from("project-images").remove([project.image_path]);if(image.error)console.error("project image cleanup failed",image.error.message);
+  return out({message:"게시된 프로젝트를 쇼룸에서 삭제했습니다."});
  }
  const projectDecision=s.match(/^projects\/(\d+)\/decision$/);
  if(projectDecision&&method==="POST"){
@@ -148,7 +183,6 @@ if(k==="events"&&method==="GET"&&!id){let v=await all(db.from("events").select("
  return bad("요청 경로를 찾을 수 없습니다.",404)
  }catch(e){let x=e as any;console.error("kfc-api request failed",JSON.stringify({path:pth,method,code:x?.code,message:x?.message}));return bad(x?.message||"요청을 처리하지 못했습니다.",x?.status||500)}
 });
-
 
 
 
