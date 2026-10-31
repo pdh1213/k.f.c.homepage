@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
 import GroupChat from '../components/ui/group-chat.tsx';
-import {isDesktop} from './desktop.js';
+import LiquidNavbar,{NimbusIcons} from '../components/ui/liquid-glass-navbar.tsx';
 import './demo.css';
 
 const fmtDate=(value,options={dateStyle:'medium',timeStyle:'short'})=>{try{return new Intl.DateTimeFormat('ko-KR',options).format(new Date(value))}catch{return value||''}};
@@ -12,6 +12,10 @@ const menu=[
   {id:'surveys',label:'설문',icon:'☑'},
   {id:'groups',label:'그룹 채팅',icon:'◉'}
 ];
+const liquidLabels={home:'Home',announcements:'Notices',calendar:'Calendar',surveys:'Surveys',groups:'Chats'};
+const liquidIcons=[NimbusIcons.home,NimbusIcons.globe,NimbusIcons.drop,NimbusIcons.plane,NimbusIcons.user];
+const liquidEffects=['glow','spin','drop','plane','wave'];
+const liquidItems=menu.map((item,index)=>({label:liquidLabels[item.id],icon:liquidIcons[index],fx:liquidEffects[index]}));
 const notices=[
   {id:'demo-notice-1',title:'[데모] 첫 로봇 프로젝트 안내',content:'이 공지는 데모 모드 전용 예시입니다. 실제 동아리 공지사항이나 회원 계정에는 표시되지 않습니다.\n\n프로젝트 아이디어를 나누고, 역할을 정한 뒤 작은 시제품부터 함께 만들어 보세요.',createdAt:new Date(Date.now()-86400000).toISOString()},
   {id:'demo-notice-2',title:'[데모] 팀 활동 준비물',content:'노트북, 아이디어 스케치, 만들고 싶은 로봇에 대한 호기심을 준비해 주세요. 이 내용은 체험용이며 실제 일정과 관계없습니다.',createdAt:new Date(Date.now()-172800000).toISOString()}
@@ -40,13 +44,8 @@ export default function DemoShell({go,blocked=false}){
   const notify=message=>{setNotice(message);window.clearTimeout(noticeTimer.current);noticeTimer.current=window.setTimeout(()=>setNotice(''),4000)};
   const navigate=id=>{setSection(id);setRoom(null);window.scrollTo(0,0)};
   return <div className="app-shell demo-shell" inert={blocked}>
-    <aside className="sidebar">
-      <button className="brand-link" onClick={()=>navigate('home')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>K.F.C.<small>DEMO SPACE</small></span></button>
-      <div className="club-label">데모 전용 화면</div>
-      <nav>{menu.map(item=><button key={item.id} className={'nav-item '+(section===item.id?'active':'')} onClick={()=>navigate(item.id)}><span className="nav-icon">{item.icon}</span>{item.label}</button>)}</nav>
-      <div className="sidebar-bottom">{!isDesktop&&<button className="nav-item" onClick={()=>go('/download')}><span className="nav-icon">↓</span>Windows 앱</button>}<div className="user-card"><div className="avatar club-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><b>데모 방문자</b><small>체험용 계정</small></div><button className="logout-button" onClick={()=>go('/')}>데모 종료</button></div></div>
-    </aside>
     <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / 데모</span><strong>{menu.find(item=>item.id===section)?.label}</strong></div><div className="topbar-right"><span className="brand-image small topbar-logo"><img src="/kfc-logo.png" alt="K.F.C."/></span><span className="demo-top-label">데모 모드</span><button className="topbar-logout" onClick={()=>go('/')}>데모 종료</button></div></header>
+      <div className="desktop-liquid-nav"><LiquidNavbar items={liquidItems} active={Math.max(0,menu.findIndex(item=>item.id===section))} onChange={index=>navigate(menu[index].id)} tone="light" sound={false}/></div>
       <div className="page-body"><div className="demo-banner" role="status"><b>데모 모드</b><span>모든 내용은 예시입니다. 실제 회원 정보나 채팅과 연결되지 않으며 입력한 내용은 저장되지 않습니다.</span><button onClick={()=>go('/')}>로그인 화면으로 ↗</button></div>
         {section==='home'?<DemoHome navigate={navigate} openGroup={()=>{setSection('groups');setRoom('group')}}/>:section==='announcements'?<DemoNotices/>:section==='calendar'?<DemoCalendar/>:section==='surveys'?<DemoSurveys notify={notify}/>:room?<DemoRoom kind={room} onBack={()=>setRoom(null)} notify={notify}/>:<DemoGroups open={setRoom}/>}
       </div>

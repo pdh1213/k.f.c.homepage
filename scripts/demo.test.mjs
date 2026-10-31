@@ -24,6 +24,12 @@ test('데모 화면은 회원 API 없이 예시 화면만 렌더링한다',async
     for(const [Component,p,expected] of screens){
       const html=renderToString(React.createElement(Component,p));
       assert.ok(html.includes(expected),expected);
+      if(Component===demo.default){
+        assert.match(html,/desktop-liquid-nav/);
+        assert.match(html,/Home/);
+        assert.match(html,/Chats/);
+        assert.doesNotMatch(html,/class="sidebar"/);
+      }
     }
   }finally{await vite.close()}
 });
