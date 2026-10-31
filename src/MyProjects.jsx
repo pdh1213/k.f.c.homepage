@@ -10,7 +10,7 @@ export default function MyProjects({user,notify}){
   useEffect(()=>{load()},[]);
   const update=(key,value)=>setForm(current=>({...current,[key]:value}));
   const reset=()=>{setForm(empty);setFile(null);setEditing(null);const input=document.getElementById('my-project-image');if(input)input.value=''};
-  const edit=project=>{setEditing(project);setForm({kind:project.kind,name:project.name,description:project.description,instructions:project.instructions||'',webUrl:project.webUrl||''});setFile(null);document.querySelector('.my-projects-form')?.scrollIntoView({behavior:'smooth',block:'start'})};
+  const edit=project=>{setEditing(project);setForm({kind:project.kind,name:project.name,description:project.description,instructions:project.instructions||'',webUrl:project.webUrl||''});setFile(null);requestAnimationFrame(()=>{document.querySelector('.my-projects-form')?.scrollIntoView({behavior:'instant',block:'start'});document.querySelector('.my-projects-form input[maxlength="120"]')?.focus({preventScroll:true})})};
   const remove=async project=>{if(!window.confirm('「'+project.name+'」 프로젝트를 완전히 삭제할까요?'))return;setBusy(true);try{const r=await api('/api/my-projects/'+project.id,{method:'DELETE'});notify(r.message);if(editing?.id===project.id)reset();await load()}catch(e){notify(e.message||'프로젝트를 삭제하지 못했습니다.')}finally{setBusy(false)}};
   const submit=async e=>{
     e.preventDefault();
