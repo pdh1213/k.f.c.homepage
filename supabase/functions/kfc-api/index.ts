@@ -3,6 +3,10 @@ const env=JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS")||"{}"),serviceKey=env.
 const H={"content-type":"application/json","cache-control":"no-store","access-control-allow-origin":"*","access-control-allow-headers":"authorization,apikey,content-type","access-control-allow-methods":"GET,POST,PUT,PATCH,DELETE,OPTIONS"},out=(x:any,s=200)=>new Response(JSON.stringify(x),{status:s,headers:H}),bad=(message:string,status=400,code?:string)=>out({message,...(code?{code}:{})},status);
 const all=async(q:any)=>{let r=await q;if(r.error)throw r.error;return r.data||[]},one=async(q:any)=>((await all(q.limit(1)))[0]||null),save=async(q:any)=>{let r=await q;if(r.error)throw r.error;return r.data},text=(v:any,n:number,k:string)=>{if(typeof v!=="string"||!v.trim()||v.trim().length>n)throw Error(k+"은(는) 1~"+n+"자로 입력해 주세요.");return v.trim()};
 const safeImageTypes=new Set(["image/jpeg","image/png","image/gif","image/webp","image/avif"]);
+const progressList=(raw:any)=>{if(!Array.isArray(raw)||raw.length>30)throw Error("진행 기록은 30개까지 입력해 주세요.");return raw.map((entry:any)=>{const date=String(entry?.date||"");if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(Date.parse(date)))throw Error("진행 기록 날짜를 확인해 주세요.");return{id:String(entry?.id||crypto.randomUUID()).slice(0,80),date,title:text(entry?.title,120,"진행 기록 제목"),content:text(entry?.content,1500,"진행 기록 내용")}})};
+const collaboratorList=async(raw:any,ownerId:number)=>{if(!Array.isArray(raw)||raw.length>20)throw Error("공동 제작자는 20명까지 선택해 주세요.");const ids=[...new Set(raw.map(Number))];if(ids.some(id=>!Number.isSafeInteger(id)||id<1||id===ownerId))throw Error("공동 제작자를 확인해 주세요.");if(ids.length){const valid=await all(db.from("users").select("id").in("id",ids).eq("role","member").eq("status","approved"));if(valid.length!==ids.length)throw Error("승인된 회원만 공동 제작자로 선택할 수 있습니다.")}return ids};
+const collaboratorNames=async(rows:any[])=>{const ids=[...new Set(rows.flatMap((z:any)=>z.collaborator_ids||[]))];if(!ids.length)return new Map();const users=await all(db.from("users").select("id,name").in("id",ids).eq("role","member").eq("status","approved"));return new Map(users.map((z:any)=>[z.id,z.name]))};
+const projectExtra=(z:any,names:Map<any,any>)=>({phase:z.project_phase||"in_progress",collaboratorIds:z.collaborator_ids||[],collaborators:(z.collaborator_ids||[]).flatMap((id:number)=>names.has(id)?[{id,name:names.get(id)}]:[]),progressEntries:z.progress_entries||[]});
 const chatAttachmentList=(raw:any,scope:string,scopeId:number,userId:number)=>{if(raw===undefined)return[];if(!Array.isArray(raw)||raw.length>8)throw Error("파일은 한 번에 8개까지 첨부할 수 있습니다.");return raw.map((a:any)=>{const path=String(a?.path||""),name=String(a?.name||"").split("/").pop()?.split("\\").pop()?.replace(/[\u0000-\u001f]/g,"_").slice(0,180)||"",type=String(a?.type||"application/octet-stream").slice(0,120),size=Number(a?.size);if(!path.startsWith(`${scope}/${scopeId}/${userId}/`)||path.includes("..")||!name||!Number.isInteger(size)||size<1||size>26214400)throw Error("첨부 파일 정보를 확인해 주세요. 파일당 최대 25MB입니다.");return{path,name,type,size}})};
 const signFiles=async(files:any[],bucket:string)=>Promise.all(files.map(async f=>{const isImage=safeImageTypes.has(f.type),{data,error}=await db.storage.from(bucket).createSignedUrl(f.path,3600,isImage?{}:{download:true});if(error)throw error;return{...f,url:data.signedUrl,isImage}}));
 const formatChatMessage=async(z:any,scope:string,reply:any,reactions:any[])=>({id:z.id,userId:z.user_id,name:z.users?.name||"회원",content:z.content||"",createdAt:z.created_at,attachments:await signFiles(z.attachments||[],"chat-attachments"),reply:reply?{id:reply.id,userId:reply.user_id,name:reply.users?.name||"회원",content:reply.content||"[첨부 파일]"}:null,reactions:reactions.map(r=>({emoji:r.emoji,count:r.count,mine:r.mine}))});
@@ -37,18 +41,20 @@ Deno.serve(async req=>{
 
  if(pth==="showroom"&&method==="GET"){
   const [projects,competitions]=await Promise.all([
-   all(db.from("showroom_projects").select("id,kind,name,description,instructions,web_url,image_path,created_at,users!showroom_projects_owner_id_fkey(name,status)").eq("status","approved").order("created_at",{ascending:false}).limit(100)),
+   all(db.from("showroom_projects").select("id,kind,name,description,instructions,web_url,image_path,project_phase,collaborator_ids,progress_entries,created_at,users!showroom_projects_owner_id_fkey(name,status)").eq("status","approved").order("created_at",{ascending:false}).limit(100)),
    all(db.from("showroom_competitions").select("id,title,year,result,description").eq("published",true).order("year",{ascending:false}).limit(100))
   ]);
+  const names=await collaboratorNames(projects);
   return out({projects:await Promise.all(projects.map(async(z:any)=>{
    const signed=await db.storage.from("project-images").createSignedUrl(z.image_path,3600);
-   return{id:z.id,kind:z.kind,name:z.name,description:z.description,instructions:z.instructions,webUrl:z.web_url,imageUrl:signed.data?.signedUrl||"",author:z.users?.status==="approved"?z.users.name:"K.F.C. 동아리원",createdAt:z.created_at};
+   return{id:z.id,kind:z.kind,name:z.name,description:z.description,instructions:z.instructions,webUrl:z.web_url,imageUrl:signed.data?.signedUrl||"",author:z.users?.status==="approved"?z.users.name:"K.F.C. 동아리원",createdAt:z.created_at,...projectExtra(z,names)};
   })),competitions:competitions.map((z:any)=>({id:z.id,title:z.title,year:z.year,result:z.result,description:z.description}))});
  }
  if(pth==="my-projects"&&method==="GET"){
   const x=member();if(x.role!=="member")return bad("회원 계정으로 이용해 주세요.",403);
-  const rows=await all(db.from("showroom_projects").select("id,kind,name,description,instructions,web_url,image_path,status,rejection_reason,created_at").eq("owner_id",x.id).order("created_at",{ascending:false}));
-  return out({projects:await Promise.all(rows.map(async(z:any)=>{const signed=await db.storage.from("project-images").createSignedUrl(z.image_path,3600);return{id:z.id,kind:z.kind,name:z.name,description:z.description,instructions:z.instructions,webUrl:z.web_url,imageUrl:signed.data?.signedUrl||"",status:z.status,rejectionReason:z.rejection_reason,createdAt:z.created_at}}))});
+  const rows=await all(db.from("showroom_projects").select("id,kind,name,description,instructions,web_url,image_path,project_phase,collaborator_ids,progress_entries,status,rejection_reason,created_at").eq("owner_id",x.id).order("created_at",{ascending:false}));
+  const names=await collaboratorNames(rows);
+  return out({projects:await Promise.all(rows.map(async(z:any)=>{const signed=await db.storage.from("project-images").createSignedUrl(z.image_path,3600);return{id:z.id,kind:z.kind,name:z.name,description:z.description,instructions:z.instructions,webUrl:z.web_url,imageUrl:signed.data?.signedUrl||"",status:z.status,rejectionReason:z.rejection_reason,createdAt:z.created_at,...projectExtra(z,names)}}))});
  }
  if(pth==="my-projects"&&method==="POST"){
   const x=member();if(x.role!=="member")return bad("회원 계정으로 이용해 주세요.",403);
@@ -57,7 +63,9 @@ Deno.serve(async req=>{
   const image=await db.storage.from("project-images").info(imagePath);if(image.error)return bad("프로젝트 사진을 찾을 수 없습니다. 다시 올려 주세요.");
   let webUrl:null|string=null,instructions="";
   if(kind==="webapp"){instructions=text(b.instructions,3000,"사용방법");if(String(b.webUrl||"").length>2000)return bad("웹앱 주소는 2,000자 이내로 입력해 주세요.");try{const url=new URL(String(b.webUrl||""));if(url.protocol!=="https:"||url.username||url.password)throw Error();webUrl=url.href}catch{return bad("웹앱 주소는 https:// 주소로 입력해 주세요.")}}
-  const saved=await save(db.from("showroom_projects").insert({owner_id:x.id,kind,name:text(b.name,120,"프로젝트 이름"),description:text(b.description,2000,"간단한 설명"),instructions,web_url:webUrl,image_path:imagePath}).select("id").single());
+  const phase=String(b.phase||"in_progress");if(!["in_progress","completed"].includes(phase))return bad("프로젝트 진행 상태를 확인해 주세요.");
+  const collaboratorIds=await collaboratorList(b.collaboratorIds||[],x.id),progressEntries=progressList(b.progressEntries||[]);
+  const saved=await save(db.from("showroom_projects").insert({owner_id:x.id,kind,name:text(b.name,120,"프로젝트 이름"),description:text(b.description,2000,"간단한 설명"),instructions,web_url:webUrl,image_path:imagePath,project_phase:phase,collaborator_ids:collaboratorIds,progress_entries:progressEntries}).select("id").single());
   return out({id:saved.id,message:"프로젝트 승인 신청을 접수했습니다."},201);
  }
  const ownProject=pth.match(/^my-projects\/(\d+)$/);
@@ -80,7 +88,9 @@ Deno.serve(async req=>{
    instructions=text(b.instructions,3000,"사용방법");if(String(b.webUrl||"").length>2000)return bad("웹앱 주소는 2,000자 이내로 입력해 주세요.");
    try{const url=new URL(String(b.webUrl||""));if(url.protocol!=="https:"||url.username||url.password)throw Error();webUrl=url.href}catch{return bad("웹앱 주소는 https:// 주소로 입력해 주세요.")}
   }
-  const changed=await db.from("showroom_projects").update({kind,name:text(b.name,120,"프로젝트 이름"),description:text(b.description,2000,"간단한 설명"),instructions,web_url:webUrl,image_path:imagePath,status:"pending",rejection_reason:"",reviewed_at:null,reviewed_by:null}).eq("id",id).eq("owner_id",x.id).select("id");
+  const phase=String(b.phase||old.project_phase||"in_progress");if(!["in_progress","completed"].includes(phase))return bad("프로젝트 진행 상태를 확인해 주세요.");
+  const collaboratorIds=await collaboratorList(b.collaboratorIds??old.collaborator_ids??[],x.id),progressEntries=progressList(b.progressEntries??old.progress_entries??[]);
+  const changed=await db.from("showroom_projects").update({kind,name:text(b.name,120,"프로젝트 이름"),description:text(b.description,2000,"간단한 설명"),instructions,web_url:webUrl,image_path:imagePath,project_phase:phase,collaborator_ids:collaboratorIds,progress_entries:progressEntries,status:"pending",rejection_reason:"",reviewed_at:null,reviewed_by:null}).eq("id",id).eq("owner_id",x.id).select("id");
   if(changed.error)throw changed.error;if(!changed.data?.length)return bad("프로젝트를 찾을 수 없습니다.",404);
   if(imagePath!==old.image_path){const image=await db.storage.from("project-images").remove([old.image_path]);if(image.error)console.error("project image cleanup failed",image.error.message)}
   return out({message:"수정 내용을 저장했습니다. 다시 승인 대기 상태로 전환되었습니다."});
@@ -111,8 +121,9 @@ Deno.serve(async req=>{
  if(s==="projects"&&method==="GET"){
   const status=new URL(req.url).searchParams.get("status")||"pending";
   if(!["pending","approved","rejected"].includes(status))return bad("승인 상태를 확인해 주세요.");
-  const rows=await all(db.from("showroom_projects").select("id,kind,name,description,instructions,web_url,image_path,status,rejection_reason,created_at,users!showroom_projects_owner_id_fkey(id,name,username)").eq("status",status).order("created_at",{ascending:false}).limit(200));
-  return out({projects:await Promise.all(rows.map(async(z:any)=>{const signed=await db.storage.from("project-images").createSignedUrl(z.image_path,3600);return{id:z.id,kind:z.kind,name:z.name,description:z.description,instructions:z.instructions,webUrl:z.web_url,imageUrl:signed.data?.signedUrl||"",status:z.status,rejectionReason:z.rejection_reason,author:z.users?.name||"삭제된 회원",username:z.users?.username||"",createdAt:z.created_at}}))});
+  const rows=await all(db.from("showroom_projects").select("id,kind,name,description,instructions,web_url,image_path,project_phase,collaborator_ids,progress_entries,status,rejection_reason,created_at,users!showroom_projects_owner_id_fkey(id,name,username)").eq("status",status).order("created_at",{ascending:false}).limit(200));
+  const names=await collaboratorNames(rows);
+  return out({projects:await Promise.all(rows.map(async(z:any)=>{const signed=await db.storage.from("project-images").createSignedUrl(z.image_path,3600);return{id:z.id,kind:z.kind,name:z.name,description:z.description,instructions:z.instructions,webUrl:z.web_url,imageUrl:signed.data?.signedUrl||"",status:z.status,rejectionReason:z.rejection_reason,author:z.users?.name||"삭제된 회원",username:z.users?.username||"",createdAt:z.created_at,...projectExtra(z,names)}}))});
  }
  const adminProject=s.match(/^projects\/(\d+)$/);
  if(adminProject&&method==="DELETE"){
