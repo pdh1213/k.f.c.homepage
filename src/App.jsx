@@ -66,6 +66,7 @@ function AuthScreen({go,onLogin,notify,demoEnabled,onDemo}){
       <div className="portal-field-bg" aria-hidden="true"/>
       <div className="portal-frontbar"><button type="button" className="portal-front-brand" onClick={()=>go('/')}><img src="/kfc-logo.png" alt=""/><span>K.F.C.</span><small>용인시청소년수련관 로봇동아리</small></button>{!isDesktop&&<button type="button" onClick={()=>go('/download')}>Windows 앱 안내 ↗</button>}</div>
       <main className="auth-portal-content" data-gp-content><section className="auth-portal-card">
+        <button type="button" className="auth-showroom-back" onClick={()=>go('/')}>← 쇼룸으로 돌아가기</button>
         <div className="portal-login-brand"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/><div><b>K.F.C.</b><small>ROBOTICS CLUB · YONGIN</small></div></div>
         <div className="eyebrow">{mode==='login'?'MEMBER ACCESS':'JOIN THE CLUB'}</div><h1>{mode==='login'?'다시 만나 반가워요':'가입 신청'}</h1>
         <p className="muted">{mode==='login'?'아이디와 비밀번호를 입력해 주세요.':'회원 정보를 작성하면 관리자 승인 후 이용할 수 있어요.'}</p>
