@@ -5,6 +5,9 @@
 .calendar-date-picker-trigger:focus-visible,.calendar-date-picker-popover button:focus-visible,.calendar-date-picker-popover select:focus-visible,.calendar-date-picker-popover input:focus-visible{outline:2px solid #6a6259;outline-offset:2px}
 .calendar-date-picker-trigger svg{flex:none;color:#78736d}
 .calendar-date-picker-popover{position:absolute;left:0;top:calc(100% + 7px);z-index:60;display:block;width:min(316px,calc(100vw - 36px));padding:14px;border:1px solid #e3dfd9;border-radius:17px;background:#fff;box-shadow:0 17px 40px #211e1a24;color:#282622}
+.calendar-date-picker-popover.right{left:auto;right:0}
+.calendar-date-picker-popover.above{top:auto;bottom:calc(100% + 7px)}
+.calendar-date-picker-popover{max-height:calc(100dvh - 28px);overflow-y:auto}
 .calendar-date-picker-heading{display:grid;grid-template-columns:34px 1fr 1fr 34px;gap:5px;align-items:center;margin-bottom:12px}
 .calendar-date-picker-heading button{height:34px;border:0;border-radius:9px;background:#f3f1ed;font-size:22px;color:#333;cursor:pointer}
 .calendar-date-picker-heading select{min-width:0;height:34px;padding:0 4px;border:1px solid #e5e1db;border-radius:9px;background:#fff;color:#333;font-size:13px;font-weight:600;cursor:pointer}
@@ -16,4 +19,4 @@
 .calendar-date-picker-time input{width:130px!important;min-height:35px;padding:5px 8px!important}
 .calendar-date-picker-footer{display:flex;justify-content:space-between;gap:10px;margin-top:11px;padding-top:10px;border-top:1px solid #ebe8e3}.calendar-date-picker-footer button{border:0;background:transparent;color:#5d5750;font-size:12px;font-weight:700;cursor:pointer;padding:4px}
 .calendar-controls{flex-wrap:wrap}.calendar-controls .calendar-date-picker{width:185px}.calendar-controls .calendar-date-picker-trigger{min-height:35px;padding:6px 10px;font-size:12px}
-@media(max-width:560px){.calendar-date-picker-popover{left:auto;right:0}.calendar-date-picker-grid button{min-height:38px}}
+@media(max-width:560px){.calendar-date-picker-grid button{min-height:38px}}
