@@ -1,6 +1,7 @@
 "use client";
 import { Fragment, type ReactNode, type Ref, useRef } from "react";
 import { Blobatar } from "@blobatar/react";
+import { MessageLoading } from "./message-loading";
 import type { BlobatarOptions } from "blobatar";
 import "blobatar/motion.css";
 import "./group-chat.css";
@@ -8,7 +9,7 @@ import "./group-chat.css";
 export type ChatAttachment={name:string,type:string,size:number,url:string,isImage?:boolean};
 export type ChatMessage={id:number|string,userId:string|number,name:string,text:string,time?:string,createdAt?:string,attachments?:ChatAttachment[],reply?:{id:number|string,userId:string|number,name:string,content:string}|null,reactions?:{emoji:string,count:number,mine:boolean}[]};
 export type ChatMember={id:string,name:string};
-export type ChatChatProps={messages:ChatMessage[],channel:string,members?:ChatMember[],currentUserId?:string,connected?:boolean,connectionLabel?:string,typing?:ChatMember,blobatar?:BlobatarOptions,className?:string,composer?:ReactNode,notice?:ReactNode,footerRef?:Ref<HTMLDivElement>,onReply?:(message:ChatMessage)=>void,onReact?:(messageId:number|string,emoji:string)=>void};
+export type ChatChatProps={messages:ChatMessage[],channel:string,members?:ChatMember[],currentUserId?:string,connected?:boolean,connectionLabel?:string,typing?:ChatMember|ChatMember[],blobatar?:BlobatarOptions,className?:string,composer?:ReactNode,notice?:ReactNode,footerRef?:Ref<HTMLDivElement>,onReply?:(message:ChatMessage)=>void,onReact?:(messageId:number|string,emoji:string)=>void};
 const reactionChoices=["👍","❤️","😂","😮","👏","🚀"];
 function validDate(value?:string){if(!value)return;const d=new Date(value);return Number.isNaN(d.getTime())?undefined:d}
 function dayKey(m:ChatMessage){return validDate(m.createdAt)?.toLocaleDateString("ko-KR")||""}
@@ -16,7 +17,7 @@ export function groupConsecutiveMessages(messages:ChatMessage[]){return messages
 const time=(m:ChatMessage)=>m.time||validDate(m.createdAt)?.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})||"";
 const prettySize=(n:number)=>n<1024*1024?Math.max(1,Math.round(n/1024))+" KB":(n/1024/1024).toFixed(1)+" MB";
 export function GroupChat({messages,channel,members=[],currentUserId,connected=false,connectionLabel,typing,blobatar,className,composer,notice,footerRef,onReply,onReact}:ChatChatProps){
- const runs=groupConsecutiveMessages(messages),visible=members.slice(0,5),overflow=Math.max(0,members.length-visible.length),touch=useRef<{x:number,y:number}|null>(null);
+ const runs=groupConsecutiveMessages(messages),visible=members.slice(0,5),overflow=Math.max(0,members.length-visible.length),touch=useRef<{x:number,y:number}|null>(null),typingMembers=typing?(Array.isArray(typing)?typing:[typing]):[];
  return <section className={["kfc-group-chat",className].filter(Boolean).join(" ")} aria-label={channel+" 채팅"}>
  <header className="kfc-chat-header"><div className="kfc-chat-channel"><span className="kfc-chat-club-mark"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/></span><div><span className="kfc-chat-overline">{members.length===2?"DIRECT MESSAGE":"TEAM CHANNEL"}</span><h2><span aria-hidden="true">{members.length===2?"↗":"#"}</span> {channel}</h2><span className="kfc-chat-private"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3.5" y="7" width="9" height="7" rx="2"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg>{members.length===2?"1:1 대화 · 두 사람만 참여":"그룹 구성원 전용 · "+members.length+"명"}</span></div></div><div className="kfc-chat-header-right">{members.length>0&&<div className="kfc-chat-facepile" aria-label={"참여 구성원: "+members.map(m=>m.name).join(", ")}>{visible.map(m=><span key={m.id} title={m.name} className="kfc-chat-facepile-item"><Blobatar name={m.id} {...blobatar} background="circle" alt="" className="kfc-chat-face"/></span>)}{overflow>0&&<span className="kfc-chat-facepile-extra">+{overflow}</span>}</div>}<span className={"kfc-chat-connection "+(connected?"is-online":"is-connecting")} role="status"><i/>{connectionLabel||(connected?"실시간 연결됨":"연결 확인 중")}</span></div></header>
  {notice&&<div className="kfc-chat-notice" role="status">{notice}</div>}
@@ -25,10 +26,9 @@ export function GroupChat({messages,channel,members=[],currentUserId,connected=f
  {m.reply&&<div className="kfc-chat-reply-quote"><b>{m.reply.name}에게 답장</b><span>{m.reply.content}</span></div>}{m.text&&<p>{m.text}</p>}{m.attachments?.map((a,j)=><div className="kfc-chat-attachment" key={a.url+j}>{a.isImage?<a href={a.url} target="_blank" rel="noreferrer"><img src={a.url} alt={a.name}/></a>:<a className="kfc-chat-file" href={a.url} target="_blank" rel="noreferrer"><span>⇩</span><div><b>{a.name}</b><small>{prettySize(a.size)}</small></div></a>}</div>)}{time(m)&&<time dateTime={validDate(m.createdAt)?.toISOString()}>{time(m)}</time>}
  <div className="kfc-chat-message-actions"><button type="button" onClick={()=>onReply?.(m)} aria-label="이 메시지에 답장">↩ 답장</button>{reactionChoices.map(emoji=><button type="button" className={m.reactions?.find(r=>r.emoji===emoji)?.mine?"selected":""} key={emoji} aria-label={emoji+" 리액션"} onClick={()=>onReact?.(m.id,emoji)}>{emoji}{(m.reactions?.find(r=>r.emoji===emoji)?.count||0)>0&&<small>{m.reactions?.find(r=>r.emoji===emoji)?.count}</small>}</button>)}</div>
  </article>)}</div></div></div></Fragment>})}
- {typing&&<div className="kfc-chat-typing" role="status"><Blobatar name={typing.id} {...blobatar} alt="" className="kfc-chat-face"/><span>{typing.name}님이 입력 중입니다…</span></div>}
+ {typingMembers.length>0&&<div className="kfc-chat-typing" role="status" aria-live="polite"><span className="kfc-chat-typing-icon"><MessageLoading/></span><span>{typingMembers.length===1?`${typingMembers[0].name}님이 입력 중입니다…`:`${typingMembers[0].name}님 외 ${typingMembers.length-1}명이 입력 중입니다…`}</span></div>}
  </div><div ref={footerRef} className="kfc-chat-end" aria-hidden="true"/></div>
  {composer&&<div className="kfc-chat-composer">{composer}<p className="kfc-chat-composer-hint">파일은 최대 25MB까지 첨부할 수 있어요. 서로 존중하는 말로 대화해요.</p></div>}
  </section>;
 }
 export default GroupChat;
-

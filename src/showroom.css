@@ -17,7 +17,7 @@
 .showroom-hero h1{position:relative;z-index:1;font-size:clamp(44px,7vw,92px);line-height:1.09;letter-spacing:-.065em;margin:22px 0;color:#181816}.showroom-hero h1 em{font-style:normal;color:#bd7255}
 .showroom-hero p{position:relative;z-index:1;max-width:600px;font-size:clamp(15px,1.6vw,19px);line-height:1.75;color:#5a5955}
 .showroom-hero-actions{position:relative;z-index:1;display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}
-.showroom-orbit{position:absolute;right:6%;top:9%;font-size:min(42vw,450px);line-height:1;color:#c2836d21;transform:rotate(-12deg);pointer-events:none}
+.showroom-orbit{position:absolute;right:6%;top:9%;width:min(42vw,450px);height:auto;color:#c2836d21;transform:rotate(-12deg);pointer-events:none}
 .showroom-section{scroll-margin-top:100px;padding:85px clamp(24px,7vw,110px);max-width:1600px;margin:auto}
 .showroom-section-head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:32px}.showroom-section-head h2{font-size:clamp(31px,4vw,56px);letter-spacing:-.045em;margin:8px 0}.showroom-section-head p{color:#77736c;margin:0}.showroom-section-head>span{font-size:11px;letter-spacing:.15em;color:#9f958a;white-space:nowrap}
 .showroom-project-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:22px}

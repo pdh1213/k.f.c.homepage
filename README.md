@@ -67,6 +67,12 @@ Windows x64 / Node.js 22 이상에서 npm ci 후 npm run pack:win을 실행합�
 
 새로운 회원 기능은 같은 릴리스에서 데모 체험 화면에도 반영합니다. 3.0.1부터 My Projects 데모에서 프로젝트 종류·공동 제작자·진행 기록·진행 상태를 입력하고 쇼룸 카드로 미리 볼 수 있습니다. 데모 입력은 실제 회원 프로젝트와 분리되며 새로고침하면 사라집니다. 새 버전의 변경 안내는 웹사이트와 Windows 앱에서 기기별로 한 번 표시합니다.
 
+3.0.2부터 그룹 채팅과 1:1 대화의 입력 중 표시를 기존 비공개 Realtime Broadcast 채널에서 전송합니다. 입력 내용은 Broadcast에 포함하지 않고 사용자 ID와 시작·중지 상태만 보냅니다. 잠시 입력이 없거나 연결이 끊기면 표시가 사라집니다. 데모에는 서버 연결이 없는 예시 입력 중 표시와 체험 버튼이 있습니다.
+
+### 선택적 shadcn·Tailwind·TypeScript 설정
+
+현재 저장소는 `components/ui`에 TSX 컴포넌트를 두고 Vite가 이를 변환하지만, 전체 앱은 JSX와 일반 CSS를 사용하며 shadcn·Tailwind·TypeScript 타입 검사를 아직 설정하지 않았습니다. 새 `MessageLoading` 컴포넌트는 외부 의존성 없이 기존 CSS에서도 동작합니다. 전체 프로젝트를 해당 구성으로 옮기려면 `npm install -D typescript @types/react @types/react-dom`, `npm install tailwindcss @tailwindcss/vite`, `npx shadcn@latest init`을 순서대로 실행하고, `tsconfig.json`에 `@/*` 경로 별칭, `vite.config.js`에 `@` 별칭과 Tailwind 플러그인, 공용 CSS에 `@import "tailwindcss";`를 설정하세요. 앱 JSX 파일은 검증하면서 TSX로 옮겨야 합니다.
+
 ## 3.0 쇼룸과 프로젝트 승인
 
 - 공개 경로 / 또는 /showroom에서 K.F.C. 애니메이션 뒤 쇼룸을 볼 수 있습니다. 로그인은 /login, Windows 다운로드는 /download입니다.

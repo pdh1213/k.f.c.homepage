@@ -32,7 +32,12 @@ test('데모 화면은 회원 API 없이 예시 화면만 렌더링한다',async
         assert.match(html,/Chats/);
         assert.doesNotMatch(html,/class="sidebar"/);
       }
+      if(Component===demo.DemoChat)assert.match(html,/입력 중 표시 체험/);
     }
+    const {GroupChat}=await vite.ssrLoadModule('/components/ui/group-chat.tsx');
+    const typing=renderToString(React.createElement(GroupChat,{messages:[],channel:'테스트',members:[{id:'1',name:'나'},{id:'2',name:'팀원'}],currentUserId:'1',typing:[{id:'2',name:'팀원'}]}));
+    assert.match(typing,/팀원님이 입력 중입니다/);
+    assert.match(typing,/spinner_qFRN/);
   }finally{await vite.close()}
 });
 

@@ -77,7 +77,9 @@
 .kfc-chat-empty .kfc-chat-overline { margin-bottom: 8px; color: #56829b; font-size: 8px; }
 .kfc-chat-empty h3 { font-size: 17px; margin: 0 0 9px; color: #253c55; }
 .kfc-chat-empty p { margin: 0; font-size: 12px; color: #6c8097; line-height: 1.8; }
-.kfc-chat-typing { display: flex; gap: 12px; align-items: center; color: #637a92; font-size: 11px; }
+.kfc-chat-typing { display: flex; gap: 9px; align-items: center; color: #5d5b56; font-size: 12px; padding: 8px 13px; }
+.kfc-chat-typing-icon { display: grid; place-items: center; width: 32px; height: 28px; border: 1px solid #e7e3dc; border-radius: 999px; background: #fff; color: #56524d; }
+.kfc-chat-typing-icon .text-foreground { color: currentColor; }
 .kfc-chat-typing > .kfc-chat-face { width: 36px; height: 36px; opacity: .55; }
 .kfc-chat-typing > span { display: inline-flex; align-items: center; gap: 8px; }
 .kfc-chat-typing-dots { display: inline-flex; gap: 3px; }
@@ -129,4 +131,3 @@
   .kfc-group-chat *, .kfc-group-chat *:before, .kfc-group-chat *:after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   .kfc-chat-composer .chat-compose .button:hover:not(:disabled), .kfc-chat-composer .chat-compose .button:active:not(:disabled) { transform: none; }
 }
-
