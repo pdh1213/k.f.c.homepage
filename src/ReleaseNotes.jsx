@@ -4,6 +4,9 @@ import './release-notes.css';
 
 const version=packageInfo.version;
 const notes={
+  '3.0.6':[
+    '쇼룸의 웹앱·로봇 프로젝트 폴더 모서리를 자연스럽게 다듬었습니다.'
+  ],
   '3.0.5':[
     '가입 신청이 접수되면 승인 대기 상태를 큰 확인 팝업으로 안내합니다.',
     'Windows 앱의 쇼룸에서는 Windows 앱 설치 메뉴를 숨깁니다.'

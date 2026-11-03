@@ -958,6 +958,7 @@ const GF_CSS = `
   position: absolute;
   inset: 0;
   overflow: hidden;
+  border-radius: 22px;
   background: linear-gradient(180deg, #f3f3f4 0%, #e3e3e6 100%);
 }
 .gf-root[data-tone="dark"] .gf-back { background: linear-gradient(180deg, #2a2a2e 0%, #121214 100%); }
@@ -1127,6 +1128,8 @@ canvas.gf-sheet-art[data-ready] { opacity: 1; filter: none; }
   width: 340px;
   height: 198px;
   z-index: 10;
+  overflow: hidden;
+  border-radius: 22px;
   -webkit-backdrop-filter: blur(22px) saturate(1.5);
   backdrop-filter: blur(22px) saturate(1.5);
   transform-origin: 50% 100%;
@@ -1324,4 +1327,3 @@ canvas.gf-sheet-art[data-ready] { opacity: 1; filter: none; }
   .gf-tilt { transform: none; }
 }
 `
-
