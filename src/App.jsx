@@ -44,7 +44,7 @@ export default function App(){
   if(user===undefined)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>연결을 확인하고 있어요…</span></div>;
   const welcome=showWelcome?<LoginWelcome onComplete={()=>setShowWelcome(false)}/>:null;
   if(!user&&path==='/demo')return !demoStatus.checked?<div className="boot">데모 모드를 확인하고 있어요…</div>:demoStatus.enabled?<><DemoShell go={go} blocked={showWelcome}/>{welcome}</>:<div className="center-page"><section className="surface access-card"><h1>데모 모드가 종료되었습니다</h1><p className="muted">지금은 데모 화면을 이용할 수 없습니다.</p><button className="button primary" onClick={()=>go('/')}>로그인 화면으로</button></section></div>;
-  if(!user)return <AuthScreen go={go} demoEnabled={demoStatus.enabled} onDemo={async()=>{const r=await api('/api/demo-status',{cache:'no-store'});setDemoStatus({enabled:!!r.demoEnabled,checked:true});if(r.demoEnabled){setShowWelcome(true);go('/demo');}return !!r.demoEnabled;}} onLogin={(u)=>{userRequestRef.current++;setShowWelcome(true);setShowLoginPopups(u.role!=='admin');setUser(u);go(u.role==='admin'?'/admin':'/dashboard');}} notify={notify}/>;
+  if(!user)return <AuthScreen go={go} demoEnabled={demoStatus.enabled} onDemo={async()=>{const r=await api('/api/demo-status',{cache:'no-store'});setDemoStatus({enabled:!!r.demoEnabled,checked:true});if(r.demoEnabled){setShowWelcome(true);go('/demo');}return !!r.demoEnabled;}} onLogin={(u)=>{userRequestRef.current++;setShowWelcome(true);setShowLoginPopups(u.role!=='admin');setUser(u);go(u.role==='admin'?'/admin':'/dashboard');}}/>;
   if(user.mustChangePassword)return <PasswordScreen user={user} done={refreshUser} logout={logout} notify={notify}/>;
   if(user.role==='admin'){
     if(path!=='/admin')go('/admin');
@@ -54,26 +54,30 @@ export default function App(){
   return <><MemberShell user={user} go={go} logout={logout} notify={notify} toast={toast} blocked={showWelcome} popupSession={showLoginPopups} onPopupsDone={()=>setShowLoginPopups(false)}/>{welcome}</>;
 }
 
-function AuthScreen({go,onLogin,notify,demoEnabled,onDemo}){
+function AuthScreen({go,onLogin,demoEnabled,onDemo}){
   const [mode,setMode]=useState('login'),[busy,setBusy]=useState(false);
+  const [registered,setRegistered]=useState(false);
+  const loginInput=useRef(null);
   const [login,setLogin]=useState({username:'',password:''});
   const [form,setForm]=useState({name:'',age:'',school:'',grade:'',phone:'',username:'',password:''});
   const [notice,setNotice]=useState('');
   const change=(key,value)=>setForm(v=>({...v,[key]:value}));
   const submitLogin=async e=>{e.preventDefault();setBusy(true);setNotice('');try{const r=await api('/api/auth/login',{method:'POST',body:login});onLogin(r.user);}catch(err){setNotice(err.message);}finally{setBusy(false);}};
   const enterDemo=async()=>{setBusy(true);setNotice('');try{if(!await onDemo())setNotice('데모 모드가 종료되었습니다.');}catch{setNotice('데모 모드를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');}finally{setBusy(false);}};
-  const submitRegister=async e=>{e.preventDefault();setBusy(true);setNotice('');try{const r=await api('/api/auth/register',{method:'POST',body:form});setNotice(r.message+' 신청 상태는 승인 대기입니다.');setMode('login');setLogin({username:form.username,password:''});notify('가입 신청이 접수되었습니다.');}catch(err){setNotice(err.message);}finally{setBusy(false);}};
+  const closeRegistration=()=>{setRegistered(false);window.requestAnimationFrame(()=>loginInput.current?.focus())};
+  useEffect(()=>{if(!registered)return;const onKey=e=>{if(e.key==='Escape')closeRegistration()};document.addEventListener('keydown',onKey);return()=>document.removeEventListener('keydown',onKey)},[registered]);
+  const submitRegister=async e=>{e.preventDefault();setBusy(true);setNotice('');try{await api('/api/auth/register',{method:'POST',body:form});setMode('login');setLogin({username:form.username,password:''});setForm({name:'',age:'',school:'',grade:'',phone:'',username:'',password:''});setRegistered(true);}catch(err){setNotice(err.message);}finally{setBusy(false);}};
   return <div className="login-portal-scroll" tabIndex={-1}>
       <div className="portal-field-bg" aria-hidden="true"/>
-      <div className="portal-frontbar"><button type="button" className="portal-front-brand" onClick={()=>go('/')}><img src="/kfc-logo.png" alt=""/><span>K.F.C.</span><small>용인시청소년수련관 로봇동아리</small></button>{!isDesktop&&<button type="button" onClick={()=>go('/download')}>Windows 앱 안내 ↗</button>}</div>
-      <main className="auth-portal-content" data-gp-content><section className="auth-portal-card">
+      <div className="portal-frontbar" inert={registered}><button type="button" className="portal-front-brand" onClick={()=>go('/')}><img src="/kfc-logo.png" alt=""/><span>K.F.C.</span><small>용인시청소년수련관 로봇동아리</small></button>{!isDesktop&&<button type="button" onClick={()=>go('/download')}>Windows 앱 안내 ↗</button>}</div>
+      <main className="auth-portal-content" data-gp-content inert={registered}><section className="auth-portal-card">
         <button type="button" className="auth-showroom-back" onClick={()=>go('/')}>← 쇼룸으로 돌아가기</button>
         <div className="portal-login-brand"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/><div><b>K.F.C.</b><small>ROBOTICS CLUB · YONGIN</small></div></div>
         <div className="eyebrow">{mode==='login'?'MEMBER ACCESS':'JOIN THE CLUB'}</div><h1>{mode==='login'?'다시 만나 반가워요':'가입 신청'}</h1>
         <p className="muted">{mode==='login'?'아이디와 비밀번호를 입력해 주세요.':'회원 정보를 작성하면 관리자 승인 후 이용할 수 있어요.'}</p>
         <div className="auth-tabs"><button className={mode==='login'?'active':''} onClick={()=>{setMode('login');setNotice('');}}>로그인</button><button className={mode==='register'?'active':''} onClick={()=>{setMode('register');setNotice('');}}>회원 가입 신청</button></div>
         {notice&&<div className="notice-box" role="status">{notice}</div>}
-        {mode==='login'?<form onSubmit={submitLogin} className="form-stack"><label>로그인 아이디<input autoComplete="username" required value={login.username} onChange={e=>setLogin({...login,username:e.target.value})} placeholder="아이디를 입력해 주세요"/></label>
+        {mode==='login'?<form onSubmit={submitLogin} className="form-stack"><label>로그인 아이디<input ref={loginInput} autoComplete="username" required value={login.username} onChange={e=>setLogin({...login,username:e.target.value})} placeholder="아이디를 입력해 주세요"/></label>
           <label>비밀번호<input type="password" autoComplete="current-password" required value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} placeholder="비밀번호를 입력해 주세요"/></label><button className="button primary full" disabled={busy}>{busy?'확인 중…':'로그인'} <span>→</span></button>
         </form>:<form onSubmit={submitRegister} className="form-stack signup-form"><div className="form-grid"><label>이름<input required maxLength="40" value={form.name} onChange={e=>change('name',e.target.value)} placeholder="홍길동"/></label>
           <label>나이<input required type="number" min="8" max="99" value={form.age} onChange={e=>change('age',e.target.value)} placeholder="15"/></label><label>학교<input required maxLength="80" value={form.school} onChange={e=>change('school',e.target.value)} placeholder="학교 이름"/></label><label>학년<input required maxLength="30" value={form.grade} onChange={e=>change('grade',e.target.value)} placeholder="예: 중학교 2학년"/></label></div>
@@ -83,7 +87,11 @@ function AuthScreen({go,onLogin,notify,demoEnabled,onDemo}){
         {mode==='login'&&demoEnabled&&<button type="button" className="button secondary full demo-entry" disabled={busy} onClick={enterDemo}>데모 모드 접속하기 <span>↗</span></button>}
         <div className="auth-footnote">가입 신청은 관리자의 승인 후 로그인할 수 있습니다.</div>{!isDesktop&&<a className="auth-windows-link" href="/download" onClick={e=>{e.preventDefault();go('/download');}}>Windows 앱 안내 ↗</a>}
       </section><div className="portal-footer">© K.F.C. Robotics Club · 용인시청소년수련관</div></main>
+      {registered&&<RegistrationSuccess onClose={closeRegistration}/>}
   </div>;
+}
+export function RegistrationSuccess({onClose}){
+  return <div className="signup-success-backdrop"><section className="signup-success-dialog" role="dialog" aria-modal="true" aria-labelledby="signup-success-title" aria-describedby="signup-success-description"><span className="signup-success-icon" aria-hidden="true">✓</span><div className="eyebrow">APPLICATION RECEIVED</div><h2 id="signup-success-title">가입 신청이 완료되었습니다!</h2><p id="signup-success-description">신청 정보가 접수되어 <strong>승인 대기</strong> 상태입니다. 관리자가 승인한 뒤 로그인할 수 있어요.</p><div className="signup-success-next"><b>다음 단계</b><span>승인 후 등록한 아이디와 비밀번호로 로그인해 주세요.</span></div><button type="button" className="button primary" onClick={onClose} autoFocus>확인하고 로그인 화면으로</button></section></div>;
 }
 function PasswordScreen({user,done,logout,notify}){
   const [oldPassword,setOld]=useState(''),[newPassword,setNew]=useState(''),[confirm,setConfirm]=useState(''),[error,setError]=useState('');

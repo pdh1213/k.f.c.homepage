@@ -4,9 +4,20 @@ import LiquidNavbar,{NimbusIcons} from '../components/ui/liquid-glass-navbar.tsx
 import GlassFolder from '../components/ui/glass-folder-cards.tsx';
 import ProjectFlipGallery from '../components/ui/project-flip-gallery.jsx';
 import GlassIconReveal from '../components/ui/liquid-glass-logo-reveal.tsx';
+import {isDesktop} from './desktop.js';
 import './showroom.css';
 
 let introSeen=false;
+export function showroomItems(user,desktop=false){
+  const items=[
+    {label:'Showroom',icon:NimbusIcons.home,fx:'glow'},
+    {label:'Projects',icon:NimbusIcons.drop,fx:'drop'},
+    {label:'Competitions',icon:NimbusIcons.globe,fx:'spin'},
+    {label:user?'Member Space':'Log in',icon:NimbusIcons.user,fx:'wave'}
+  ];
+  if(!desktop)items.push({label:'Windows App',icon:NimbusIcons.plane,fx:'plane'});
+  return items;
+}
 export default function Showroom({go,user}){
   const [data,setData]=useState({projects:[],competitions:[]});
   const [loading,setLoading]=useState(true);
@@ -28,20 +39,14 @@ export default function Showroom({go,user}){
   },[]);
   const jump=(id,index)=>{window.clearTimeout(navigationTimer.current);setActive(index);document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'})};
   const leave=(index,path)=>{window.clearTimeout(navigationTimer.current);setActive(index);navigationTimer.current=window.setTimeout(()=>go(path),650)};
-  const items=[
-    {label:'Showroom',icon:NimbusIcons.home,fx:'glow'},
-    {label:'Projects',icon:NimbusIcons.drop,fx:'drop'},
-    {label:'Competitions',icon:NimbusIcons.globe,fx:'spin'},
-    {label:user?'Member Space':'Log in',icon:NimbusIcons.user,fx:'wave'},
-    {label:'Windows App',icon:NimbusIcons.plane,fx:'plane'}
-  ];
+  const items=showroomItems(user,isDesktop);
   const folders=[{kind:'webapp',title:'웹앱 폴더',subtitle:'WEB APPS',description:'동아리원이 만든 웹앱을 모아 볼 수 있어요.'},{kind:'robot',title:'로봇 프로젝트 폴더',subtitle:'ROBOT PROJECTS',description:'설계하고 제작한 로봇 프로젝트를 살펴보세요.'}];
   const select=(index)=>{
     if(index===0)jump('showroom-intro',index);
     if(index===1)jump('showroom-projects',index);
     if(index===2)jump('showroom-competitions',index);
     if(index===3)leave(index,user?user.role==='admin'?'/admin':'/dashboard':'/login');
-    if(index===4)leave(index,'/download');
+    if(index===4&&!isDesktop)leave(index,'/download');
   };
   return <div className="showroom-portal-scroll">
     {intro&&<div className="kfc-intro" role="status" aria-label="K.F.C. 쇼룸에 오신 것을 환영합니다">{reducedMotion?<img className="kfc-intro-static" src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/>:<GlassIconReveal logo="/kfc-logo.png" label="K.F.C. 동아리 로고" background="#f7f6f3" logoColor="#24221f" tileSize={340} logoScale={0.76} finalScale={0.82} speed={1.4} loop={false} tuning={{dispersion:0.9,colorBleed:0.5,sheen:0.8}} onComplete={()=>{window.clearTimeout(introTimer.current);introTimer.current=window.setTimeout(()=>setIntro(false),450)}}/>}<span>WE ARE K.F.C.</span><button type="button" onClick={()=>setIntro(false)} aria-label="애니메이션 건너뛰기">건너뛰기</button></div>}

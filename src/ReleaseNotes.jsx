@@ -4,6 +4,10 @@ import './release-notes.css';
 
 const version=packageInfo.version;
 const notes={
+  '3.0.5':[
+    '가입 신청이 접수되면 승인 대기 상태를 큰 확인 팝업으로 안내합니다.',
+    'Windows 앱의 쇼룸에서는 Windows 앱 설치 메뉴를 숨깁니다.'
+  ],
   '3.0.4':[
     '첫 접속 시 동아리 로고가 유리 효과와 함께 나타나는 새 환영 애니메이션을 적용했습니다.',
     '모바일과 Windows 앱에서도 같은 로고 환영 화면을 볼 수 있습니다.'
