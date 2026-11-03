@@ -1,12 +1,10 @@
 .showroom-portal-scroll{height:100dvh;overflow-y:auto;overscroll-behavior:contain;background:#f9f8f5;color:#20201e}
-.kfc-intro{position:fixed;inset:0;z-index:1000;display:grid;place-content:center;justify-items:center;gap:18px;background:radial-gradient(circle at 50% 45%,#fff 0%,#f1efeb 72%);color:#252421;animation:kfc-intro-out 1.7s ease-in-out both;pointer-events:auto}
-.kfc-intro-mark{font-size:clamp(70px,16vw,190px);font-weight:900;letter-spacing:-.09em;line-height:1;white-space:nowrap;animation:kfc-intro-expand 1.7s cubic-bezier(.19,.75,.22,1) both;text-shadow:0 12px 36px #19181720}
-.kfc-intro>span{font-size:clamp(12px,1.5vw,18px);font-weight:800;letter-spacing:.3em;animation:kfc-intro-caption 1.7s ease both}
-.kfc-intro>button{position:absolute;right:24px;bottom:24px;padding:8px 14px;border:1px solid #d9d5cf;border-radius:999px;background:#ffffffc9;color:#46433e;cursor:pointer}
-@keyframes kfc-intro-expand{0%{opacity:0;transform:scale(.72);letter-spacing:-.16em;filter:blur(16px)}30%{opacity:1;filter:blur(0)}75%{transform:scale(1.08);letter-spacing:.02em;opacity:1}100%{transform:scale(1.18);letter-spacing:.06em;opacity:0}}
-@keyframes kfc-intro-caption{0%,25%{opacity:0;transform:translateY(12px)}40%,70%{opacity:1;transform:translateY(0)}100%{opacity:0}}
-@keyframes kfc-intro-out{0%,78%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden}}
-@media(prefers-reduced-motion:reduce){.kfc-intro,.kfc-intro-mark,.kfc-intro>span{animation-duration:.3s}.kfc-intro-mark{letter-spacing:0;transform:none;filter:none}}
+.kfc-intro{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(8px,2vh,20px);background:#f7f6f3;color:#252421;pointer-events:auto}
+.kfc-intro>span{font-size:clamp(12px,1.5vw,18px);font-weight:800;letter-spacing:.3em;animation:kfc-intro-caption 2.8s ease both}
+.kfc-intro>button{position:absolute;right:24px;bottom:24px;padding:8px 14px;border:1px solid #d9d5cf;border-radius:999px;background:#ffffffdc;color:#46433e;cursor:pointer}
+.kfc-intro-static{width:min(72vw,320px);height:min(72vw,320px);object-fit:contain}
+@keyframes kfc-intro-caption{0%,20%{opacity:0;transform:translateY(12px)}40%,85%{opacity:1;transform:translateY(0)}100%{opacity:.65}}
+@media(prefers-reduced-motion:reduce){.kfc-intro>span{animation:none}}
 .showroom-field{position:absolute;inset:0;background:radial-gradient(circle at 52% 42%,#efeae1 0,#dedbd3 47%,#bbbcb9 100%)}
 .showroom-main{background:#f9f8f5;min-height:100vh}
 .showroom-nav-wrap{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:13px clamp(18px,5vw,70px);background:#f9f8f5e8;backdrop-filter:blur(18px);border-bottom:1px solid #e5e1da}

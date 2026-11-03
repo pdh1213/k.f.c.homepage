@@ -71,6 +71,8 @@ Windows x64 / Node.js 22 이상에서 npm ci 후 npm run pack:win을 실행합�
 
 3.0.3부터 일정 시작·종료, 임원 회의, 설문 날짜 응답, 프로젝트 진행 기록의 날짜 입력은 `components/ui/calendar-date-picker.tsx`를 사용합니다. 버튼을 누르면 달력 팝오버가 열리고 월·연도를 바꿀 수 있습니다. 시간까지 필요한 입력은 같은 팝오버에서 시간을 설정합니다. 데모 설문·그룹 일정·프로젝트 기록도 같은 컴포넌트를 사용합니다.
 
+3.0.4부터 첫 쇼룸 방문 시 `public/kfc-logo.png`를 사용한 유리 리빌 애니메이션을 표시합니다. WebGL2를 사용할 수 없거나 움직임 줄이기 설정이 켜진 환경에서는 정지 로고를 보여주며, 로딩이 지연되어도 자동으로 쇼룸으로 넘어갑니다. 웹사이트와 Windows 앱은 같은 배포 화면을 사용합니다.
+
 ### 선택적 shadcn·Tailwind·TypeScript 설정
 
 현재 저장소는 `components/ui`에 TSX 컴포넌트를 두고 Vite가 이를 변환하지만, 전체 앱은 JSX와 일반 CSS를 사용하며 shadcn·Tailwind·TypeScript 타입 검사를 아직 설정하지 않았습니다. 새 `MessageLoading` 컴포넌트는 외부 의존성 없이 기존 CSS에서도 동작합니다. 전체 프로젝트를 해당 구성으로 옮기려면 `npm install -D typescript @types/react @types/react-dom`, `npm install tailwindcss @tailwindcss/vite`, `npx shadcn@latest init`을 순서대로 실행하고, `tsconfig.json`에 `@/*` 경로 별칭, `vite.config.js`에 `@` 별칭과 Tailwind 플러그인, 공용 CSS에 `@import "tailwindcss";`를 설정하세요. 앱 JSX 파일은 검증하면서 TSX로 옮겨야 합니다.

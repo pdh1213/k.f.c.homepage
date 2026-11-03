@@ -1,0 +1,3 @@
+.kfc-glass-reveal{position:relative;isolation:isolate;overflow:hidden;user-select:none;width:min(72vw,440px);height:min(72vw,440px);max-height:60vh;flex:none}
+.kfc-glass-fallback{position:absolute;inset:0;margin:auto;width:65%;height:65%;object-fit:contain;mix-blend-mode:multiply}
+@media(max-width:560px){.kfc-glass-reveal{width:min(84vw,360px);height:min(84vw,360px);max-height:54vh}}

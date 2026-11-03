@@ -3,6 +3,7 @@ import {api} from './api.js';
 import LiquidNavbar,{NimbusIcons} from '../components/ui/liquid-glass-navbar.tsx';
 import GlassFolder from '../components/ui/glass-folder-cards.tsx';
 import ProjectFlipGallery from '../components/ui/project-flip-gallery.jsx';
+import GlassIconReveal from '../components/ui/liquid-glass-logo-reveal.tsx';
 import './showroom.css';
 
 let introSeen=false;
@@ -13,8 +14,10 @@ export default function Showroom({go,user}){
   const [activeFolder,setActiveFolder]=useState(null);
   const [active,setActive]=useState(0);
   const [intro,setIntro]=useState(()=>!introSeen);
+  const [reducedMotion]=useState(()=>typeof window!=='undefined'&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const introTimer=useRef(null);
   const navigationTimer=useRef(null);
-  useEffect(()=>{if(!intro)return;introSeen=true;const timer=window.setTimeout(()=>setIntro(false),1700);return()=>window.clearTimeout(timer)},[intro]);
+  useEffect(()=>{if(!intro)return;introSeen=true;introTimer.current=window.setTimeout(()=>setIntro(false),reducedMotion?700:6500);return()=>window.clearTimeout(introTimer.current)},[intro,reducedMotion]);
   useEffect(()=>()=>window.clearTimeout(navigationTimer.current),[]);
   useEffect(()=>{
     let alive=true;
@@ -41,7 +44,7 @@ export default function Showroom({go,user}){
     if(index===4)leave(index,'/download');
   };
   return <div className="showroom-portal-scroll">
-    {intro&&<div className="kfc-intro" role="status" aria-label="K.F.C. 쇼룸에 오신 것을 환영합니다"><div className="kfc-intro-mark">K.F.C.</div><span>WE ARE K.F.C.</span><button type="button" onClick={()=>setIntro(false)} aria-label="애니메이션 건너뛰기">건너뛰기</button></div>}
+    {intro&&<div className="kfc-intro" role="status" aria-label="K.F.C. 쇼룸에 오신 것을 환영합니다">{reducedMotion?<img className="kfc-intro-static" src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/>:<GlassIconReveal logo="/kfc-logo.png" label="K.F.C. 동아리 로고" background="#f7f6f3" logoColor="#24221f" tileSize={340} logoScale={0.76} finalScale={0.82} speed={1.4} loop={false} tuning={{dispersion:0.9,colorBleed:0.5,sheen:0.8}} onComplete={()=>{window.clearTimeout(introTimer.current);introTimer.current=window.setTimeout(()=>setIntro(false),450)}}/>}<span>WE ARE K.F.C.</span><button type="button" onClick={()=>setIntro(false)} aria-label="애니메이션 건너뛰기">건너뛰기</button></div>}
       <main className="showroom-main">
         <div className="showroom-nav-wrap"><div className="showroom-brand"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/><b>K.F.C. Showroom</b></div><div className="showroom-nav-scroll"><LiquidNavbar items={items} active={active} onChange={select} tone="light" sound={false}/></div></div>
         <section className="showroom-hero" id="showroom-intro"><div className="showroom-eyebrow">WE ARE K.F.C. · 용인시청소년수련관 로봇동아리</div><h1>아이디어를 만들고,<br/><em>함께 움직입니다.</em></h1><p>K.F.C. 쇼룸에 오신 것을 환영합니다. 동아리원이 만든 로봇과 웹앱, 함께한 대회 경험을 둘러보세요.</p><div className="showroom-hero-actions"><button className="button primary" onClick={()=>jump('showroom-projects',1)}>프로젝트 둘러보기 →</button><button className="button secondary" onClick={()=>select(3)}>{user?'회원 공간으로':'회원 로그인'}</button></div><svg className="showroom-orbit" viewBox="0 0 100 100" fill="none" aria-hidden="true" focusable="false"><path d="M50 4v92M4 50h92M17 17l66 66M83 17 17 83" stroke="currentColor" strokeWidth="7"/></svg></section>
