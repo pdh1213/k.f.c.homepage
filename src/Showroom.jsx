@@ -4,6 +4,7 @@ import LiquidNavbar,{NimbusIcons} from '../components/ui/liquid-glass-navbar.tsx
 import GlassFolder from '../components/ui/glass-folder-cards.tsx';
 import ProjectFlipGallery from '../components/ui/project-flip-gallery.jsx';
 import GlassIconReveal from '../components/ui/liquid-glass-logo-reveal.tsx';
+import ShowroomChatbot from './ShowroomChatbot.jsx';
 import {isDesktop} from './desktop.js';
 import './showroom.css';
 
@@ -63,6 +64,7 @@ export default function Showroom({go,user}){
         <footer className="showroom-footer"><img src="/kfc-logo.png" alt=""/><span>K.F.C. · Korea Fun Club</span><button onClick={()=>select(3)}>{user?'회원 공간':'회원 로그인'} →</button></footer>
       </main>
     {activeFolder&&<ProjectFlipGallery key={activeFolder+'-'+focusProjectId} projects={data.projects.filter(project=>project.kind===activeFolder)} allProjects={data.projects} initialProjectId={focusProjectId} title={folders.find(folder=>folder.kind===activeFolder)?.title||'프로젝트'} onClose={()=>{setActiveFolder(null);setFocusProjectId(null)}}/>}
+    {!intro&&<ShowroomChatbot/>}
   </div>;
 }
 
