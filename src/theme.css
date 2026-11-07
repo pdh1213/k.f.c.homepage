@@ -22,6 +22,7 @@ html.dark .release-notes,html.dark .notice-popup,html.dark .calendar-date-picker
 html.dark .site-version{background:#2d2d2d;color:#ddd}
 #root:has(.showroom-portal-scroll) > .sun-moon-theme-toggle{display:none}
 .showroom-nav-wrap .showroom-nav-scroll{min-width:0;flex:1}
+.showroom-portal-scroll:has(.showroom-chatbot-panel) .showroom-nav-wrap>.sun-moon-theme-toggle.inline{visibility:hidden}
 html:not(:has(.showroom-portal-scroll)) .topbar{padding-right:max(64px,4vw)}
 html:not(:has(.showroom-portal-scroll)) .portal-frontbar{padding-right:60px}
 @media(max-width:780px){.showroom-nav-wrap>.sun-moon-theme-toggle.inline{position:absolute;top:8px;right:16px}.showroom-nav-wrap .showroom-brand{padding-right:44px}}
