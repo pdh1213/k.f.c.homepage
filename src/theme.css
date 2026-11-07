@@ -20,5 +20,9 @@ html.dark .showroom-chatbot{color:#f0f0f0}html.dark .showroom-chatbot-panel,html
 html.dark .login-portal-scroll{background:#141414 url('/login-background.jpg') center center/cover fixed no-repeat}html.dark .login-portal-scroll .auth-portal-card{background:#202020;color:#f3f3f3;border-color:#666;box-shadow:0 8px 0 #0c0c0c,0 28px 72px #0009}html.dark .login-portal-scroll .auth-portal-card h1,html.dark .login-portal-scroll .portal-login-brand b,html.dark .login-portal-scroll .auth-portal-card .auth-tabs button.active{color:#fff}html.dark .login-portal-scroll .auth-portal-card>.muted,html.dark .login-portal-scroll .auth-portal-card .auth-footnote,html.dark .login-portal-scroll .auth-portal-card .form-stack label,html.dark .login-portal-scroll .portal-login-brand small{color:#c6c6c6}html.dark .login-portal-scroll .auth-portal-card .form-stack input{background:#292929;color:#fff;border-color:#626262}html.dark .login-portal-scroll .auth-portal-card .auth-tabs button.active:after{background:#fff}html.dark .auth-showroom-back{color:#eee}
 html.dark .release-notes,html.dark .notice-popup,html.dark .calendar-date-picker,html.dark .calendar-picker-popover{background:#242424;color:#eee;border-color:#444}
 html.dark .site-version{background:#2d2d2d;color:#ddd}
-html:has(.showroom-chatbot-panel) .sun-moon-theme-toggle{top:auto;right:auto;left:16px;bottom:16px}
+#root:has(.showroom-portal-scroll) > .sun-moon-theme-toggle{display:none}
+.showroom-nav-wrap .showroom-nav-scroll{min-width:0;flex:1}
+html:not(:has(.showroom-portal-scroll)) .topbar{padding-right:max(64px,4vw)}
+html:not(:has(.showroom-portal-scroll)) .portal-frontbar{padding-right:60px}
+@media(max-width:780px){.showroom-nav-wrap>.sun-moon-theme-toggle.inline{position:absolute;top:8px;right:16px}.showroom-nav-wrap .showroom-brand{padding-right:44px}}
 @media(max-width:560px){html.dark .login-portal-scroll{background-attachment:scroll}}
