@@ -41,6 +41,10 @@
 .project-gallery-info h4{margin:25px 0 8px;font-size:15px}
 .project-gallery-info .button{margin-top:8px}
 .project-gallery-hint{font-size:12px;line-height:1.5;color:#8a837b;margin:28px 0 0}
+.project-gallery-related{margin-top:22px;border-top:1px solid #e2ded8;padding-top:4px}
+.project-gallery-related div{display:flex;flex-wrap:wrap;gap:8px}
+.project-gallery-related button,.showroom-competition-projects button{padding:8px 12px;border:1px solid #d8cec4;border-radius:999px;background:#fff;color:#654d42;font:inherit;font-size:12px;cursor:pointer}
+.project-gallery-related button:hover,.showroom-competition-projects button:hover{background:#f2eae5}
 .project-gallery-empty{padding:64px 28px;text-align:center;color:#77716a}
 .project-gallery button:focus-visible,.project-gallery a:focus-visible{outline:3px solid #a6674e;outline-offset:3px}
 @media(max-width:760px){.project-gallery-backdrop{padding:8px}.project-gallery{max-height:calc(100dvh - 16px);border-radius:18px}.project-gallery-header{padding:18px;align-items:flex-start}.project-gallery-header-actions{gap:7px}.project-gallery-header-actions>span{display:none}.project-gallery-content{grid-template-columns:1fr;gap:18px;padding:18px}.project-gallery-stage{display:flex;flex-direction:column-reverse;gap:13px;min-height:0}.project-gallery-hero{min-height:0;height:auto;aspect-ratio:4/3}.project-gallery-rail{display:flex;flex-direction:row;max-height:none;overflow-x:auto;overflow-y:hidden;padding:4px 3px 10px}.project-gallery-rail>div{width:92px}.project-gallery-card{height:102px}.project-gallery-info{padding:0}.project-gallery-hint{display:none}}

@@ -23,6 +23,7 @@ export default function Showroom({go,user}){
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
   const [activeFolder,setActiveFolder]=useState(null);
+  const [focusProjectId,setFocusProjectId]=useState(null);
   const [active,setActive]=useState(0);
   const [intro,setIntro]=useState(()=>!introSeen);
   const [reducedMotion]=useState(()=>typeof window!=='undefined'&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -57,11 +58,11 @@ export default function Showroom({go,user}){
           {loading?<div className="showroom-empty">프로젝트를 불러오고 있어요…</div>:error?<div className="showroom-empty" role="alert">{error}<button className="text-button" onClick={()=>location.reload()}>다시 시도</button></div>:<div className="showroom-project-grid">{folders.map((folder,index)=>{const projects=data.projects.filter(project=>project.kind===folder.kind);return <article className="showroom-project showroom-category" key={folder.kind}><GlassFolder key={folder.kind+'-'+projects.map(p=>p.id).join('-')} label={folder.title} meta={projects.length+' PROJECTS'} image={projects[0]?.imageUrl} files={projects.map(project=>({name:project.name,meta:project.author,image:project.imageUrl}))} open={false} action="none" width={Math.min(310,typeof window==='undefined'?310:window.innerWidth-54)} appearDelay={index*120} onOpenChange={open=>{if(open)setActiveFolder(folder.kind)}}/><div className="showroom-project-copy"><span>{folder.subtitle} · {projects.length}개</span><h3>{folder.title}</h3><p>{folder.description}</p>{projects.length===0&&<small>아직 게시된 프로젝트가 없습니다.</small>}<button className="text-button" type="button" onClick={()=>setActiveFolder(folder.kind)}>폴더 열기 ↗</button></div></article>})}</div>}
         </section>
         <section className="showroom-section showroom-competition-section" id="showroom-competitions"><div className="showroom-section-head"><div><div className="showroom-eyebrow">OUR JOURNEY</div><h2>함께한 대회 경험</h2><p>K.F.C.가 도전한 무대를 기록합니다.</p></div></div>
-          {data.competitions.length?<div className="showroom-competition-list">{data.competitions.map(c=><article key={c.id}><span className="showroom-year">{c.year}</span><div><h3>{c.title}</h3>{c.result&&<strong>{c.result}</strong>}{c.description&&<p>{c.description}</p>}</div></article>)}</div>:<div className="showroom-empty">대회 경험이 등록되면 이곳에서 소개합니다.</div>}
+          {data.competitions.length?<div className="showroom-competition-list">{data.competitions.map(c=><article key={c.id}><span className="showroom-year">{c.year}</span><div><h3>{c.title}</h3>{c.result&&<strong>{c.result}</strong>}{c.description&&<p>{c.description}</p>}{c.projectIds?.some(id=>data.projects.some(project=>project.id===id))&&<div className="showroom-competition-projects"><b>함께한 프로젝트</b>{c.projectIds.map(id=>data.projects.find(project=>project.id===id)).filter(Boolean).map(project=><button type="button" key={project.id} onClick={()=>{setFocusProjectId(project.id);setActiveFolder(project.kind)}}>{project.name} ↗</button>)}</div>}</div></article>)}</div>:<div className="showroom-empty">대회 경험이 등록되면 이곳에서 소개합니다.</div>}
         </section>
         <footer className="showroom-footer"><img src="/kfc-logo.png" alt=""/><span>K.F.C. · Korea Fun Club</span><button onClick={()=>select(3)}>{user?'회원 공간':'회원 로그인'} →</button></footer>
       </main>
-    {activeFolder&&<ProjectFlipGallery projects={data.projects.filter(project=>project.kind===activeFolder)} title={folders.find(folder=>folder.kind===activeFolder)?.title||'프로젝트'} onClose={()=>setActiveFolder(null)}/>}
+    {activeFolder&&<ProjectFlipGallery key={activeFolder+'-'+focusProjectId} projects={data.projects.filter(project=>project.kind===activeFolder)} allProjects={data.projects} initialProjectId={focusProjectId} title={folders.find(folder=>folder.kind===activeFolder)?.title||'프로젝트'} onClose={()=>{setActiveFolder(null);setFocusProjectId(null)}}/>}
   </div>;
 }
 
