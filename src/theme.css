@@ -24,7 +24,7 @@ html.dark .loading-card,html.dark .download-state{background:#242424;color:#eee;
 #root:has(.showroom-portal-scroll) > .sun-moon-theme-toggle{display:none}
 .showroom-nav-wrap .showroom-nav-scroll{min-width:0;flex:1}
 .showroom-portal-scroll:has(.showroom-chatbot-panel) .showroom-nav-wrap>.sun-moon-theme-toggle.inline{visibility:hidden}
-html:not(:has(.showroom-portal-scroll)) .topbar{padding-right:max(64px,4vw)}
-html:not(:has(.showroom-portal-scroll)) .portal-frontbar{padding-right:60px}
-@media(max-width:780px){.showroom-nav-wrap>.sun-moon-theme-toggle.inline{position:absolute;top:8px;right:16px}.showroom-nav-wrap .showroom-brand{padding-right:44px}}
+html:not(:has(.showroom-portal-scroll)) .topbar{padding-right:max(94px,7vw)}
+html:not(:has(.showroom-portal-scroll)) .portal-frontbar{padding-right:100px}
+@media(max-width:780px){.showroom-nav-wrap>.sun-moon-theme-toggle.inline{position:absolute;top:8px;right:16px}.showroom-nav-wrap .showroom-brand{padding-right:82px}}
 @media(max-width:560px){html.dark .login-portal-scroll{background-attachment:scroll}}
