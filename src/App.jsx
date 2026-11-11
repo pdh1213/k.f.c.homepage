@@ -10,6 +10,7 @@ import DemoShell from './Demo.jsx';
 import NoticePopup from './NoticePopup.jsx';
 import Showroom from './Showroom.jsx';
 import MyProjects from './MyProjects.jsx';
+import Freeform from './Freeform.jsx';
 import LiquidNavbar,{NimbusIcons} from '../components/ui/liquid-glass-navbar.tsx';
 import LoadingIndicator from '../components/ui/loading-indicator.jsx';
 
@@ -20,9 +21,10 @@ const menu=[
   {path:'/surveys',label:'설문',icon:'☑'},
   {path:'/groups',label:'그룹 채팅',icon:'◉'},
   {path:'/my-projects',label:'My Projects',icon:'✳'},
+  {path:'/freeform',label:'Freeform',icon:'◇'},
 ];
 const officerMenu={path:'/officers',label:'임원 공간',icon:'✦'};
-const liquidMemberLabels={'/dashboard':'Home','/announcements':'Notices','/calendar':'Calendar','/surveys':'Surveys','/groups':'Chats','/my-projects':'My Projects','/officers':'Officers'};
+const liquidMemberLabels={'/dashboard':'Home','/announcements':'Notices','/calendar':'Calendar','/surveys':'Surveys','/groups':'Chats','/my-projects':'My Projects','/freeform':'Freeform','/officers':'Officers'};
 const statusText={pending:'승인 대기',approved:'승인 완료',rejected:'반려'};
 
 export default function App(){
@@ -47,6 +49,7 @@ export default function App(){
   if(!user&&path==='/demo')return !demoStatus.checked?<div className="boot"><LoadingIndicator text="데모 모드를 확인하고 있어요…"/></div>:demoStatus.enabled?<><DemoShell go={go} blocked={showWelcome}/>{welcome}</>:<div className="center-page"><section className="surface access-card"><h1>데모 모드가 종료되었습니다</h1><p className="muted">지금은 데모 화면을 이용할 수 없습니다.</p><button className="button primary" onClick={()=>go('/')}>로그인 화면으로</button></section></div>;
   if(!user)return <AuthScreen go={go} demoEnabled={demoStatus.enabled} onDemo={async()=>{const r=await api('/api/demo-status',{cache:'no-store'});setDemoStatus({enabled:!!r.demoEnabled,checked:true});if(r.demoEnabled){setShowWelcome(true);go('/demo');}return !!r.demoEnabled;}} onLogin={(u)=>{userRequestRef.current++;setShowWelcome(true);setShowLoginPopups(u.role!=='admin');setUser(u);go(u.role==='admin'?'/admin':'/dashboard');}}/>;
   if(user.mustChangePassword)return <PasswordScreen user={user} done={refreshUser} logout={logout} notify={notify}/>;
+  if(user.role==='member'&&!user.siteUseConsent)return <SiteUseConsentScreen done={refreshUser} logout={logout}/>;
   if(user.role==='admin'){
     if(path!=='/admin')go('/admin');
     return <><AdminShell user={user} go={go} logout={logout} notify={notify} toast={toast} blocked={showWelcome}/>{welcome}</>;
@@ -60,14 +63,14 @@ function AuthScreen({go,onLogin,demoEnabled,onDemo}){
   const [registered,setRegistered]=useState(false);
   const loginInput=useRef(null);
   const [login,setLogin]=useState({username:'',password:''});
-  const [form,setForm]=useState({name:'',age:'',school:'',grade:'',phone:'',username:'',password:''});
+  const [form,setForm]=useState({name:'',age:'',school:'',grade:'',phone:'',username:'',password:'',siteUseConsent:false});
   const [notice,setNotice]=useState('');
   const change=(key,value)=>setForm(v=>({...v,[key]:value}));
   const submitLogin=async e=>{e.preventDefault();setBusy(true);setNotice('');try{const r=await api('/api/auth/login',{method:'POST',body:login});onLogin(r.user);}catch(err){setNotice(err.message);}finally{setBusy(false);}};
   const enterDemo=async()=>{setBusy(true);setNotice('');try{if(!await onDemo())setNotice('데모 모드가 종료되었습니다.');}catch{setNotice('데모 모드를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');}finally{setBusy(false);}};
   const closeRegistration=()=>{setRegistered(false);window.requestAnimationFrame(()=>loginInput.current?.focus())};
   useEffect(()=>{if(!registered)return;const onKey=e=>{if(e.key==='Escape')closeRegistration()};document.addEventListener('keydown',onKey);return()=>document.removeEventListener('keydown',onKey)},[registered]);
-  const submitRegister=async e=>{e.preventDefault();setBusy(true);setNotice('');try{await api('/api/auth/register',{method:'POST',body:form});setMode('login');setLogin({username:form.username,password:''});setForm({name:'',age:'',school:'',grade:'',phone:'',username:'',password:''});setRegistered(true);}catch(err){setNotice(err.message);}finally{setBusy(false);}};
+  const submitRegister=async e=>{e.preventDefault();setBusy(true);setNotice('');try{await api('/api/auth/register',{method:'POST',body:form});setMode('login');setLogin({username:form.username,password:''});setForm({name:'',age:'',school:'',grade:'',phone:'',username:'',password:'',siteUseConsent:false});setRegistered(true);}catch(err){setNotice(err.message);}finally{setBusy(false);}};
   return <div className="login-portal-scroll" tabIndex={-1}>
       <div className="portal-field-bg" aria-hidden="true"/>
       <div className="portal-frontbar" inert={registered}><button type="button" className="portal-front-brand" onClick={()=>go('/')}><img src="/kfc-logo.png" alt=""/><span>K.F.C.</span><small>용인시청소년수련관 로봇동아리</small></button>{!isDesktop&&<button type="button" onClick={()=>go('/download')}>Windows 앱 안내 ↗</button>}</div>
@@ -83,7 +86,7 @@ function AuthScreen({go,onLogin,demoEnabled,onDemo}){
         </form>:<form onSubmit={submitRegister} className="form-stack signup-form"><div className="form-grid"><label>이름<input required maxLength="40" value={form.name} onChange={e=>change('name',e.target.value)} placeholder="홍길동"/></label>
           <label>나이<input required type="number" min="8" max="99" value={form.age} onChange={e=>change('age',e.target.value)} placeholder="15"/></label><label>학교<input required maxLength="80" value={form.school} onChange={e=>change('school',e.target.value)} placeholder="학교 이름"/></label><label>학년<input required maxLength="30" value={form.grade} onChange={e=>change('grade',e.target.value)} placeholder="예: 중학교 2학년"/></label></div>
           <label>전화번호<input required type="tel" value={form.phone} onChange={e=>change('phone',e.target.value)} placeholder="010-1234-5678"/></label><label>로그인 아이디<input required minLength="4" maxLength="20" autoComplete="username" value={form.username} onChange={e=>setForm(v=>({...v,username:e.target.value}))} placeholder="영문, 숫자, 밑줄 4~20자"/></label>
-          <label>비밀번호<input required type="password" minLength="10" maxLength="128" autoComplete="new-password" value={form.password} onChange={e=>change('password',e.target.value)} placeholder="10자 이상"/></label><button className="button primary full" disabled={busy}>{busy?<LoadingIndicator className="kfc-loading-inline" text="접수 중…"/>:'가입 신청하기'} {!busy&&<span>→</span>}</button>
+          <label>비밀번호<input required type="password" minLength="10" maxLength="128" autoComplete="new-password" value={form.password} onChange={e=>change('password',e.target.value)} placeholder="10자 이상"/></label><div className="site-use-notice"><b>사이트 이용 안내</b><p>가입 정보는 회원 승인과 동아리 운영에 사용됩니다. 회원 채팅(1:1 및 그룹), Freeform 보드, 프로젝트 활동은 운영과 안전 관리를 위해 관리자 계정에서 열람할 수 있습니다. 다른 일반 회원에게 전화번호와 나이는 공개되지 않습니다.</p><label><input required type="checkbox" checked={form.siteUseConsent} onChange={e=>change('siteUseConsent',e.target.checked)}/> 위 안내를 읽고 동의합니다.</label></div><button className="button primary full" disabled={busy}>{busy?<LoadingIndicator className="kfc-loading-inline" text="접수 중…"/>:'가입 신청하기'} {!busy&&<span>→</span>}</button>
         </form>}
         {mode==='login'&&demoEnabled&&<button type="button" className="button secondary full demo-entry" disabled={busy} onClick={enterDemo}>데모 모드 접속하기 <span>↗</span></button>}
         <div className="auth-footnote">가입 신청은 관리자의 승인 후 로그인할 수 있습니다.</div>{!isDesktop&&<a className="auth-windows-link" href="/download" onClick={e=>{e.preventDefault();go('/download');}}>Windows 앱 안내 ↗</a>}
@@ -93,6 +96,11 @@ function AuthScreen({go,onLogin,demoEnabled,onDemo}){
 }
 export function RegistrationSuccess({onClose}){
   return <div className="signup-success-backdrop"><section className="signup-success-dialog" role="dialog" aria-modal="true" aria-labelledby="signup-success-title" aria-describedby="signup-success-description"><span className="signup-success-icon" aria-hidden="true">✓</span><div className="eyebrow">APPLICATION RECEIVED</div><h2 id="signup-success-title">가입 신청이 완료되었습니다!</h2><p id="signup-success-description">신청 정보가 접수되어 <strong>승인 대기</strong> 상태입니다. 관리자가 승인한 뒤 로그인할 수 있어요.</p><div className="signup-success-next"><b>다음 단계</b><span>승인 후 등록한 아이디와 비밀번호로 로그인해 주세요.</span></div><button type="button" className="button primary" onClick={onClose} autoFocus>확인하고 로그인 화면으로</button></section></div>;
+}
+function SiteUseConsentScreen({done,logout}){
+  const [accepted,setAccepted]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
+  const submit=async e=>{e.preventDefault();setBusy(true);setError('');try{await api('/api/auth/site-use-consent',{method:'POST',body:{accept:accepted}});await done()}catch(err){setError(err.message)}finally{setBusy(false)}};
+  return <div className="center-page"><section className="surface access-card site-use-consent-card"><div className="brand-image large"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/></div><h1>사이트 이용 안내</h1><p>새 협업 기능과 채팅 운영 방식에 관한 안내입니다. 계속 이용하기 전에 확인해 주세요.</p><div className="site-use-notice"><p>회원 채팅(1:1 및 그룹), Freeform 아이디어 보드, 프로젝트 활동은 운영과 안전 관리를 위해 관리자 계정에서 열람할 수 있습니다. 이름·학교·전화번호·나이 등 가입 정보는 회원 승인과 동아리 운영에 사용됩니다. 일반 회원에게 다른 회원의 전화번호와 나이는 공개되지 않습니다.</p></div>{error&&<div className="error-box">{error}</div>}<form onSubmit={submit} className="form-stack"><label className="site-use-check"><input required type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/> 위 내용을 읽고 동의합니다.</label><button className="button primary full" disabled={busy}>{busy?'저장 중…':'동의하고 계속하기'}</button></form><button className="text-button" onClick={logout}>동의하지 않고 로그아웃</button></section></div>;
 }
 function PasswordScreen({user,done,logout,notify}){
   const [oldPassword,setOld]=useState(''),[newPassword,setNew]=useState(''),[confirm,setConfirm]=useState(''),[error,setError]=useState('');
@@ -137,7 +145,7 @@ function DownloadPage({go,notify}){
 function MemberShell({user,go,logout,notify,toast,blocked,popupSession,onPopupsDone}){
   const [section,setSection]=useState(()=>menu.find(m=>m.path===location.pathname)?.path||(location.pathname==='/officers'?'/officers':'/dashboard'));
   const [announcements,setAnnouncements]=useState([]),[events,setEvents]=useState([]),[polls,setPolls]=useState([]),[groups,setGroups]=useState([]),[directChats,setDirectChats]=useState([]),[directory,setDirectory]=useState([]);
-  const [loading,setLoading]=useState(true),[selectedGroup,setSelectedGroup]=useState(null);
+  const [loading,setLoading]=useState(true),[selectedGroup,setSelectedGroup]=useState(null),[boardToOpen,setBoardToOpen]=useState(null);
   const [popupItems,setPopupItems]=useState([]),[popupIndex,setPopupIndex]=useState(0),[linkedTarget,setLinkedTarget]=useState(null);
   useEffect(()=>{if(!popupSession)return;let active=true;api('/api/notice-popups').then(r=>{if(active){setPopupItems(r.popups||[]);setPopupIndex(0);if(!r.popups?.length)onPopupsDone()}}).catch(e=>{if(active){notify(e.message);onPopupsDone()}});return()=>{active=false}},[popupSession]);
   const load=async({quiet=false}={})=>{
@@ -160,6 +168,8 @@ function MemberShell({user,go,logout,notify,toast,blocked,popupSession,onPopupsD
   const popupAction=item=>{if(item.linkType==='web'){try{const url=new URL(item.linkUrl);if(url.protocol==='https:')window.open(url.href,'_blank','noopener,noreferrer')}catch{notify('연결 주소를 열 수 없습니다.')}}else{const routes={poll:'/surveys',announcement:'/announcements',event:'/calendar'};const route=routes[item.linkType];if(route)navigate(route,{type:item.linkType,id:item.targetId})}dismissPopup()};
   const groupOpen=(g)=>{setSelectedGroup(g);setSelectedDirect(null);setSection('/groups');history.pushState({},'','/groups');};
   const directOpen=chat=>{setSelectedDirect(chat);setSelectedGroup(null);setSection('/groups');history.pushState({},'','/groups');};
+  const openProjectGroup=async id=>{let group=groups.find(item=>item.id===id);if(!group){const r=await api('/api/groups');group=(r.groups||[]).find(item=>item.id===id)}if(group)groupOpen(group);else notify('연결된 채팅방을 찾을 수 없습니다.')};
+  const openProjectBoard=id=>{setBoardToOpen(id);navigate('/freeform')};
   return <div className="app-shell" inert={blocked}>
     <aside className="sidebar">
       <button className="brand-link" onClick={()=>navigate('/dashboard')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>K.F.C.<small>ROBOTICS CLUB</small></span></button>
@@ -171,6 +181,7 @@ function MemberShell({user,go,logout,notify,toast,blocked,popupSession,onPopupsD
     <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / {menu.find(m=>m.path===section)?.label||'홈'}</span><strong>회원 공간</strong></div><div className="topbar-right"><span className="brand-image small topbar-logo"><img src="/kfc-logo.png" alt="K.F.C."/></span><span className="live-dot"/>온라인<button className="topbar-logout" onClick={logout}>로그아웃</button></div></header>
       <div className="desktop-liquid-nav"><LiquidNavbar items={navItems.map((m,i)=>({label:liquidMemberLabels[m.path],icon:[NimbusIcons.home,NimbusIcons.globe,NimbusIcons.drop,NimbusIcons.plane,NimbusIcons.user][i%5],fx:['glow','spin','drop','plane','wave'][i%5]}))} active={Math.max(0,navItems.findIndex(m=>m.path===section))} onChange={index=>navigate(navItems[index].path)} tone="light" sound={false}/></div>
       <div className="page-body">
+        {section==='/groups'&&<div className="site-use-notice chat-monitor-notice" role="note">운영과 안전 관리를 위해 관리자는 1:1 및 그룹 대화 내용을 열람할 수 있습니다.</div>}
         {loading?<div className="loading-card"><LoadingIndicator text="회원 정보를 불러오고 있어요…"/></div>:section==='/officers'?<OfficerHub notify={notify}/> :selectedDirect?
           <DirectRoom chat={selectedDirect} user={user} onBack={()=>{setSelectedDirect(null);load({quiet:true})}} notify={notify}/> :selectedGroup?
           <GroupRoom group={selectedGroup} user={user} onBack={()=>setSelectedGroup(null)} notify={notify}/>:
@@ -178,7 +189,7 @@ function MemberShell({user,go,logout,notify,toast,blocked,popupSession,onPopupsD
           section==='/announcements'?<Announcements announcements={announcements} targetId={linkedTarget?.type==='announcement'?linkedTarget.id:null}/>:
           section==='/calendar'?<Calendar events={events} targetId={linkedTarget?.type==='event'?linkedTarget.id:null}/>:
           section==='/surveys'?<Surveys polls={polls} refresh={load} notify={notify} targetId={linkedTarget?.type==='poll'?linkedTarget.id:null}/>:
-          section==='/my-projects'?<MyProjects user={user} notify={notify}/>:<Groups groups={groups} directChats={directChats} directory={directory} open={groupOpen} directOpen={directOpen} notify={notify}/>}
+          section==='/my-projects'?<MyProjects user={user} notify={notify} openBoard={openProjectBoard} openGroup={openProjectGroup} refreshGroups={()=>load({quiet:true})}/>:section==='/freeform'?<Freeform notify={notify} initialBoardId={boardToOpen} user={user}/>:<Groups groups={groups} directChats={directChats} directory={directory} open={groupOpen} directOpen={directOpen} notify={notify}/>}
       </div>
     </main>
     {toast&&<Toast message={toast}/>}

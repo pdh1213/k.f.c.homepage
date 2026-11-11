@@ -1,0 +1,11 @@
+import React,{useState} from 'react';
+import {FreeformCanvas} from './Freeform.jsx';
+
+export default function DemoFreeform({notify}){
+  const [boards,setBoards]=useState([{id:'demo-board',name:'예시 로봇 아이디어',items:[{id:'idea-1',type:'note',content:'센서로 길을 찾는 로봇을 만들어요!',x:100,y:100,color:'cream'},{id:'idea-2',type:'shape',content:'아이디어 회의',x:390,y:240,color:'blue'}]}]),[selected,setSelected]=useState('demo-board'),[name,setName]=useState('');
+  const board=boards.find(z=>z.id===selected);
+  const change=items=>setBoards(rows=>rows.map(z=>z.id===selected?{...z,items}:z));
+  const create=e=>{e.preventDefault();const id=crypto.randomUUID();setBoards(rows=>[...rows,{id,name:name.trim(),items:[]}]);setSelected(id);setName('');notify('데모 보드를 만들었습니다. 이 화면을 떠나거나 새로고침하면 초기화됩니다.')};
+  const addImage=file=>{if(!file.type.startsWith('image/')||file.size>10*1024*1024)return notify('10MB 이하 사진만 추가할 수 있습니다.');const reader=new FileReader();reader.onload=()=>change([...board.items,{id:crypto.randomUUID(),type:'image',content:String(reader.result),x:120,y:120,color:'cream'}]);reader.readAsDataURL(file)};
+  return <div className="freeform-page"><section className="welcome-card"><div><div className="eyebrow light">DEMO FREEFORM</div><h1>Freeform</h1><p>메모와 카드를 움직이며 아이디어 보드를 체험해 보세요.</p></div></section><section className="surface"><div className="section-heading"><h2>데모 보드</h2></div><p className="muted">여기의 내용은 이 화면의 메모리에만 저장되며 실제 회원에게 전달되지 않습니다.</p><div className="freeform-board-list">{boards.map(item=><button className={'button '+(selected===item.id?'primary':'secondary')} key={item.id} onClick={()=>setSelected(item.id)}>{item.name}</button>)}</div><form className="form-stack freeform-create" onSubmit={create}><label>새 데모 보드 이름<input required maxLength="120" value={name} onChange={e=>setName(e.target.value)}/></label><button className="button primary">+ 보드 만들기</button></form></section>{board&&<section className="surface"><div className="section-heading"><h2>{board.name}</h2></div><FreeformCanvas items={board.items} onAdd={item=>change([...board.items,{...item,id:crypto.randomUUID()}])} onUpdate={(id,patch)=>change(board.items.map(item=>item.id===id?{...item,...patch}:item))} onDelete={id=>change(board.items.filter(item=>item.id!==id))} onImageFile={addImage}/></section>}</div>;
+}

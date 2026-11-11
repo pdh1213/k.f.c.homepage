@@ -20,4 +20,3 @@
 .todo-edit-row input{min-width:0;flex:1;border:1px solid var(--depth-line);border-radius:10px;padding:10px 12px;background:#f7faff;}
 @media(max-width:780px){.topbar-logo{width:32px!important;height:32px!important}.welcome-card{transform:none}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important}.surface,.quick-card,.group-card,.stat-card,.poll-card,.application-card,.group-admin-card,.welcome-card,.admin-welcome{transform:none!important}}
-

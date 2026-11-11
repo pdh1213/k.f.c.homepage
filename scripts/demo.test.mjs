@@ -12,6 +12,8 @@ test('데모 화면은 회원 API 없이 예시 화면만 렌더링한다',async
   try{
     const demo=await vite.ssrLoadModule('/src/Demo.jsx');
     const demoProjects=(await vite.ssrLoadModule('/src/DemoProjects.jsx')).default;
+    const demoFreeform=(await vite.ssrLoadModule('/src/DemoFreeform.jsx')).default;
+    assert.doesNotMatch(fs.readFileSync(new URL('../src/DemoFreeform.jsx',import.meta.url),'utf8'),/\b(?:api|fetch|supabase|localStorage)\s*[\.(]/);
     const props={go:()=>{},notify:()=>{},open:()=>{},onBack:()=>{}};
     const screens=[
       [demo.default,props,'데모 방문자'],
@@ -21,7 +23,8 @@ test('데모 화면은 회원 API 없이 예시 화면만 렌더링한다',async
       [demo.DemoChat,{...props,kind:'direct'},'실제 연결 없음'],
       [demo.DemoCalendar,props,'동아리 일정'],
       [demo.DemoNotices,props,'실제 회원 공지와 분리'],
-      [demoProjects,props,'길을 찾는 로봇']
+      [demoProjects,props,'프로젝트 시작하기'],
+      [demoFreeform,props,'예시 로봇 아이디어']
     ];
     for(const [Component,p,expected] of screens){
       const html=renderToString(React.createElement(Component,p));

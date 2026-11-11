@@ -2,17 +2,21 @@ import React,{useEffect,useState} from 'react';
 import {api,supabase} from './api.js';
 import CalendarDatePicker from '../components/ui/calendar-date-picker.tsx';
 import LoadingIndicator from '../components/ui/loading-indicator.jsx';
+import ProjectStart from './ProjectStart.jsx';
 import './showroom.css';
 
 const empty={kind:'robot',name:'',description:'',instructions:'',webUrl:'',phase:'in_progress',collaboratorIds:[],progressEntries:[],relatedProjectIds:[]};
 const statusLabel={pending:'승인 대기',approved:'쇼룸 게시 중',rejected:'반려'};
-export default function MyProjects({user,notify}){
+export default function MyProjects({user,notify,openBoard,openGroup,refreshGroups}){
   const [form,setForm]=useState(empty),[file,setFile]=useState(null),[projects,setProjects]=useState([]),[publicProjects,setPublicProjects]=useState([]),[members,setMembers]=useState([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[editing,setEditing]=useState(null),[showForm,setShowForm]=useState(false);
+  const [workspaces,setWorkspaces]=useState([]),[starting,setStarting]=useState(false),[publishingWorkspaceId,setPublishingWorkspaceId]=useState(null);
   const load=async()=>{try{const r=await api('/api/my-projects');setProjects(r.projects||[])}catch(e){notify(e.message)}finally{setLoading(false)}};
-  useEffect(()=>{load();api('/api/directory').then(r=>setMembers(r.members||[])).catch(()=>{});api('/api/showroom').then(r=>setPublicProjects(r.projects||[])).catch(()=>{})},[]);
+  const loadWorkspaces=async()=>{try{const r=await api('/api/project-workspaces');setWorkspaces(r.workspaces||[])}catch(e){notify(e.message)}};
+  useEffect(()=>{load();loadWorkspaces();api('/api/directory').then(r=>setMembers(r.members||[])).catch(()=>{});api('/api/showroom').then(r=>setPublicProjects(r.projects||[])).catch(()=>{})},[]);
   const update=(key,value)=>setForm(current=>({...current,[key]:value}));
-  const reset=()=>{setForm(empty);setFile(null);setEditing(null);setShowForm(false);const input=document.getElementById('my-project-image');if(input)input.value=''};
+  const reset=()=>{setForm(empty);setFile(null);setEditing(null);setShowForm(false);setPublishingWorkspaceId(null);const input=document.getElementById('my-project-image');if(input)input.value=''};
   const openForm=()=>{setShowForm(true);requestAnimationFrame(()=>document.querySelector('.my-projects-form')?.scrollIntoView({behavior:'instant',block:'start'}))};
+  const publishWorkspace=workspace=>{setForm({...empty,name:workspace.name,kind:workspace.kind,phase:workspace.phase,collaboratorIds:workspace.collaboratorIds||[]});setPublishingWorkspaceId(workspace.id);openForm()};
   const edit=project=>{setEditing(project);setShowForm(true);setForm({kind:project.kind,name:project.name,description:project.description,instructions:project.instructions||'',webUrl:project.webUrl||'',phase:project.phase||'in_progress',collaboratorIds:project.collaboratorIds||[],progressEntries:project.progressEntries||[],relatedProjectIds:project.relatedProjectIds||[]});setFile(null);requestAnimationFrame(()=>{document.querySelector('.my-projects-form')?.scrollIntoView({behavior:'instant',block:'start'});document.querySelector('.my-projects-form input[maxlength="120"]')?.focus({preventScroll:true})})};
   const addProgress=()=>update('progressEntries',[...form.progressEntries,{id:crypto.randomUUID(),date:new Date().toISOString().slice(0,10),title:'',content:''}]);
   const changeProgress=(id,key,value)=>update('progressEntries',form.progressEntries.map(entry=>entry.id===id?{...entry,[key]:value}:entry));
@@ -27,13 +31,16 @@ export default function MyProjects({user,notify}){
       let path;
       if(file){const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_').slice(-90)||'project.jpg';path='projects/'+user.id+'/'+crypto.randomUUID()+'/'+safe;const result=await supabase.storage.from('project-images').upload(path,file,{upsert:false,contentType:file.type});if(result.error)throw result.error}
       const r=await api('/api/my-projects'+(editing?'/'+editing.id:''),{method:editing?'PATCH':'POST',body:{...form,...(path?{imagePath:path}:{})}});
+      if(publishingWorkspaceId&&r.id)await api('/api/project-workspaces/'+publishingWorkspaceId,{method:'PATCH',body:{showroomProjectId:r.id}});
       notify(r.message);
       reset();
-      await load();
+      await Promise.all([load(),loadWorkspaces()]);
     }catch(error){notify(error.message||'프로젝트를 제출하지 못했습니다.')}finally{setBusy(false)}
   };
   return <div className="my-projects"><section className="welcome-card"><div><div className="eyebrow light">K.F.C. SHOWROOM</div><h1>My Projects</h1><p>내가 만든 로봇과 웹앱을 쇼룸에 소개해 보세요. 관리자 승인 후 공개됩니다.</p></div><div className="welcome-badge"><span className="spark">✳</span><small>CREATE TOGETHER</small></div></section>
-    {!showForm&&<section className="surface"><div className="section-heading"><div><div className="eyebrow">SUBMIT YOUR WORK</div><h2>새 프로젝트 등록</h2><p className="muted">프로젝트 승인 신청하기를 누르면 입력 화면이 열립니다.</p></div></div><button className="button primary" type="button" onClick={openForm}>프로젝트 승인 신청하기 →</button></section>}
+    {!showForm&&<section className="surface"><div className="section-heading"><div><div className="eyebrow">START OR SUBMIT</div><h2>프로젝트 시작</h2><p className="muted">작업 공간을 만들거나 완성된 작품을 쇼룸에 신청할 수 있습니다.</p></div></div><div className="button-row"><button className="button primary" type="button" onClick={()=>setStarting(true)}>+ 프로젝트 시작하기</button><button className="button secondary" type="button" onClick={openForm}>프로젝트 승인 신청하기 →</button></div></section>}
+    {starting&&<ProjectStart user={user} members={members} notify={notify} onCreated={()=>{setStarting(false);loadWorkspaces();refreshGroups?.();load()}} onClose={()=>setStarting(false)}/>}
+    <section className="surface"><div className="section-heading"><div><h2>프로젝트 작업 공간</h2><p className="muted">공동 개발자와 보드·채팅방을 연결한 프로젝트입니다.</p></div><span className="count-pill">{workspaces.length}개</span></div>{workspaces.length?<div className="my-project-list">{workspaces.map(workspace=><article key={workspace.id}><div className="grow"><h3>{workspace.name}</h3><small>{workspace.kind==='robot'?'로봇 프로젝트':'웹앱'} · {workspace.phase==='completed'?'완료':'진행 중'}</small><p>{workspace.showroomProjectId?'쇼룸 승인 신청 연결됨':'쇼룸에 아직 공개하지 않았습니다.'}</p><div className="button-row">{workspace.boardId&&<button className="button secondary" onClick={()=>openBoard(workspace.boardId)}>Freeform 보드 →</button>}{workspace.groupId&&<button className="button secondary" onClick={()=>openGroup(workspace.groupId)}>그룹 채팅 →</button>}{!workspace.showroomProjectId&&workspace.ownerId===user.id&&<button className="button primary" onClick={()=>publishWorkspace(workspace)}>쇼룸 승인 신청</button>}</div></div></article>)}</div>:<div className="empty-state"><b>시작한 프로젝트가 없습니다.</b><small>프로젝트 시작하기에서 팀 공간을 만들어 보세요.</small></div>}</section>
     {showForm&&<section className="surface my-projects-form"><div className="section-heading"><div><div className="eyebrow">SUBMIT YOUR WORK</div><h2>{editing?'프로젝트 수정':'프로젝트 승인 신청'}</h2>{editing&&<p className="muted">수정 후 다시 관리자 승인을 받아 쇼룸에 게시됩니다.</p>}</div></div>
       <form className="form-stack" onSubmit={submit}>
         <fieldset className="my-project-type"><legend>프로젝트 종류</legend><label><input type="radio" name="project-kind" checked={form.kind==='robot'} onChange={()=>update('kind','robot')}/> 로봇 프로젝트</label><label><input type="radio" name="project-kind" checked={form.kind==='webapp'} onChange={()=>update('kind','webapp')}/> 웹앱</label></fieldset>

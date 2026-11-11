@@ -1,8 +1,0 @@
-@media (hover:hover) and (pointer:fine){
-  html,body{cursor:url('/kfc-liquid-cursor.svg') 2 2,auto}
-  html body :is(button,a,select,summary,label,[role="button"],[role="switch"]){cursor:url('/kfc-liquid-cursor.svg') 2 2,pointer!important}
-  html.dark,html.dark body{cursor:url('/kfc-liquid-cursor-dark.svg') 2 2,auto}
-  html.dark body :is(button,a,select,summary,label,[role="button"],[role="switch"]){cursor:url('/kfc-liquid-cursor-dark.svg') 2 2,pointer!important}
-  html body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),textarea,[contenteditable="true"]){cursor:text!important}
-  html body :is([disabled],[aria-disabled="true"]){cursor:not-allowed!important}
-}

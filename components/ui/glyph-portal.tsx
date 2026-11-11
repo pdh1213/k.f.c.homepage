@@ -421,4 +421,3 @@ export default function GlyphPortal({
     </section>
   );
 }
-

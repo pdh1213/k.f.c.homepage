@@ -4,15 +4,16 @@ import NoticePopupAdmin from './NoticePopupAdmin.jsx';
 import LiquidNavbar,{NimbusIcons} from '../components/ui/liquid-glass-navbar.tsx';
 import CalendarDatePicker from '../components/ui/calendar-date-picker.tsx';
 import ChatbotAdmin from './ChatbotAdmin.jsx';
+import ChatMonitor from './ChatMonitor.jsx';
 import LoadingIndicator from '../components/ui/loading-indicator.jsx';
 import './showroom.css';
 
 const tabs=[
   ['overview','개요'],['applications','승인'],['members','회원 관리'],['announcements','공지사항'],
-  ['events','전체 일정'],['polls','설문 관리'],['groups','그룹 관리'],['showroom','쇼룸 관리'],['chatbot','챗봇 관리'],['settings','설정']
+  ['events','전체 일정'],['polls','설문 관리'],['groups','그룹 관리'],['monitor','채팅 열람'],['showroom','쇼룸 관리'],['chatbot','챗봇 관리'],['settings','설정']
 ];
 const stateLabel={pending:'승인 대기',approved:'승인 완료',rejected:'반려'};
-const liquidAdminLabels={overview:'Overview',applications:'Approvals',members:'Members',announcements:'Notices',events:'Calendar',polls:'Surveys',groups:'Groups',showroom:'Showroom',chatbot:'Chatbot',settings:'Settings'};
+const liquidAdminLabels={overview:'Overview',applications:'Approvals',members:'Members',announcements:'Notices',events:'Calendar',polls:'Surveys',groups:'Groups',monitor:'Monitor',showroom:'Showroom',chatbot:'Chatbot',settings:'Settings'};
 export function AccessDenied({go}){return <div className="center-page"><section className="surface access-card"><div className="brand-image large"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/></div><h1>접근 권한이 없습니다</h1><p className="muted">관리자만 이 화면을 이용할 수 있습니다.</p><button className="button primary" onClick={()=>go('/dashboard')}>회원 홈으로</button></section></div>;}
 export function Toast({message}){return message?<div className="toast" role="status"><span>✓</span>{message}</div>:null;}
 function Empty({title,detail}){return <div className="empty-state"><span>✳</span><b>{title}</b>{detail&&<small>{detail}</small>}</div>;}
@@ -30,6 +31,7 @@ export function AdminShell({user,go,logout,notify,toast,blocked}){
       events:'/api/admin/events',
       polls:'/api/admin/polls',
       groups:'/api/admin/groups',
+      monitor:'/api/admin/monitor',
       showroom:'/api/admin/competitions',
       chatbot:'/api/admin/chatbot',
       settings:'/api/admin/settings'
@@ -56,6 +58,7 @@ export function AdminShell({user,go,logout,notify,toast,blocked}){
         tab==='events'?<EventAdmin data={data} refresh={()=>load('events','')} notify={notify}/>:
         tab==='polls'?<PollAdmin data={data} refresh={()=>load('polls','')} notify={notify}/>:
         tab==='groups'?<GroupAdmin data={data} refresh={()=>load('groups','')} notify={notify}/>:
+        tab==='monitor'?<ChatMonitor data={data} refresh={()=>load('monitor','')} notify={notify}/>:
         tab==='showroom'?<CompetitionAdmin data={data} notify={notify} refresh={()=>load('showroom','')}/>:tab==='chatbot'?<ChatbotAdmin data={data} notify={notify} refresh={()=>load('chatbot','')} user={user}/>:<SettingsAdmin data={settings||data} notify={notify} refresh={()=>load('settings','')}/>}
       </div>
     </main>

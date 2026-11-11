@@ -120,4 +120,3 @@ small{letter-spacing:-.12px}
   h1{font-size:clamp(1.9rem,5vw,2.2rem)}
 }
 @media(max-width:419px){.hero-copy h1{font-size:28px}}
-

@@ -1,4 +1,7 @@
-# Windows 앱 3.0.0 배포 안내
+# Windows 앱 배포 안내
+
+## 3.1.0 작업 상태
+웹과 Windows 패키지 버전을 `package.json`의 3.1.0으로 맞췄습니다. 이번 로컬 환경에서는 Electron 앱 폴더와 `outputs/KFC-Club-Windows.zip` 포터블 패키지는 생성했으나 NSIS 설치 EXE 빌드는 `makensis.cmd` 실행 오류(9020)로 끝나지 않았습니다. 이 ZIP은 설치 EXE 및 자동 업데이트 릴리스가 아닙니다. GitHub Actions의 Windows 빌드가 성공하여 `windows-latest` 릴리스에 EXE, blockmap, latest.yml이 올라왔는지 확인한 뒤 배포하세요.
 
 ## 기존 설치자
 1.0.0에는 앱 자체의 자동 업데이트 기능이 없으므로, 2.0.0 설치 EXE를 한 번 실행해야 합니다.
@@ -52,4 +55,3 @@ DESIGN.md 기준의 크림·코럴·다크 패널과 명조 제목을 적용했�
 ## 3.0 쇼룸
 
 앱과 웹은 같은 서버와 화면을 사용합니다. 첫 접속 화면은 공개 쇼룸이며, 회원 로그인 후 My Projects에서 작품을 제출할 수 있습니다. package.json의 3.0.0을 Windows 설치 패키지와 웹 화면 버전 표시에 공통으로 사용합니다.
-
