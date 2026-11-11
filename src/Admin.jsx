@@ -56,7 +56,7 @@ export function AdminShell({user,go,logout,notify,toast,blocked}){
         tab==='events'?<EventAdmin data={data} refresh={()=>load('events','')} notify={notify}/>:
         tab==='polls'?<PollAdmin data={data} refresh={()=>load('polls','')} notify={notify}/>:
         tab==='groups'?<GroupAdmin data={data} refresh={()=>load('groups','')} notify={notify}/>:
-        tab==='showroom'?<CompetitionAdmin data={data} notify={notify} refresh={()=>load('showroom','')}/>:tab==='chatbot'?<ChatbotAdmin data={data} notify={notify} refresh={()=>load('chatbot','')}/>:<SettingsAdmin data={settings||data} notify={notify} refresh={()=>load('settings','')}/>}
+        tab==='showroom'?<CompetitionAdmin data={data} notify={notify} refresh={()=>load('showroom','')}/>:tab==='chatbot'?<ChatbotAdmin data={data} notify={notify} refresh={()=>load('chatbot','')} user={user}/>:<SettingsAdmin data={settings||data} notify={notify} refresh={()=>load('settings','')}/>}
       </div>
     </main>
     {toast&&<Toast message={toast}/>}
