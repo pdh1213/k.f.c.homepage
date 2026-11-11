@@ -10,6 +10,7 @@ import './depth.css';
 import './claude.css';
 import './feature24.css';
 import './theme.css';
+import './cursor.css';
 
 try{const saved=localStorage.getItem('kfc-color-theme');document.documentElement.classList.toggle('dark',saved==='dark');document.documentElement.style.colorScheme=saved==='dark'?'dark':'light'}catch{}
 createRoot(document.getElementById('root')).render(<React.StrictMode><App /><SunMoonThemeToggle /><VersionBadge /><ReleaseNotes /></React.StrictMode>);

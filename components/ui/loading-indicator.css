@@ -1,0 +1,5 @@
+.kfc-loading{display:inline-flex;align-items:center;justify-content:center;gap:9px;max-width:100%;color:inherit;font-size:inherit;line-height:1.4}
+.kfc-loading svg{width:24px;height:24px;flex:none}
+.kfc-loading-inline{gap:5px}.kfc-loading-inline svg{width:18px;height:18px}
+.loading-card:has(.kfc-loading),.showroom-empty:has(.kfc-loading),.download-state:has(.kfc-loading){display:flex;align-items:center;justify-content:center;min-height:70px}
+@media(prefers-reduced-motion:reduce){.kfc-loading svg animate{display:none}}

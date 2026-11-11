@@ -1,5 +1,9 @@
-// @hidden
+import { useId } from 'react';
+
 function MessageLoading() {
+  const suffix = useId().replace(/[^a-z0-9]/gi, '');
+  const first = `spinner_qFRN_${suffix}`;
+  const last = `spinner_OcgL_${suffix}`;
   return (
     <svg
       width="24"
@@ -11,8 +15,8 @@ function MessageLoading() {
     >
       <circle cx="4" cy="12" r="2" fill="currentColor">
         <animate
-          id="spinner_qFRN"
-          begin="0;spinner_OcgL.end+0.25s"
+          id={first}
+          begin={`0;${last}.end+0.25s`}
           attributeName="cy"
           calcMode="spline"
           dur="0.6s"
@@ -22,7 +26,7 @@ function MessageLoading() {
       </circle>
       <circle cx="12" cy="12" r="2" fill="currentColor">
         <animate
-          begin="spinner_qFRN.begin+0.1s"
+          begin={`${first}.begin+0.1s`}
           attributeName="cy"
           calcMode="spline"
           dur="0.6s"
@@ -32,8 +36,8 @@ function MessageLoading() {
       </circle>
       <circle cx="20" cy="12" r="2" fill="currentColor">
         <animate
-          id="spinner_OcgL"
-          begin="spinner_qFRN.begin+0.2s"
+          id={last}
+          begin={`${first}.begin+0.2s`}
           attributeName="cy"
           calcMode="spline"
           dur="0.6s"

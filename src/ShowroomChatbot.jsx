@@ -1,5 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {api} from './api.js';
+import {MessageLoading} from '../components/ui/message-loading.tsx';
 import './showroom-chatbot.css';
 
 const TICKETS='kfc-showroom-chatbot-tickets';
@@ -33,7 +34,7 @@ export default function ShowroomChatbot(){
         {tickets.length>0&&<div className="showroom-chatbot-tickets"><div><b>내 질문 답변</b><button type="button" onClick={refresh}><Icon name="refresh"/> 새로고침</button></div>{tickets.map(ticket=>{const reply=replies[ticket];return reply?<article key={ticket}><strong>{reply.question}</strong><p>{reply.status==='answered'?reply.answer:'관리자 답변을 기다리고 있어요.'}</p></article>:null})}</div>}
         {error&&<p className="showroom-chatbot-error" role="alert">{error}</p>}<div ref={endRef}/>
       </div>
-      <form onSubmit={send}><label className="visually-hidden" htmlFor="showroom-chatbot-question">다른 질문하기</label><div className="showroom-chatbot-composer"><textarea id="showroom-chatbot-question" ref={inputRef} maxLength={500} rows={2} value={question} onChange={e=>setQuestion(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();e.currentTarget.form.requestSubmit()}}} placeholder={typed||'궁금한 내용을 적어 주세요'}/><div className="showroom-chatbot-compose-actions"><button type="button" className="showroom-chatbot-plus" onClick={()=>setShowChoices(v=>!v)} aria-label="간편 질문 보기" aria-expanded={showChoices} title="간편 질문 보기"><Icon name="plus"/></button><button type="submit" className="showroom-chatbot-send" disabled={busy||!question.trim()} aria-label={busy?'전달 중':'질문 보내기'} title="질문 보내기"><Icon name="up"/></button></div></div></form>
+      <form onSubmit={send}><label className="visually-hidden" htmlFor="showroom-chatbot-question">다른 질문하기</label><div className="showroom-chatbot-composer"><textarea id="showroom-chatbot-question" ref={inputRef} maxLength={500} rows={2} value={question} onChange={e=>setQuestion(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();e.currentTarget.form.requestSubmit()}}} placeholder={typed||'궁금한 내용을 적어 주세요'}/><div className="showroom-chatbot-compose-actions"><button type="button" className="showroom-chatbot-plus" onClick={()=>setShowChoices(v=>!v)} aria-label="간편 질문 보기" aria-expanded={showChoices} title="간편 질문 보기"><Icon name="plus"/></button><button type="submit" className="showroom-chatbot-send" disabled={busy||!question.trim()} aria-label={busy?'전달 중':'질문 보내기'} title="질문 보내기">{busy?<MessageLoading/>:<Icon name="up"/>}</button></div></div></form>
     </section>}
     <button className="showroom-chatbot-toggle" type="button" onClick={()=>setOpen(value=>!value)} aria-expanded={open} aria-label={open?'챗봇 닫기':'동아리 챗봇 열기'}><Icon name="message"/> 동아리 챗봇</button>
   </div>;

@@ -1,6 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import {api,supabase} from './api.js';
 import CalendarDatePicker from '../components/ui/calendar-date-picker.tsx';
+import LoadingIndicator from '../components/ui/loading-indicator.jsx';
 import './showroom.css';
 
 const empty={kind:'robot',name:'',description:'',instructions:'',webUrl:'',phase:'in_progress',collaboratorIds:[],progressEntries:[],relatedProjectIds:[]};
@@ -48,7 +49,7 @@ export default function MyProjects({user,notify}){
       </form>
     </section>}
     <section className="surface"><div className="section-heading"><div><div className="eyebrow">MY SUBMISSIONS</div><h2>내 프로젝트</h2></div><span className="count-pill">{projects.length}개</span></div>
-      {loading?<div className="empty-state"><b>프로젝트를 불러오고 있어요…</b></div>:projects.length?<div className="my-project-list">{projects.map(project=><article key={project.id}><img src={project.imageUrl} alt={project.name+' 사진'}/><div className="grow"><span className={'status-pill '+project.status}>{statusLabel[project.status]}</span><h3>{project.name}</h3><small>{project.kind==='robot'?'로봇 프로젝트':'웹앱'} · {project.phase==='completed'?'완료':'진행 중'}</small><p>{project.description}</p>{project.collaborators?.length>0&&<p>공동 제작자: {project.collaborators.map(member=>member.name).join(', ')}</p>}{project.progressEntries?.length>0&&<p>진행 기록 {project.progressEntries.length}개</p>}{project.rejectionReason&&<p className="my-project-reason">반려 사유: {project.rejectionReason}</p>}<div className="button-row"><button className="button subtle" type="button" disabled={busy} onClick={()=>edit(project)}>수정</button><button className="button danger-outline" type="button" disabled={busy} onClick={()=>remove(project)}>삭제</button></div></div></article>)}</div>:<div className="empty-state"><b>제출한 프로젝트가 없습니다.</b><small>위 버튼에서 첫 작품을 소개해 주세요.</small></div>}
+      {loading?<div className="empty-state"><LoadingIndicator text="프로젝트를 불러오고 있어요…"/></div>:projects.length?<div className="my-project-list">{projects.map(project=><article key={project.id}><img src={project.imageUrl} alt={project.name+' 사진'}/><div className="grow"><span className={'status-pill '+project.status}>{statusLabel[project.status]}</span><h3>{project.name}</h3><small>{project.kind==='robot'?'로봇 프로젝트':'웹앱'} · {project.phase==='completed'?'완료':'진행 중'}</small><p>{project.description}</p>{project.collaborators?.length>0&&<p>공동 제작자: {project.collaborators.map(member=>member.name).join(', ')}</p>}{project.progressEntries?.length>0&&<p>진행 기록 {project.progressEntries.length}개</p>}{project.rejectionReason&&<p className="my-project-reason">반려 사유: {project.rejectionReason}</p>}<div className="button-row"><button className="button subtle" type="button" disabled={busy} onClick={()=>edit(project)}>수정</button><button className="button danger-outline" type="button" disabled={busy} onClick={()=>remove(project)}>삭제</button></div></div></article>)}</div>:<div className="empty-state"><b>제출한 프로젝트가 없습니다.</b><small>위 버튼에서 첫 작품을 소개해 주세요.</small></div>}
     </section>
   </div>;
 }

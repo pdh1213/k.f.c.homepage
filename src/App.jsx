@@ -11,6 +11,7 @@ import NoticePopup from './NoticePopup.jsx';
 import Showroom from './Showroom.jsx';
 import MyProjects from './MyProjects.jsx';
 import LiquidNavbar,{NimbusIcons} from '../components/ui/liquid-glass-navbar.tsx';
+import LoadingIndicator from '../components/ui/loading-indicator.jsx';
 
 const menu=[
   {path:'/dashboard',label:'홈',icon:'⌂'},
@@ -41,9 +42,9 @@ export default function App(){
   if(path==='/'||path==='/showroom')return <Showroom go={go} user={user&&user!==undefined?user:null}/>;
   if(path==='/download')return <DownloadPage go={go} notify={notify}/>;
   if(!hasSupabaseConfig)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>서비스 연결 설정이 없어 로그인할 수 없습니다. 잠시 후 다시 시도해 주세요.</span></div>;
-  if(user===undefined)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>연결을 확인하고 있어요…</span></div>;
+  if(user===undefined)return <div className="boot"><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><LoadingIndicator text="연결을 확인하고 있어요…"/></div>;
   const welcome=showWelcome?<LoginWelcome onComplete={()=>setShowWelcome(false)}/>:null;
-  if(!user&&path==='/demo')return !demoStatus.checked?<div className="boot">데모 모드를 확인하고 있어요…</div>:demoStatus.enabled?<><DemoShell go={go} blocked={showWelcome}/>{welcome}</>:<div className="center-page"><section className="surface access-card"><h1>데모 모드가 종료되었습니다</h1><p className="muted">지금은 데모 화면을 이용할 수 없습니다.</p><button className="button primary" onClick={()=>go('/')}>로그인 화면으로</button></section></div>;
+  if(!user&&path==='/demo')return !demoStatus.checked?<div className="boot"><LoadingIndicator text="데모 모드를 확인하고 있어요…"/></div>:demoStatus.enabled?<><DemoShell go={go} blocked={showWelcome}/>{welcome}</>:<div className="center-page"><section className="surface access-card"><h1>데모 모드가 종료되었습니다</h1><p className="muted">지금은 데모 화면을 이용할 수 없습니다.</p><button className="button primary" onClick={()=>go('/')}>로그인 화면으로</button></section></div>;
   if(!user)return <AuthScreen go={go} demoEnabled={demoStatus.enabled} onDemo={async()=>{const r=await api('/api/demo-status',{cache:'no-store'});setDemoStatus({enabled:!!r.demoEnabled,checked:true});if(r.demoEnabled){setShowWelcome(true);go('/demo');}return !!r.demoEnabled;}} onLogin={(u)=>{userRequestRef.current++;setShowWelcome(true);setShowLoginPopups(u.role!=='admin');setUser(u);go(u.role==='admin'?'/admin':'/dashboard');}}/>;
   if(user.mustChangePassword)return <PasswordScreen user={user} done={refreshUser} logout={logout} notify={notify}/>;
   if(user.role==='admin'){
@@ -78,11 +79,11 @@ function AuthScreen({go,onLogin,demoEnabled,onDemo}){
         <div className="auth-tabs"><button className={mode==='login'?'active':''} onClick={()=>{setMode('login');setNotice('');}}>로그인</button><button className={mode==='register'?'active':''} onClick={()=>{setMode('register');setNotice('');}}>회원 가입 신청</button></div>
         {notice&&<div className="notice-box" role="status">{notice}</div>}
         {mode==='login'?<form onSubmit={submitLogin} className="form-stack"><label>로그인 아이디<input ref={loginInput} autoComplete="username" required value={login.username} onChange={e=>setLogin({...login,username:e.target.value})} placeholder="아이디를 입력해 주세요"/></label>
-          <label>비밀번호<input type="password" autoComplete="current-password" required value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} placeholder="비밀번호를 입력해 주세요"/></label><button className="button primary full" disabled={busy}>{busy?'확인 중…':'로그인'} <span>→</span></button>
+          <label>비밀번호<input type="password" autoComplete="current-password" required value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} placeholder="비밀번호를 입력해 주세요"/></label><button className="button primary full" disabled={busy}>{busy?<LoadingIndicator className="kfc-loading-inline" text="확인 중…"/>:'로그인'} {!busy&&<span>→</span>}</button>
         </form>:<form onSubmit={submitRegister} className="form-stack signup-form"><div className="form-grid"><label>이름<input required maxLength="40" value={form.name} onChange={e=>change('name',e.target.value)} placeholder="홍길동"/></label>
           <label>나이<input required type="number" min="8" max="99" value={form.age} onChange={e=>change('age',e.target.value)} placeholder="15"/></label><label>학교<input required maxLength="80" value={form.school} onChange={e=>change('school',e.target.value)} placeholder="학교 이름"/></label><label>학년<input required maxLength="30" value={form.grade} onChange={e=>change('grade',e.target.value)} placeholder="예: 중학교 2학년"/></label></div>
           <label>전화번호<input required type="tel" value={form.phone} onChange={e=>change('phone',e.target.value)} placeholder="010-1234-5678"/></label><label>로그인 아이디<input required minLength="4" maxLength="20" autoComplete="username" value={form.username} onChange={e=>setForm(v=>({...v,username:e.target.value}))} placeholder="영문, 숫자, 밑줄 4~20자"/></label>
-          <label>비밀번호<input required type="password" minLength="10" maxLength="128" autoComplete="new-password" value={form.password} onChange={e=>change('password',e.target.value)} placeholder="10자 이상"/></label><button className="button primary full" disabled={busy}>{busy?'접수 중…':'가입 신청하기'} <span>→</span></button>
+          <label>비밀번호<input required type="password" minLength="10" maxLength="128" autoComplete="new-password" value={form.password} onChange={e=>change('password',e.target.value)} placeholder="10자 이상"/></label><button className="button primary full" disabled={busy}>{busy?<LoadingIndicator className="kfc-loading-inline" text="접수 중…"/>:'가입 신청하기'} {!busy&&<span>→</span>}</button>
         </form>}
         {mode==='login'&&demoEnabled&&<button type="button" className="button secondary full demo-entry" disabled={busy} onClick={enterDemo}>데모 모드 접속하기 <span>↗</span></button>}
         <div className="auth-footnote">가입 신청은 관리자의 승인 후 로그인할 수 있습니다.</div>{!isDesktop&&<a className="auth-windows-link" href="/download" onClick={e=>{e.preventDefault();go('/download');}}>Windows 앱 안내 ↗</a>}
@@ -122,7 +123,7 @@ function DownloadPage({go,notify}){
     <header className="public-header"><button className="brand-link" onClick={()=>go('/')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span>K.F.C.</button><span className="eyebrow">WINDOWS APP</span></header>
     <main className="download-content"><div className="download-icon">▣</div><div className="eyebrow">K.F.C. DESKTOP</div><h1>Windows에서도<br/>함께 만들어요.</h1>
       <p className="muted">홈페이지와 같은 계정, 공지사항, 일정, 그룹 채팅을 사용하는 Windows 앱입니다.</p>
-      {status===null?<div className="download-state">Windows 앱 파일 확인 중…</div>:status.installerAvailable?
+      {status===null?<div className="download-state"><LoadingIndicator text="Windows 앱 파일 확인 중…"/></div>:status.installerAvailable?
         <a className="button primary download-button" href={status.installerUrl}>Windows 설치 파일 다운로드 <span>↓</span></a>:status.portableAvailable?
         <><a className="button primary download-button" href={status.portableUrl}>Windows 앱 다운로드 (.zip) <span>↓</span></a><p className="small muted">압축을 푼 뒤 폴더의 K.F.C. 로봇동아리.exe를 실행해 주세요.</p></>:
         <div className="notice-box">Windows 앱 파일이 아직 게시되지 않았습니다. 관리자가 빌드 파일을 배포하면 이곳에서 다운로드할 수 있습니다.</div>}
@@ -170,7 +171,7 @@ function MemberShell({user,go,logout,notify,toast,blocked,popupSession,onPopupsD
     <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / {menu.find(m=>m.path===section)?.label||'홈'}</span><strong>회원 공간</strong></div><div className="topbar-right"><span className="brand-image small topbar-logo"><img src="/kfc-logo.png" alt="K.F.C."/></span><span className="live-dot"/>온라인<button className="topbar-logout" onClick={logout}>로그아웃</button></div></header>
       <div className="desktop-liquid-nav"><LiquidNavbar items={navItems.map((m,i)=>({label:liquidMemberLabels[m.path],icon:[NimbusIcons.home,NimbusIcons.globe,NimbusIcons.drop,NimbusIcons.plane,NimbusIcons.user][i%5],fx:['glow','spin','drop','plane','wave'][i%5]}))} active={Math.max(0,navItems.findIndex(m=>m.path===section))} onChange={index=>navigate(navItems[index].path)} tone="light" sound={false}/></div>
       <div className="page-body">
-        {loading?<div className="loading-card">회원 정보를 불러오고 있어요…</div>:section==='/officers'?<OfficerHub notify={notify}/> :selectedDirect?
+        {loading?<div className="loading-card"><LoadingIndicator text="회원 정보를 불러오고 있어요…"/></div>:section==='/officers'?<OfficerHub notify={notify}/> :selectedDirect?
           <DirectRoom chat={selectedDirect} user={user} onBack={()=>{setSelectedDirect(null);load({quiet:true})}} notify={notify}/> :selectedGroup?
           <GroupRoom group={selectedGroup} user={user} onBack={()=>setSelectedGroup(null)} notify={notify}/>:
           section==='/dashboard'?<Dashboard user={user} announcements={announcements} events={events} groups={groups} open={navigate} groupOpen={groupOpen}/>:

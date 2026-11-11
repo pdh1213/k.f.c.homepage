@@ -1,0 +1,5 @@
+@media (hover:hover) and (pointer:fine){
+  html,body,button,a,select,summary,label,[role="button"]{cursor:url('/kfc-triangle-cursor.svg') 2 3,auto}
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),textarea,[contenteditable="true"]{cursor:text}
+  [disabled],[aria-disabled="true"]{cursor:not-allowed}
+}

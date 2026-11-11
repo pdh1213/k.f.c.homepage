@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {api,fmtDate} from './api.js';
+import LoadingIndicator from '../components/ui/loading-indicator.jsx';
 
 const blank={title:'',content:'',linkType:'none',linkUrl:'',targetId:'',active:true};
 const labels={none:'연결 없음',web:'웹 링크',poll:'설문 연결',announcement:'공지사항 연결',event:'일정 연결'};
@@ -28,7 +29,7 @@ export default function NoticePopupAdmin({notify}){
       <label className="check-label"><input type="checkbox" checked={form.active} onChange={e=>change('active',e.target.checked)}/>회원 로그인 시 표시</label>
       <div className="button-row"><button className="button primary" disabled={busy||(['poll','announcement','event'].includes(form.linkType)&&!form.targetId)}>{busy?'저장 중…':editing?'팝업 수정':'팝업 만들기'}</button>{editing&&<button type="button" className="button subtle" onClick={reset}>취소</button>}</div>
     </form>
-    <div className="popup-admin-list"><h2>등록된 팝업</h2>{loading?<p className="muted">불러오는 중…</p>:data.popups.length?data.popups.map(item=><article className="manage-row" key={item.id}><div className="grow"><b>{item.title}</b><small>{item.active?'게시 중':'숨김'} · {labels[item.linkType]} · {fmtDate(item.createdAt)}</small></div><button className="button subtle" onClick={()=>edit(item)}>수정</button><button className="button danger-outline" onClick={()=>remove(item)}>삭제</button></article>):<p className="muted">등록된 공지 팝업이 없습니다.</p>}</div>
+    <div className="popup-admin-list"><h2>등록된 팝업</h2>{loading?<p className="muted"><LoadingIndicator text="불러오는 중…"/></p>:data.popups.length?data.popups.map(item=><article className="manage-row" key={item.id}><div className="grow"><b>{item.title}</b><small>{item.active?'게시 중':'숨김'} · {labels[item.linkType]} · {fmtDate(item.createdAt)}</small></div><button className="button subtle" onClick={()=>edit(item)}>수정</button><button className="button danger-outline" onClick={()=>remove(item)}>삭제</button></article>):<p className="muted">등록된 공지 팝업이 없습니다.</p>}</div>
   </section>;
 }
 
