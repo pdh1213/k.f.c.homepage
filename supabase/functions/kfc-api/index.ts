@@ -234,7 +234,7 @@ Deno.serve(async req=>{
   return out({messages:await Promise.all(rows.reverse().map(async(z:any)=>({id:z.id,name:z.users?.name||"회원",content:z.content||"",createdAt:z.created_at,attachments:await signFiles(z.attachments||[],"chat-attachments")})))});
  }
  if(s==="chatbot"&&method==="GET"){
-  const [faqs,questions,knowledge]=await Promise.all([all(db.from("showroom_chatbot_faqs").select("*").order("sort_order").order("id")),all(db.from("showroom_chatbot_questions").select("id,question,answer,status,created_at,answered_at,image_path,link_label,link_url").order("created_at",{ascending:false}).limit(200)),all(db.from("showroom_chatbot_knowledge").select("*").order("sort_order").order("id"))]);
+  const [faqs,questions,knowledge]=await Promise.all([all(db.from("showroom_chatbot_faqs").select("*").order("sort_order").order("id")),all(db.from("showroom_chatbot_questions").select("id,question,answer,status,created_at,answered_at,image_path,link_label,link_url").eq("status","pending").order("created_at",{ascending:false}).limit(200)),all(db.from("showroom_chatbot_knowledge").select("*").order("sort_order").order("id"))]);
   return out({faqs:await Promise.all(faqs.map(async(z:any)=>({id:z.id,question:z.question,answer:z.answer,sortOrder:z.sort_order,active:z.active,imagePath:z.image_path||"",...await chatbotRichOutput(z)}))),questions:await Promise.all(questions.map(async(z:any)=>({id:z.id,question:z.question,answer:z.answer,status:z.status,createdAt:z.created_at,answeredAt:z.answered_at,imagePath:z.image_path||"",...await chatbotRichOutput(z)}))),knowledge:await Promise.all(knowledge.map(async(z:any)=>({id:z.id,question:z.question,aliases:z.aliases||[],answer:z.answer,sortOrder:z.sort_order,active:z.active,imagePath:z.image_path||"",...await chatbotRichOutput(z)})))});
  }
  const knowledgePath=s.match(/^chatbot\/knowledge(?:\/(\d+))?$/);
@@ -274,8 +274,7 @@ Deno.serve(async req=>{
  if(adminProject&&method==="DELETE"){
   const id=Number(adminProject[1]),project=await one(db.from("showroom_projects").select("id,image_path,model_path,status").eq("id",id));
   if(!project)return bad("프로젝트를 찾을 수 없습니다.",404);
-  if(project.status!=="approved")return bad("게시된 프로젝트만 쇼룸 관리에서 삭제할 수 있습니다.",409);
-  const removed=await db.from("showroom_projects").delete().eq("id",id).eq("status","approved").select("id");
+  const removed=await db.from("showroom_projects").delete().eq("id",id).select("id");
   if(removed.error)throw removed.error;if(!removed.data?.length)return bad("이미 변경된 프로젝트입니다.",409);
   const image=await db.storage.from("project-images").remove([project.image_path]);if(image.error)console.error("project image cleanup failed",image.error.message);await cleanProjectModel(project.model_path);
   return out({message:"게시된 프로젝트를 쇼룸에서 삭제했습니다."});
