@@ -4,6 +4,11 @@ import './release-notes.css';
 
 const version=packageInfo.version;
 const notes={
+  '3.1.1':[
+    '로봇 프로젝트에 Studio 2.0 .io 파일을 첨부하고 승인 전에도 3D로 살펴볼 수 있습니다.',
+    '관리자는 모델을 확인한 뒤 승인할 수 있으며, 게시된 로봇은 쇼룸에서 회전·확대해 볼 수 있습니다.',
+    '관리자가 추가 질문을 답변 지식으로 등록하고 표현을 가르치면, 동아리 챗봇이 외부 AI 없이 바로 답합니다.'
+  ],
   '3.1.0':[
     'Freeform 아이디어 보드에 메모·도형·링크·사진을 추가하고 함께 배치할 수 있습니다.',
     '프로젝트에서 공동 개발자, 보드, 그룹 채팅과 쇼룸 공개 신청을 연결할 수 있습니다.',
@@ -84,3 +89,4 @@ export default function ReleaseNotes(){
   if(!open||!notes[version])return null;
   return <div className="release-notes-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)dismiss()}}><section className="release-notes" role="dialog" aria-modal="true" aria-labelledby="release-notes-title"><span className="release-notes-label">K.F.C. UPDATE</span><h2 id="release-notes-title">새로운 버전 {version}</h2><p>이번 업데이트에서 달라진 점을 알려드릴게요.</p><ul>{notes[version].map(item=><li key={item}>{item}</li>)}</ul><button type="button" className="button primary" onClick={dismiss} autoFocus>확인했어요</button></section></div>;
 }
+

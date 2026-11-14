@@ -1,7 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {api} from './api.js';
 import {MessageLoading} from '../components/ui/message-loading.tsx';
-import {findInstantAnswer,safeChatbotLink} from './chatbot-content.js';
+import {findInstantAnswer,findKnowledgeAnswer,safeChatbotLink} from './chatbot-content.js';
 import './showroom-chatbot.css';
 
 const TICKETS='kfc-showroom-chatbot-tickets';
@@ -17,18 +17,18 @@ const Icon=({name})=>{
 
 function Answer({item,go}){const url=safeChatbotLink(item.linkUrl);return <div className="showroom-chatbot-answer"><p>{item.text}</p>{item.imageUrl&&<img src={item.imageUrl} alt="챗봇 답변 사진" loading="lazy"/>}{url&&<a className="showroom-chatbot-action" href={url} target={url.startsWith('/')?undefined:'_blank'} rel={url.startsWith('/')?undefined:'noopener noreferrer'} onClick={url.startsWith('/')&&go?e=>{e.preventDefault();go(url)}:undefined}>{item.linkLabel||'자세히 보기'} <span aria-hidden="true">↗</span></a>}</div>}
 export default function ShowroomChatbot({go}){
-  const [open,setOpen]=useState(false),[faqs,setFaqs]=useState([]),[tickets,setTickets]=useState(savedTickets),[replies,setReplies]=useState({}),[question,setQuestion]=useState(''),[messages,setMessages]=useState([]),[busy,setBusy]=useState(false),[error,setError]=useState(''),[showChoices,setShowChoices]=useState(true),[typed,setTyped]=useState('');
+  const [open,setOpen]=useState(false),[faqs,setFaqs]=useState([]),[knowledge,setKnowledge]=useState([]),[tickets,setTickets]=useState(savedTickets),[replies,setReplies]=useState({}),[question,setQuestion]=useState(''),[messages,setMessages]=useState([]),[busy,setBusy]=useState(false),[error,setError]=useState(''),[showChoices,setShowChoices]=useState(true),[typed,setTyped]=useState('');
   const inputRef=useRef(null),endRef=useRef(null);
-  useEffect(()=>{api('/api/showroom/chatbot').then(r=>setFaqs(r.faqs||[])).catch(()=>setError('간편 질문을 불러오지 못했습니다.'))},[]);
+  useEffect(()=>{api('/api/showroom/chatbot').then(r=>{setFaqs(r.faqs||[]);setKnowledge(r.knowledge||[])}).catch(()=>setError('챗봇 답변을 불러오지 못했습니다.'))},[open]);
   useEffect(()=>{if(open&&messages.length)endRef.current?.scrollIntoView({block:'end',behavior:'smooth'})},[open,messages]);
   useEffect(()=>{if(!open)return;let prompt=0,position=0,deleting=false;let timer;const tick=()=>{const value=EXAMPLES[prompt];position+=deleting?-1:1;setTyped(value.slice(0,Math.max(0,position)));if(!deleting&&position>=value.length){deleting=true;timer=setTimeout(tick,2200)}else if(deleting&&position<=0){deleting=false;prompt=(prompt+1)%EXAMPLES.length;timer=setTimeout(tick,650)}else timer=setTimeout(tick,deleting?25:55)};timer=setTimeout(tick,400);return()=>clearTimeout(timer)},[open]);
   const refresh=async()=>{if(!tickets.length)return;try{const results=await Promise.all(tickets.map(async ticket=>{try{return[ticket,await api('/api/showroom/chatbot/questions?ticket='+encodeURIComponent(ticket))]}catch{return[ticket,null]}}));setReplies(Object.fromEntries(results.filter(([,value])=>value)));setError('')}catch{setError('답변 상태를 확인하지 못했습니다.')}};
   useEffect(()=>{if(open)refresh()},[open]);
   const choose=(faq,asked=faq.question)=>{setMessages(current=>[...current,{type:'question',text:asked},{type:'answer',text:faq.answer,imageUrl:faq.imageUrl,linkLabel:faq.linkLabel,linkUrl:faq.linkUrl}]);setShowChoices(false)};
   const reset=()=>{setMessages([]);setQuestion('');setShowChoices(true);setError('')};
-  const send=async event=>{event.preventDefault();const value=question.trim();if(!value||busy)return;const instant=findInstantAnswer(faqs,value);if(instant){choose(instant,value);setQuestion('');return}setBusy(true);setError('');try{const result=await api('/api/showroom/chatbot/questions',{method:'POST',body:{question:value}});setMessages(current=>[...current,{type:'question',text:value},{type:'answer',text:'질문을 관리자에게 전달했어요. 답변이 등록되면 아래에서 확인할 수 있습니다.'}]);const next=[result.ticket,...tickets].slice(0,10);setTickets(next);localStorage.setItem(TICKETS,JSON.stringify(next));setReplies(current=>({...current,[result.ticket]:{question:value,status:'pending',answer:''}}));setQuestion('')}catch(e){setError(e.message||'질문을 전달하지 못했습니다.')}finally{setBusy(false)}};
+  const send=async event=>{event.preventDefault();const value=question.trim();if(!value||busy)return;const instant=findKnowledgeAnswer(knowledge,value)||findInstantAnswer(faqs,value);if(instant){choose(instant,value);setQuestion('');return}setBusy(true);setError('');try{const result=await api('/api/showroom/chatbot/questions',{method:'POST',body:{question:value}});setMessages(current=>[...current,{type:'question',text:value},{type:'answer',text:'등록된 답변을 찾지 못해 질문을 관리자에게 전달했어요. 답변이 등록되면 아래에서 확인할 수 있습니다.'}]);const next=[result.ticket,...tickets].slice(0,10);setTickets(next);localStorage.setItem(TICKETS,JSON.stringify(next));setReplies(current=>({...current,[result.ticket]:{question:value,status:'pending',answer:''}}));setQuestion('')}catch(e){setError(e.message||'질문을 전달하지 못했습니다.')}finally{setBusy(false)}};
   return <div className="showroom-chatbot">
-    {open&&<section className="showroom-chatbot-panel" role="dialog" aria-label="K.F.C. 챗봇"><header><div><h2>K.F.C. 챗봇</h2><p>동아리에 대해 무엇이든 물어보세요.</p></div><div className="showroom-chatbot-header-actions"><button type="button" onClick={reset} title="대화 초기화" aria-label="대화 초기화"><Icon name="refresh"/></button><button type="button" onClick={()=>setOpen(false)} title="챗봇 닫기" aria-label="챗봇 닫기">×</button></div></header>
+    {open&&<section className="showroom-chatbot-panel" role="dialog" aria-label="K.F.C. 챗봇"><header><div><h2>K.F.C. 챗봇</h2><p>동아리가 등록한 답변을 바로 찾아드려요.</p></div><div className="showroom-chatbot-header-actions"><button type="button" onClick={reset} title="대화 초기화" aria-label="대화 초기화"><Icon name="refresh"/></button><button type="button" onClick={()=>setOpen(false)} title="챗봇 닫기" aria-label="챗봇 닫기">×</button></div></header>
       <div className="showroom-chatbot-body">
         {!messages.length&&<div className="showroom-chatbot-empty"><span className="showroom-chatbot-empty-icon"><Icon name="message"/></span><h3>안녕하세요, 반가워요!</h3><p>K.F.C. 로봇동아리에 대해<br/>궁금한 것을 알려드릴게요.</p></div>}
         {showChoices&&faqs.length>0&&<div className="showroom-chatbot-choices"><span>간편 질문</span>{faqs.map(faq=><button type="button" key={faq.id} onClick={()=>choose(faq)}>{faq.question}<span aria-hidden="true">↗</span></button>)}</div>}
@@ -41,3 +41,4 @@ export default function ShowroomChatbot({go}){
     <button className="showroom-chatbot-toggle" type="button" onClick={()=>setOpen(value=>!value)} aria-expanded={open} aria-label={open?'챗봇 닫기':'동아리 챗봇 열기'}><Icon name="message"/> 동아리 챗봇</button>
   </div>;
 }
+

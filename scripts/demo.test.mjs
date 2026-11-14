@@ -12,6 +12,7 @@ test('데모 화면은 회원 API 없이 예시 화면만 렌더링한다',async
   try{
     const demo=await vite.ssrLoadModule('/src/Demo.jsx');
     const demoProjects=(await vite.ssrLoadModule('/src/DemoProjects.jsx')).default;
+    assert.doesNotMatch(fs.readFileSync(new URL('../src/DemoProjects.jsx',import.meta.url),'utf8'),/\b(?:api|fetch|supabase|localStorage)\s*[\.(]/);
     const demoFreeform=(await vite.ssrLoadModule('/src/DemoFreeform.jsx')).default;
     assert.doesNotMatch(fs.readFileSync(new URL('../src/DemoFreeform.jsx',import.meta.url),'utf8'),/\b(?:api|fetch|supabase|localStorage)\s*[\.(]/);
     const props={go:()=>{},notify:()=>{},open:()=>{},onBack:()=>{}};
@@ -44,4 +45,5 @@ test('데모 화면은 회원 API 없이 예시 화면만 렌더링한다',async
     assert.match(typing,/spinner_qFRN/);
   }finally{await vite.close()}
 });
+
 

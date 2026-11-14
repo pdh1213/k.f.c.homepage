@@ -104,3 +104,12 @@ Windows x64 / Node.js 22 이상에서 npm ci 후 npm run pack:win을 실행합�
 - /admin의 승인 탭에는 가입 신청과 프로젝트 승인 화면이 있습니다. 쇼룸 관리에서 실제 대회 출전 이력을 등록하거나 공개 여부를 바꿉니다.
 - Supabase 마이그레이션 20261030000000_showroom_projects.sql은 프로젝트·대회 테이블과 비공개 project-images 버킷을 만듭니다. 브라우저는 공개 키로 사진을 업로드하고, 서버 전용 키는 Edge Function에만 둡니다.
 - 새 프로젝트와 대회 기록은 자동으로 생성되지 않습니다. 관리자 승인 또는 대회 기록 등록 뒤 공개 쇼룸에 나타납니다.
+
+## 3.1.1 Studio 로봇 모델과 사이트 챗봇
+
+- 회원이 로봇 프로젝트에 Studio 2.0 `.io` 모델(최대 20MB)을 선택해 3D 미리보기 후 승인 신청할 수 있습니다. 모델은 비공개 Supabase Storage `project-models`에 저장하고, 승인 전에는 제작자와 관리자에게만 짧은 만료 시간의 열람 URL을 제공합니다. 승인 후 쇼룸의 로봇 카드에서 회전·확대해 볼 수 있습니다. 웹앱 프로젝트에는 모델을 첨부할 수 없습니다.
+- `.io`는 Studio의 LDraw 데이터로 읽고, Three.js LDrawLoader로 표시합니다. 색상표는 `public/LDConfig.ldr`에 포함했습니다. 표준 부품 형상은 고정된 [LDraw 부품 라이브러리 미러](https://github.com/kulits/ldraw-parts/tree/c70360d1c588be894997b2168c61909bc8058c4d)에서 브라우저가 가져옵니다. 따라서 3D 보기에는 인터넷 연결이 필요하고, 사용자 정의·비표준 부품은 표시되지 않을 수 있습니다. 이 소프트웨어는 LDraw Parts Library를 사용합니다. 부품 라이브러리의 저작권·라이선스는 [LDraw.org](https://www.ldraw.org/docs-main/licenses/legal-info.html)를 따릅니다.
+- 관리자는 프로젝트 승인과 게시된 프로젝트 관리에서 3D 모델을 살펴봅니다. 데모의 `.io` 모델은 화면 메모리에서만 미리보기로 사용하고 서버로 업로드하지 않습니다.
+- 관리자는 챗봇 관리에서 대표 질문, 비슷한 표현, 답변, 선택적 이동 버튼을 등록·수정·삭제할 수 있습니다. 접수된 추가 질문을 답변 지식으로 옮길 수도 있습니다. 챗봇은 등록한 표현의 정확 일치와 높은 유사도만 바로 답하고, 확실하지 않으면 기존 관리자 질문함으로 전달합니다. 외부 생성형 AI API는 사용하지 않습니다.
+- 배포 순서: `20261114000000_studio_models_and_chatbot_knowledge.sql` 마이그레이션 적용 → `kfc-api` Edge Function 배포 → GitHub/Vercel 웹 배포 → Windows 패키지 3.1.1 배포. Windows 앱은 배포된 웹 화면과 같은 기능·버전을 사용합니다.
+

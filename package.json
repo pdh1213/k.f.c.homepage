@@ -1,6 +1,6 @@
 {
   "name": "kfc-robot-club",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "private": true,
   "type": "module",
   "description": "용인시청소년수련관 로봇동아리 K.F.C. 공식 홈페이지와 Windows 앱",
@@ -61,6 +61,7 @@
   "dependencies": {
     "@blobatar/react": "2.7.0",
     "@supabase/supabase-js": "^2.118.0",
+    "@zip.js/zip.js": "2.25.0",
     "blobatar": "2.7.0",
     "dotenv": "^16.6.1",
     "electron-updater": "^6.8.11",
@@ -69,7 +70,8 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "three": "0.187.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.0.2",
@@ -78,3 +80,4 @@
     "vite": "^7.1.7"
   }
 }
+
