@@ -14,7 +14,7 @@ const menu=[
   {id:'announcements',label:'공지사항',icon:'▤'},
   {id:'calendar',label:'동아리 일정',icon:'▦'},
   {id:'surveys',label:'설문',icon:'☑'},
-  {id:'groups',label:'그룹 채팅',icon:'◉'},
+  {id:'groups',label:'채팅',icon:'◉'},
   {id:'projects',label:'My Projects',icon:'✳'},
   {id:'freeform',label:'Freeform',icon:'◇'}
 ];
@@ -50,9 +50,9 @@ export default function DemoShell({go,blocked=false}){
   const notify=message=>{setNotice(message);window.clearTimeout(noticeTimer.current);noticeTimer.current=window.setTimeout(()=>setNotice(''),4000)};
   const navigate=id=>{setSection(id);setRoom(null);window.scrollTo(0,0)};
   return <div className="app-shell demo-shell" inert={blocked}>
-    <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / 데모</span><strong>{menu.find(item=>item.id===section)?.label}</strong></div><div className="topbar-right"><span className="brand-image small topbar-logo"><img src="/kfc-logo.png" alt="K.F.C."/></span><span className="demo-top-label">데모 모드</span><button className="topbar-logout" onClick={()=>go('/')}>데모 종료</button></div></header>
+    <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / 데모</span><strong>{menu.find(item=>item.id===section)?.label}</strong></div><div className="topbar-right"><span className="brand-image small topbar-logo"><img src="/kfc-logo.png" alt="K.F.C."/></span><span className="demo-top-label">데모 모드</span><button className="topbar-logout" onClick={()=>go('/login')}>데모 종료</button></div></header>
       <div className="desktop-liquid-nav"><LiquidNavbar items={liquidItems} active={Math.max(0,menu.findIndex(item=>item.id===section))} onChange={index=>navigate(menu[index].id)} tone="light" sound={false}/></div>
-      <div className="page-body"><div className="demo-banner" role="status"><b>데모 모드</b><span>모든 내용은 예시입니다. 실제 회원 정보나 채팅과 연결되지 않으며 입력한 내용은 저장되지 않습니다.</span><button onClick={()=>go('/')}>로그인 화면으로 ↗</button></div>
+      <div className="page-body"><div className="demo-banner" role="status"><b>데모 모드</b><span>모든 내용은 예시입니다. 실제 회원 정보나 채팅과 연결되지 않으며 입력한 내용은 저장되지 않습니다.</span></div>
         {section==='home'?<DemoHome navigate={navigate} openGroup={()=>{setSection('groups');setRoom('group')}}/>:section==='announcements'?<DemoNotices/>:section==='calendar'?<DemoCalendar/>:section==='surveys'?<DemoSurveys notify={notify}/>:section==='projects'?<DemoProjects notify={notify} openFreeform={()=>navigate('freeform')} openGroup={()=>navigate('groups')}/>:section==='freeform'?<DemoFreeform notify={notify}/>:room?<DemoRoom kind={room} onBack={()=>setRoom(null)} notify={notify}/>:<DemoGroups open={setRoom}/>}
       </div>
     </main>
@@ -61,7 +61,6 @@ export default function DemoShell({go,blocked=false}){
 }
 function DemoHome({navigate,openGroup}){
   return <div className="dashboard-content"><section className="welcome-card"><div><div className="eyebrow light">K.F.C. DEMO</div><h1>안녕하세요! <span>데모 방문자</span>님!</h1><p>동아리 홈페이지의 기능을 예시 콘텐츠로 살펴보세요.</p></div><div className="welcome-badge"><div className="spark">✳</div><small>BUILD TOGETHER</small></div></section>
-    <div className="quick-grid"><button className="quick-card" onClick={()=>navigate('announcements')}><span className="quick-icon orange">▤</span><b>새 공지사항</b><strong>{notices.length}</strong><small>공지 확인하기 →</small></button><button className="quick-card" onClick={()=>navigate('calendar')}><span className="quick-icon blue">▦</span><b>예정된 일정</b><strong>{events.length}</strong><small>달력 보기 →</small></button><button className="quick-card" onClick={()=>navigate('groups')}><span className="quick-icon violet">◉</span><b>내 그룹</b><strong>1</strong><small>대화 둘러보기 →</small></button></div>
     <div className="content-grid"><section className="surface"><div className="section-heading"><div><div className="eyebrow">UPDATES</div><h2>최근 공지사항</h2></div><button className="text-button" onClick={()=>navigate('announcements')}>전체 보기 →</button></div>{notices.map(item=><article className="list-row" key={item.id}><span className="row-dot"/><div><b>{item.title}</b><small>{fmtDate(item.createdAt,{dateStyle:'long'})}</small></div></article>)}</section><section className="surface"><div className="section-heading"><div><div className="eyebrow">UP NEXT</div><h2>다가오는 일정</h2></div><button className="text-button" onClick={()=>navigate('calendar')}>달력 보기 →</button></div>{events.map(item=><article className="event-row" key={item.id}><div className="date-chip"><b>{new Date(item.startAt).getDate()}</b><small>{new Date(item.startAt).toLocaleDateString('ko-KR',{month:'short'})}</small></div><div><b>{item.title}</b><small>{fmtDate(item.startAt,{timeStyle:'short'})}</small></div></article>)}</section></div>
     <section className="surface"><div className="section-heading"><div><div className="eyebrow">YOUR TEAMS</div><h2>내 그룹</h2></div></div><button className="group-card" onClick={openGroup}><span className="group-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></span><span><b>{group.name}</b><small>예시 팀원 3명 · 데모 대화</small></span><span className="row-arrow">→</span></button></section>
   </div>;
@@ -93,7 +92,7 @@ export function DemoSurveys({notify}){
     <button className="button secondary">응답 체험하기</button>{submitted&&<p className="demo-result" role="status">체험 완료! 이 응답은 서버나 다른 회원에게 저장·전달되지 않았습니다.</p>}</article></form></section>;
 }
 export function DemoGroups({open}){
-  return <div className="demo-groups"><section className="surface"><div className="section-heading"><div><div className="eyebrow">DEMO TEAM</div><h1>그룹 채팅</h1><p className="muted">예시 그룹과 1:1 대화를 둘러보세요. 실제 회원 채팅방과 연결되지 않습니다.</p></div></div><button className="group-card" onClick={()=>open('group')}><span className="group-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></span><span><b>{group.name}</b><small>{group.description}</small></span><span className="row-arrow">→</span></button></section><section className="surface"><div className="section-heading"><div><div className="eyebrow">DEMO DIRECT</div><h2>1:1 대화</h2></div></div><button className="group-card" onClick={()=>open('direct')}><span className="group-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></span><span><b>{direct.name}</b><small>가상의 팀원과 대화 화면 체험</small></span><span className="row-arrow">→</span></button></section></div>;
+  return <div className="demo-groups"><section className="surface"><div className="section-heading"><div><h1>채팅</h1></div></div><h2 className="conversation-heading">그룹 채팅</h2><button className="group-card" onClick={()=>open('group')}><span className="group-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></span><span><b>{group.name}</b><small>{group.description}</small></span><span className="row-arrow">→</span></button><div className="conversation-divider"/><h2 className="conversation-heading">1:1 대화</h2><button className="group-card" onClick={()=>open('direct')}><span className="group-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></span><span><b>{direct.name}</b><small>가상의 팀원과 대화 화면 체험</small></span><span className="row-arrow">→</span></button></section></div>;
 }
 export function DemoRoom({kind,onBack,notify}){
   const [tab,setTab]=useState('chat'),[todos,setTodos]=useState([{id:1,title:'로봇 아이디어 스케치',done:true},{id:2,title:'센서 동작 알아보기',done:false}]),[todoTitle,setTodoTitle]=useState(''),[newEvent,setNewEvent]=useState(''),[eventStart,setEventStart]=useState(()=>localDateTime(upcoming(7))),[eventEnd,setEventEnd]=useState(()=>localDateTime(upcoming(7,16))),[extraEvents,setExtraEvents]=useState([]);
@@ -118,4 +117,5 @@ export function DemoChat({kind,notify}){
   const send=e=>{e.preventDefault();notify('데모모드에서는 문자 수신이 제한되어 있어요. 실제 회원에게 전송되지 않습니다.')};
   return <GroupChat messages={messages} channel={isDirect?direct.name:group.name} members={members} currentUserId="demo-self" connected={false} connectionLabel="데모 전용 · 실제 연결 없음" typing={typing} notice={<span>예시 대화입니다. 입력한 메시지는 저장되거나 누구에게도 전달되지 않습니다. <button type="button" className="demo-typing-preview" onClick={previewTyping}>입력 중 표시 체험</button></span>} onReply={setReply} onReact={react} composer={<div className="chat-compose-wrap">{reply&&<div className="reply-compose"><span><b>{reply.name}에게 답장 체험</b><small>{reply.text||'첨부 파일'}</small></span><button type="button" className="icon-button" aria-label="답장 취소" onClick={()=>setReply(null)}>×</button></div>}<form className="chat-compose" onSubmit={send}><button type="button" className="chat-attach-button" aria-label="데모 파일 첨부 제한" onClick={()=>notify('데모 모드에서는 파일을 전송할 수 없습니다.')}>＋</button><input aria-label="데모 메시지" value={content} onChange={e=>setContent(e.target.value)} maxLength="2000" placeholder="메시지를 입력해 체험해 보세요"/><button className="button primary" type="submit">보내기 ↑</button></form></div>}/>;
 }
+
 

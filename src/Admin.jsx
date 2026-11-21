@@ -1,4 +1,4 @@
-import React,{useEffect,useState} from 'react';
+import React,{useEffect,useRef,useState} from 'react';
 import {api,fmtDate,localInput,supabase} from './api.js';
 import NoticePopupAdmin from './NoticePopupAdmin.jsx';
 import LiquidNavbar,{NimbusIcons} from '../components/ui/liquid-glass-navbar.tsx';
@@ -14,16 +14,29 @@ const tabs=[
   ['events','전체 일정'],['polls','설문 관리'],['groups','그룹 관리'],['monitor','채팅 열람'],['showroom','쇼룸 관리'],['chatbot','챗봇 관리'],['settings','설정']
 ];
 const stateLabel={pending:'승인 대기',approved:'승인 완료',rejected:'반려'};
-const liquidAdminLabels={overview:'Overview',applications:'Approvals',members:'Members',announcements:'Notices',events:'Calendar',polls:'Surveys',groups:'Groups',monitor:'Monitor',showroom:'Showroom',chatbot:'Chatbot',settings:'Settings'};
+const adminAreas=[
+  {label:'개요',icon:NimbusIcons.home,tabs:['overview']},
+  {label:'회원',icon:NimbusIcons.user,tabs:['applications','members']},
+  {label:'동아리 운영',icon:NimbusIcons.drop,tabs:['announcements','events','polls','groups','monitor']},
+  {label:'쇼룸',icon:NimbusIcons.globe,tabs:['showroom','chatbot']},
+  {label:'설정',icon:NimbusIcons.plane,tabs:['settings']}
+];
 export function AccessDenied({go}){return <div className="center-page"><section className="surface access-card"><div className="brand-image large"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/></div><h1>접근 권한이 없습니다</h1><p className="muted">관리자만 이 화면을 이용할 수 있습니다.</p><button className="button primary" onClick={()=>go('/dashboard')}>회원 홈으로</button></section></div>;}
 export function Toast({message}){return message?<div className="toast" role="status"><span>✓</span>{message}</div>:null;}
 function Empty({title,detail}){return <div className="empty-state"><span>✳</span><b>{title}</b>{detail&&<small>{detail}</small>}</div>;}
 
-export function AdminShell({user,go,logout,notify,toast,blocked}){
+export function AdminShell({user,logout,notify,toast,blocked}){
   const [tab,setTab]=useState('overview'),[data,setData]=useState(null),[loading,setLoading]=useState(false),[query,setQuery]=useState('');
-  const [settings,setSettings]=useState(null);
+  const [loadError,setLoadError]=useState('');
+  const currentRequest=useRef(0);
+  const currentTab=useRef('overview');
+  const activeArea=adminAreas.findIndex(area=>area.tabs.includes(tab));
+  const areaTabs=adminAreas[activeArea].tabs;
   const load=async(which=tab,q=query)=>{
+    if(which!==currentTab.current)return;
+    const requestId=++currentRequest.current;
     setLoading(true);
+    setLoadError('');
     const url={
       overview:'/api/admin/overview',
       applications:'/api/admin/applications?status='+encodeURIComponent(q||'pending'),
@@ -37,22 +50,38 @@ export function AdminShell({user,go,logout,notify,toast,blocked}){
       chatbot:'/api/admin/chatbot',
       settings:'/api/admin/settings'
     }[which];
-    try{const r=await api(url);setData(r);if(which==='settings')setSettings(r);}
-    catch(e){notify(e.message);if(e.status===401||e.status===403)go('/');}
-    finally{setLoading(false);}
+    try{
+      const result=await api(url);
+      if(requestId===currentRequest.current)setData(result);
+    }catch(error){
+      if(requestId!==currentRequest.current)return;
+      setLoadError(error.message);
+    }finally{
+      if(requestId===currentRequest.current)setLoading(false);
+    }
   };
-  useEffect(()=>{load(tab,tab==='applications'?'pending':'');},[tab]);
-  const select=key=>{setTab(key);setQuery('');setData(null);};
+  useEffect(()=>{load(tab,tab==='applications'?'pending':'');return()=>{currentRequest.current++};},[tab]);
+  const select=key=>{
+    if(currentTab.current===key)return;
+    currentTab.current=key;
+    currentRequest.current++;
+    setData(null);
+    setQuery(key==='applications'?'pending':'');
+    setLoadError('');
+    setLoading(true);
+    setTab(key);
+  };
   return <div className="admin-shell" inert={blocked}>
-    <aside className="sidebar admin-sidebar">
-      <button className="brand-link" onClick={()=>select('overview')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span><span>K.F.C.<small>ADMIN CONSOLE</small></span></button>
-      <div className="club-label">관리자 메뉴</div><nav>{tabs.map(([key,label])=><button key={key} className={'nav-item '+(tab===key?'active':'')} onClick={()=>select(key)}><span className="nav-icon">{tabs.findIndex(([item])=>item===key)+1}</span>{label}{key==='applications'&&data?.pending>0&&tab==='overview'&&<i className="nav-count">{data.pending}</i>}</button>)}</nav>
-      <div className="mobile-liquid-nav"><LiquidNavbar items={tabs.map(([key],i)=>({label:liquidAdminLabels[key],icon:[NimbusIcons.home,NimbusIcons.globe,NimbusIcons.drop,NimbusIcons.plane,NimbusIcons.user][i%5],fx:['glow','spin','drop','plane','wave'][i%5]}))} active={tabs.findIndex(([key])=>key===tab)} onChange={index=>select(tabs[index][0])} tone="light" sound={false}/></div>
-      <div className="sidebar-bottom"><div className="user-card"><div className="avatar club-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><b>{user.name}</b><small>관리자</small></div><button className="logout-button" onClick={logout}>로그아웃</button></div></div>
-    </aside>
-    <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / 관리자</span><strong>{tabs.find(t=>t[0]===tab)?.[1]}</strong></div><div className="topbar-right"><span className="shield">✓</span>관리자 인증됨<button className="topbar-logout" onClick={logout}>로그아웃</button></div></header>
-      <div className="desktop-liquid-nav"><LiquidNavbar items={tabs.map(([key],i)=>({label:liquidAdminLabels[key],icon:[NimbusIcons.home,NimbusIcons.globe,NimbusIcons.drop,NimbusIcons.plane,NimbusIcons.user][i%5],fx:['glow','spin','drop','plane','wave'][i%5]}))} active={tabs.findIndex(([key])=>key===tab)} onChange={index=>select(tabs[index][0])} tone="light" sound={false}/></div>
-      <div className="page-body admin-body">{loading&&!data?<div className="loading-card"><LoadingIndicator text="관리자 정보를 불러오고 있어요…"/></div>:tab==='overview'?<Overview data={data} select={select} refresh={()=>load('overview','')}/>:
+    <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / 관리자</span><strong>{tabs.find(t=>t[0]===tab)?.[1]}</strong></div><div className="topbar-right"><span>{user.name}</span><button className="topbar-logout" onClick={logout}>로그아웃</button></div></header>
+      <div className="desktop-liquid-nav grouped-admin-nav">
+        <LiquidNavbar items={adminAreas} active={activeArea} onChange={index=>{if(index!==activeArea)select(adminAreas[index].tabs[0])}} tone="light" sound={false}/>
+        {areaTabs.length>1&&<nav className="admin-section-links" aria-label={adminAreas[activeArea].label}>
+          {areaTabs.map(key=><button key={key} type="button" aria-current={tab===key?'page':undefined} onClick={()=>select(key)}>{tabs.find(item=>item[0]===key)[1]}</button>)}
+        </nav>}
+      </div>
+      <div className="page-body admin-body">
+        {loadError&&<div className="surface request-error" role="alert"><span>{loadError}</span><button className="button secondary" onClick={()=>load()}>다시 시도</button></div>}
+        {!data?(loading?<div className="loading-card"><LoadingIndicator text="관리자 정보를 불러오고 있어요…"/></div>:null):tab==='overview'?<Overview data={data} select={select} refresh={()=>load('overview','')}/>:
         tab==='applications'?<Approvals data={data} refresh={status=>load('applications',status||query||'pending')} notify={notify} query={query} setQuery={setQuery}/>:
         tab==='members'?<Members data={data} refresh={()=>load('members',query)} notify={notify} query={query} setQuery={setQuery}/>:
         tab==='announcements'?<AnnouncementAdmin data={data} refresh={()=>load('announcements','')} notify={notify} user={user}/>:
@@ -60,7 +89,7 @@ export function AdminShell({user,go,logout,notify,toast,blocked}){
         tab==='polls'?<PollAdmin data={data} refresh={()=>load('polls','')} notify={notify}/>:
         tab==='groups'?<GroupAdmin data={data} refresh={()=>load('groups','')} notify={notify}/>:
         tab==='monitor'?<ChatMonitor data={data} refresh={()=>load('monitor','')} notify={notify}/>:
-        tab==='showroom'?<CompetitionAdmin data={data} notify={notify} refresh={()=>load('showroom','')}/>:tab==='chatbot'?<ChatbotAdmin data={data} notify={notify} refresh={()=>load('chatbot','')} user={user}/>:<SettingsAdmin data={settings||data} notify={notify} refresh={()=>load('settings','')}/>}
+        tab==='showroom'?<CompetitionAdmin data={data} notify={notify} refresh={()=>load('showroom','')}/>:tab==='chatbot'?<ChatbotAdmin data={data} notify={notify} refresh={()=>load('chatbot','')} user={user}/>:<SettingsAdmin data={data} notify={notify} refresh={()=>load('settings','')}/>}
       </div>
     </main>
     {toast&&<Toast message={toast}/>}
@@ -69,7 +98,7 @@ export function AdminShell({user,go,logout,notify,toast,blocked}){
 function Overview({data,select,refresh}){
   return <div className="dashboard-content"><section className="welcome-card admin-welcome"><div><div className="eyebrow light">ADMIN CONSOLE</div><h1>K.F.C. 운영 센터</h1><p>가입부터 일정과 그룹 운영까지 한곳에서 관리합니다.</p></div><div className="welcome-badge"><div className="spark">⌘</div><small>MANAGE TOGETHER</small></div></section>
     <div className="stats-grid">{[['가입 승인 대기',data?.pending||0,'applications','orange'],['승인 회원',data?.approved||0,'members','blue'],['게시된 공지',data?.announcements||0,'announcements','violet'],['활성 그룹',data?.groups||0,'groups','green']].map(([label,count,key,color])=><button className="stat-card" key={label} onClick={()=>select(key)}><span className={'quick-icon '+color}>✳</span><small>{label}</small><b>{count}</b><span className="text-button">관리하기 →</span></button>)}</div>
-    <div className="surface admin-shortcuts"><div className="section-heading"><div><div className="eyebrow">SHORTCUTS</div><h2>자주 쓰는 작업</h2></div><button className="text-button" onClick={refresh}>새로고침 ↻</button></div><div className="shortcut-grid">{[['applications','가입 신청 확인'],['announcements','공지 작성'],['events','일정 등록'],['groups','그룹 만들기']].map(([key,label])=><button className="button secondary" key={key} onClick={()=>select(key)}>{label} →</button>)}</div></div>
+    <div className="surface admin-shortcuts"><div className="section-heading"><div><div className="eyebrow">SHORTCUTS</div><h2>자주 쓰는 작업</h2></div><button className="text-button" onClick={refresh}>새로고침 ↻</button></div><div className="shortcut-grid">{[['events','일정 관리'],['polls','설문 관리']].map(([key,label])=><button className="button secondary" key={key} onClick={()=>select(key)}>{label} →</button>)}</div></div>
   </div>;
 }
 

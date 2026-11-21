@@ -70,6 +70,20 @@
 
 .desktop-liquid-nav{position:sticky;top:78px;z-index:3;display:flex;justify-content:safe center;padding:12px 22px;background:#f9f8f5f2;border-bottom:1px solid #e8e4dd;overflow-x:auto;scrollbar-width:none;backdrop-filter:blur(16px)}
 .desktop-liquid-nav::-webkit-scrollbar{display:none}
+.grouped-admin-nav{flex-direction:column;align-items:center;gap:10px}
+.admin-section-links{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;max-width:100%}
+.admin-section-links button{border:0;border-radius:999px;background:transparent;color:inherit;font:inherit;font-size:13px;padding:7px 12px;cursor:pointer}
+.admin-section-links button:hover,.admin-section-links button[aria-current="page"]{background:#af745523;font-weight:700}
+.request-error{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:16px}
+.conversation-heading{display:flex;align-items:center;gap:8px;font-size:17px;margin:0 0 12px}
+.conversation-divider{border-top:1px solid currentColor;opacity:.15;margin:22px 0}
+.dashboard-notice{width:100%;border:0;background:transparent;text-align:left;color:inherit;font:inherit;cursor:pointer}
+.dashboard-notice:hover,.dashboard-notice:focus-visible{background:#af745516}
+.showroom-category .showroom-project-copy p{margin-bottom:0}
+@media(max-width:480px){
+  .grouped-admin-nav .nimbus-item{padding-inline:8px}
+  .member-download{display:none}
+}
 .desktop-liquid-nav .nimbus-nav{flex:none}
 @media(max-width:780px){.desktop-liquid-nav{top:65px;justify-content:flex-start;padding:10px 16px}.desktop-liquid-nav .nimbus-nav{min-width:max-content}.desktop-liquid-nav .nimbus-item{height:42px;padding:0 12px}.desktop-liquid-nav .nimbus-label{position:static!important;width:auto!important;height:auto!important;clip:auto!important;font-size:11px}}
 
@@ -91,3 +105,4 @@
 .app-shell .topbar-logout,.admin-shell .topbar-logout{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:8px 14px;border:1px solid #ded9d1;border-radius:999px;background:#fff;color:#302e2a;font-size:12px;font-weight:700;box-shadow:0 3px 10px #24211d0d;cursor:pointer}
 .app-shell .topbar-logout:hover,.admin-shell .topbar-logout:hover{background:#efede8;color:#1f1e1b}
 .app-shell .topbar-logout:focus-visible,.admin-shell .topbar-logout:focus-visible{outline:2px solid #5d6268;outline-offset:2px}
+

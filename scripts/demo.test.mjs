@@ -19,7 +19,7 @@ test('데모 화면은 회원 API 없이 예시 화면만 렌더링한다',async
     const screens=[
       [demo.default,props,'데모 방문자'],
       [demo.DemoSurveys,props,'응답은 저장되지 않습니다'],
-      [demo.DemoGroups,props,'예시 그룹'],
+      [demo.DemoGroups,props,'아이디어 제작팀'],
       [demo.DemoChat,{...props,kind:'group'},'실제 연결 없음'],
       [demo.DemoChat,{...props,kind:'direct'},'실제 연결 없음'],
       [demo.DemoCalendar,props,'동아리 일정'],
@@ -37,6 +37,10 @@ test('데모 화면은 회원 API 없이 예시 화면만 렌더링한다',async
         assert.doesNotMatch(html,/class="sidebar"/);
       }
       if(Component===demo.DemoChat)assert.match(html,/입력 중 표시 체험/);
+      if(Component===demo.DemoGroups){
+        assert.match(html,/그룹 채팅/);
+        assert.match(html,/1:1 대화/);
+      }
       if(Component===demo.DemoSurveys||Component===demo.DemoCalendar)assert.match(html,/calendar-date-picker-trigger/);
     }
     const {GroupChat}=await vite.ssrLoadModule('/components/ui/group-chat.tsx');

@@ -14,20 +14,38 @@ export async function logoutCurrentSession(){
  finally{try{localStorage.removeItem(storageKey);}catch{}}
 }
 const groupIdFrom=path=>path.match(/\/api\/groups\/(\d+)/)?.[1];
-export async function publishGroupChange(groupId){
- const {data:{session}}=await supabase.auth.getSession();if(!session)return;
- const channel=supabase.channel('kfc-group:'+groupId,{config:{private:true}});
- await new Promise(resolve=>channel.subscribe(status=>{if(status==='SUBSCRIBED')resolve();}));
- await channel.send({type:'broadcast',event:'sync',payload:{at:Date.now()}});
- await supabase.removeChannel(channel);
+// Send an update without taking ownership of the screen's WebSocket channel.
+async function broadcastChange(topic){
+ const {data:{session}}=await supabase.auth.getSession();
+ if(!session)return;
+ const response=await fetch(supabaseUrl.replace(/\/+$/,'')+'/realtime/v1/api/broadcast/'+encodeURIComponent(topic)+'/events/sync?private=true',{
+   method:'POST',
+   headers:{apikey:supabaseKey,Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},
+   body:JSON.stringify({at:Date.now()}),
+   signal:AbortSignal.timeout(5000)
+ });
+ if(!response.ok)throw new Error('실시간 변경 알림을 보내지 못했습니다.');
 }
+
+export const publishGroupChange=groupId=>broadcastChange('kfc-group:'+groupId);
+
 export async function api(path,options={}){
  const init={...options,headers:{apikey:supabaseKey,...(options.body?{'Content-Type':'application/json'}:{}),...(options.headers||{})}};
  if(init.body&&typeof init.body!=='string')init.body=JSON.stringify(init.body);
  const {data:{session}}=await supabase.auth.getSession();
  if(session?.access_token)init.headers={...init.headers,Authorization:'Bearer '+session.access_token};
- const response=await fetch(apiUrl(path),init),data=await response.json().catch(()=>({}));
- if(!response.ok){const error=new Error(data.message||'요청을 처리하지 못했습니다.');error.status=response.status;error.code=data.code;throw error;}
+ const timeout=AbortSignal.timeout(20000);
+ init.signal=init.signal?AbortSignal.any([init.signal,timeout]):timeout;
+ let response;
+ try{response=await fetch(apiUrl(path),init)}
+ catch(error){
+   if(timeout.aborted)throw new Error('서버 응답이 지연되고 있습니다. 다시 시도해 주세요.');
+   if(error.name==='TypeError')throw new Error('서버에 연결할 수 없습니다. 인터넷 연결을 확인해 주세요.');
+   throw error;
+ }
+ const data=await response.json().catch(()=>null);
+ if(response.ok&&!data)throw new Error('서버 응답을 읽을 수 없습니다. 다시 시도해 주세요.');
+ if(!response.ok){const error=new Error(data?.message||'요청을 처리하지 못했습니다.');error.status=response.status;error.code=data?.code;throw error;}
  if(path==='/api/auth/login'&&data.session)await supabase.auth.setSession({access_token:data.session.access_token,refresh_token:data.session.refresh_token});
  if(((path.startsWith('/api/executive/')&&options.method&&options.method!=='GET')||(path.match(/^\/api\/admin\/members\/\d+$/)&&options.body&&typeof options.body.isOfficer==='boolean')))publishExecutiveChange().catch(()=>{});
  const groupId=groupIdFrom(path);
@@ -38,6 +56,6 @@ export async function api(path,options={}){
 export const fmtDate=(value,options={dateStyle:'medium',timeStyle:'short'})=>{try{return new Intl.DateTimeFormat('ko-KR',options).format(new Date(value));}catch{return value||'';}};
 export const localInput=(date=new Date())=>{const pad=n=>String(n).padStart(2,'0');return date.getFullYear()+'-'+pad(date.getMonth()+1)+'-'+pad(date.getDate())+'T'+pad(date.getHours())+':'+pad(date.getMinutes());};
 
-export async function publishExecutiveChange(){const {data:{session}}=await supabase.auth.getSession();if(!session)return;await supabase.realtime.setAuth(session.access_token);const channel=supabase.channel('kfc-executive',{config:{private:true}});await new Promise(resolve=>{const timer=setTimeout(resolve,2500);channel.subscribe(status=>{if(status==='SUBSCRIBED'){clearTimeout(timer);resolve();}})});await channel.send({type:'broadcast',event:'sync',payload:{at:Date.now()}});await supabase.removeChannel(channel);}
+export const publishExecutiveChange=()=>broadcastChange('kfc-executive');
+export const publishDirectChange=chatId=>broadcastChange('kfc-direct:'+chatId);
 
-export async function publishDirectChange(chatId){const {data:{session}}=await supabase.auth.getSession();if(!session)return;await supabase.realtime.setAuth(session.access_token);const channel=supabase.channel('kfc-direct:'+chatId,{config:{private:true}});await new Promise(resolve=>channel.subscribe(status=>{if(status==='SUBSCRIBED')resolve()}));await channel.send({type:'broadcast',event:'sync',payload:{at:Date.now()}});await supabase.removeChannel(channel);}
