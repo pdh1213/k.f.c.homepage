@@ -25,6 +25,25 @@ export function AccessDenied({go}){return <div className="center-page"><section 
 export function Toast({message}){return message?<div className="toast" role="status"><span>✓</span>{message}</div>:null;}
 function Empty({title,detail}){return <div className="empty-state"><span>✳</span><b>{title}</b>{detail&&<small>{detail}</small>}</div>;}
 
+class AdminPanelBoundary extends React.Component{
+  state={failed:false};
+
+  static getDerivedStateFromError(){
+    return {failed:true};
+  }
+
+  render(){
+    if(!this.state.failed)return this.props.children;
+    return <div className="surface request-error" role="alert">
+      <span>이 관리 화면을 표시하지 못했습니다.</span>
+      <button className="button secondary" type="button" onClick={()=>{
+        this.setState({failed:false});
+        this.props.retry();
+      }}>다시 시도</button>
+    </div>;
+  }
+}
+
 export function AdminShell({user,logout,notify,toast,blocked}){
   const [tab,setTab]=useState('overview'),[data,setData]=useState(null),[loading,setLoading]=useState(false),[query,setQuery]=useState('');
   const [loadError,setLoadError]=useState('');
@@ -81,6 +100,7 @@ export function AdminShell({user,logout,notify,toast,blocked}){
       </div>
       <div className="page-body admin-body">
         {loadError&&<div className="surface request-error" role="alert"><span>{loadError}</span><button className="button secondary" onClick={()=>load()}>다시 시도</button></div>}
+        <AdminPanelBoundary key={tab} retry={()=>{setData(null);load()}}>
         {!data?(loading?<div className="loading-card"><LoadingIndicator text="관리자 정보를 불러오고 있어요…"/></div>:null):tab==='overview'?<Overview data={data} select={select} refresh={()=>load('overview','')}/>:
         tab==='applications'?<Approvals data={data} refresh={status=>load('applications',status||query||'pending')} notify={notify} query={query} setQuery={setQuery}/>:
         tab==='members'?<Members data={data} refresh={()=>load('members',query)} notify={notify} query={query} setQuery={setQuery}/>:
@@ -90,6 +110,7 @@ export function AdminShell({user,logout,notify,toast,blocked}){
         tab==='groups'?<GroupAdmin data={data} refresh={()=>load('groups','')} notify={notify}/>:
         tab==='monitor'?<ChatMonitor data={data} refresh={()=>load('monitor','')} notify={notify}/>:
         tab==='showroom'?<CompetitionAdmin data={data} notify={notify} refresh={()=>load('showroom','')}/>:tab==='chatbot'?<ChatbotAdmin data={data} notify={notify} refresh={()=>load('chatbot','')} user={user}/>:<SettingsAdmin data={data} notify={notify} refresh={()=>load('settings','')}/>}
+        </AdminPanelBoundary>
       </div>
     </main>
     {toast&&<Toast message={toast}/>}
@@ -176,12 +197,12 @@ function MemberEditor({member,save}){
 }
 function Modal({title,close,children}){return <div className="modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)close();}}><section className="modal-card" role="dialog" aria-modal="true"><div className="section-heading"><h2>{title}</h2><button className="icon-button" aria-label="닫기" onClick={close}>×</button></div>{children}</section></div>;}
 
-function AnnouncementAdmin({data,refresh,notify,user}){
+export function AnnouncementAdmin({data,refresh,notify,user}){
   const [form,setForm]=useState({title:'',content:'',published:true,imagePaths:[]}),[editing,setEditing]=useState(null),[files,setFiles]=useState([]),[busy,setBusy]=useState(false);
   const reset=()=>{setForm({title:'',content:'',published:true,imagePaths:[]});setFiles([]);setEditing(null);};
   const save=async e=>{e.preventDefault();setBusy(true);try{const uploaded=[];for(const file of files){if(!file.type.startsWith('image/')||file.type==='image/svg+xml'||file.size>10*1024*1024)throw new Error('PNG, JPG, GIF, WebP, AVIF 사진을 장당 10MB까지 첨부할 수 있습니다.');const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_').slice(-100)||'photo';const path='announcements/'+user.id+'/'+crypto.randomUUID()+'/'+safe;const result=await supabase.storage.from('announcement-images').upload(path,file,{upsert:false,contentType:file.type});if(result.error)throw result.error;uploaded.push(path)}const body={title:form.title,content:form.content,published:form.published,imagePaths:[...form.imagePaths,...uploaded]};await api('/api/admin/announcements'+(editing?'/'+editing.id:''),{method:editing?'PATCH':'POST',body});notify(editing?'공지사항을 수정했습니다.':'공지사항을 등록했습니다.');reset();refresh();}catch(e){notify(e.message||'사진을 올리지 못했습니다.')}finally{setBusy(false)}};
   const remove=async a=>{if(!window.confirm('이 공지사항을 삭제할까요?'))return;try{await api('/api/admin/announcements/'+a.id,{method:'DELETE'});notify('공지사항을 삭제했습니다.');refresh();}catch(e){notify(e.message);}};
-  return <div className="admin-manager"><section className="surface"><div className="eyebrow">NOTICE EDITOR</div><h1>{editing?'공지사항 수정':'공지사항 작성'}</h1><form className="form-stack" onSubmit={save}><label>제목<input required maxLength="160" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></label><label>내용<textarea required rows="5" value={form.content} onChange={e=>setForm({...form,content:e.target.value})}/></label><div><label className="button secondary"><input className="visually-hidden" type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/avif" multiple onChange={e=>setFiles(Array.from(e.target.files||[]))}/>사진 여러 장 첨부</label><small className="muted">최대 8장 · 장당 10MB</small></div>{(form.imagePaths.length>0||files.length>0)&&<div className="notice-photo-grid">{form.imagePaths.map(path=><div key={path}><img src={(data?.announcements||[]).find(a=>a.id===editing?.id)?.images?.find(i=>i.path===path)?.url||''} alt="공지 첨부 사진"/><button type="button" className="icon-button" aria-label="사진 제거" onClick={()=>setForm({...form,imagePaths:form.imagePaths.filter(x=>x!==path)})}>×</button></div>)}{files.map((file,i)=><div key={file.name+i}><img src={URL.createObjectURL(file)} alt={file.name}/><button type="button" className="icon-button" aria-label="사진 제거" onClick={()=>setFiles(files.filter((_,n)=>n!==i))}>×</button></div>)}</div>}<fieldset className="project-collaborators"><legend>연결할 프로젝트</legend><p className="muted">게시된 프로젝트를 대회 기록과 연결합니다.</p><div>{projects.map(project=><label key={project.id}><input type="checkbox" checked={form.projectIds.includes(project.id)} onChange={e=>setForm({...form,projectIds:e.target.checked?[...form.projectIds,project.id]:form.projectIds.filter(id=>id!==project.id)})}/>{project.name}</label>)}</div></fieldset><label className="check-label"><input type="checkbox" checked={form.published} onChange={e=>setForm({...form,published:e.target.checked})}/>회원에게 게시</label><div className="button-row"><button className="button primary" disabled={busy}>{busy?'저장 중…':editing?'수정 저장':'공지 게시'}</button>{editing&&<button type="button" className="button subtle" onClick={reset}>취소</button>}</div></form></section>
+  return <div className="admin-manager"><section className="surface"><div className="eyebrow">NOTICE EDITOR</div><h1>{editing?'공지사항 수정':'공지사항 작성'}</h1><form className="form-stack" onSubmit={save}><label>제목<input required maxLength="160" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></label><label>내용<textarea required rows="5" value={form.content} onChange={e=>setForm({...form,content:e.target.value})}/></label><div><label className="button secondary"><input className="visually-hidden" type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/avif" multiple onChange={e=>setFiles(Array.from(e.target.files||[]))}/>사진 여러 장 첨부</label><small className="muted">최대 8장 · 장당 10MB</small></div>{(form.imagePaths.length>0||files.length>0)&&<div className="notice-photo-grid">{form.imagePaths.map(path=><div key={path}><img src={(data?.announcements||[]).find(a=>a.id===editing?.id)?.images?.find(i=>i.path===path)?.url||''} alt="공지 첨부 사진"/><button type="button" className="icon-button" aria-label="사진 제거" onClick={()=>setForm({...form,imagePaths:form.imagePaths.filter(x=>x!==path)})}>×</button></div>)}{files.map((file,i)=><div key={file.name+i}><img src={URL.createObjectURL(file)} alt={file.name}/><button type="button" className="icon-button" aria-label="사진 제거" onClick={()=>setFiles(files.filter((_,n)=>n!==i))}>×</button></div>)}</div>}<label className="check-label"><input type="checkbox" checked={form.published} onChange={e=>setForm({...form,published:e.target.checked})}/>회원에게 게시</label><div className="button-row"><button className="button primary" disabled={busy}>{busy?'저장 중…':editing?'수정 저장':'공지 게시'}</button>{editing&&<button type="button" className="button subtle" onClick={reset}>취소</button>}</div></form></section>
     <section className="surface"><div className="section-heading"><div><div className="eyebrow">ALL NOTICES</div><h2>등록된 공지</h2></div><span className="count-pill">{data?.announcements?.length||0}</span></div>{data?.announcements?.length?data.announcements.map(a=><article className="manage-row" key={a.id}><div className="grow"><b>{a.title}</b><small>{a.published?'게시 중':'비공개'} · {fmtDate(a.createdAt)} · 사진 {a.images?.length||0}장</small></div><button className="button subtle" onClick={()=>{setEditing(a);setForm({title:a.title,content:a.content,published:a.published,imagePaths:a.imagePaths||[]});setFiles([]);}}>수정</button><button className="button danger-outline" onClick={()=>remove(a)}>삭제</button></article>):<Empty title="작성한 공지사항이 없습니다."/>}</section></div>;
 }
 
