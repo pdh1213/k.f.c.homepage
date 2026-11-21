@@ -3,6 +3,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/ldraw-library/official/:path*", "destination": "https://library.ldraw.org/library/official/:path*" },
+    { "source": "/ldraw-library/unofficial/:path*", "destination": "https://library.ldraw.org/library/unofficial/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
+
