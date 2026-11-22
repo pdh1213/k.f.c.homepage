@@ -52,11 +52,28 @@ function encode(buffer: ArrayBuffer) {
   return btoa(binary);
 }
 
+const webOrigin = "https://kfcchat.vercel.app";
+
 Deno.serve(async (request) => {
-  if (request.headers.has("origin") || request.headers.has("sec-fetch-site")) {
-    return fail(403, "Windows 앱에서 이용해 주세요.");
+  const origin = request.headers.get("origin");
+  if ((origin && origin !== webOrigin) || (!origin && request.headers.has("sec-fetch-site"))) {
+    return fail(403, "K.F.C. Chat에서 이용해 주세요.");
   }
-  if (request.method !== "POST") return fail(405, "Windows 앱에서 이용해 주세요.");
+  if (!origin) return handleChat(request);
+  const headers = new Headers({
+    "Access-Control-Allow-Origin": webOrigin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization, apikey, content-type",
+    "Vary": "Origin",
+  });
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
+  const response = await handleChat(request);
+  response.headers.forEach((value, key) => headers.set(key, value));
+  return new Response(response.body, { status: response.status, headers });
+});
+
+async function handleChat(request: Request) {
+  if (request.method !== "POST") return fail(405, "POST 요청을 사용해 주세요.");
   const token = request.headers.get("authorization")?.match(/^Bearer (\S+)$/i)?.[1];
   if (!token) return fail(401, "다시 로그인해 주세요.");
 
@@ -309,4 +326,4 @@ Deno.serve(async (request) => {
     console.error("Desktop chat request failed", error instanceof Error ? error.name : typeof error);
     return fail(500, "채팅 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.");
   }
-});
+}

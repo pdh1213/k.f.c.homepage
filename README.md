@@ -1,6 +1,6 @@
 # K.F.C. Chat
 
-용인시청소년수련관 로봇동아리의 Windows 메신저입니다. 기존 홈페이지의 승인된 계정으로 로그인하며, 대화 기록은 K.F.C. Chat에 보관된 내용을 이어서 사용합니다.
+용인시청소년수련관 로봇동아리의 웹 및 Windows 메신저입니다. 기존 홈페이지의 승인된 계정으로 로그인하며, 대화 기록은 K.F.C. Chat에 보관된 내용을 이어서 사용합니다.
 
 ## Windows 앱
 
@@ -21,5 +21,5 @@
 1. Windows x64 및 Node.js 24에서 `npm ci`, `npm test`, `npm run pack:win`을 실행합니다.
 2. `outputs/windows/`에 NSIS EXE, blockmap, 최신 버전 매니페스트가 생성됩니다.
 3. `codex/kfcchat` 브랜치의 GitHub Actions가 채팅 설치 EXE를 `chat-windows-latest` 릴리스에 게시합니다. 배포 버전을 바꿀 때 `package.json` 버전도 올려 주세요.
-4. Vercel은 `public/`만 배포합니다. React 채팅 UI는 Windows 앱에 포함되며, 인증 토큰과 네트워크 요청은 Electron 메인 프로세스가 처리합니다.
+4. Vercel은 `web/` 진입점에서 Windows 앱과 같은 React 채팅 화면을 빌드합니다. 웹과 앱은 별도 로그인 세션으로 같은 K.F.C. Chat 기록을 사용합니다. Windows 설치 안내는 `/download`에 있습니다. 브라우저의 채팅 API 요청은 `https://kfcchat.vercel.app`에서만 허용합니다.
 5. Supabase 변경 순서는 `supabase/kfc-chat-desktop.sql`, `supabase/kfc-chat-v2.sql`, `supabase/kfc-chat-v3.sql`, `supabase/functions/kfc-chat-desktop/index.ts`입니다. 마지막 함수가 서버에서 직접 토큰을 확인하므로 배포 시 `verify_jwt=false`를 사용합니다.

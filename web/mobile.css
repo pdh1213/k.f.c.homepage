@@ -1,0 +1,29 @@
+@media (max-width: 650px) {
+  #root .login-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; height: auto; min-height: 100%; }
+  #root .login-brand { padding: 20px 22px; gap: 22px; }
+  #root .login-intro { padding: 0; }
+  #root .login-intro h1 { margin: 0; font-size: clamp(26px, 7vw, 38px); }
+  #root .login-intro p { margin: 0 0 10px; }
+  #root .login-intro span, #root .login-footer { display: none; }
+  #root .login-pane { padding: 20px 16px; }
+  #root .login-card { padding: 24px; }
+  #root .desktop-shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); height: 100dvh; }
+  #root .rail { flex-direction: row; padding: 7px 9px; gap: 10px; }
+  #root .rail-main, #root .rail-end { flex-direction: row; gap: 2px; }
+  #root .rail-end { margin: 0 0 0 auto; }
+  #root .rail-brand, #root .rail button { width: 37px; height: 37px; }
+  #root .directory { border: 0; min-height: 0; }
+  #root .directory-header { padding-top: 10px; padding-bottom: 6px; }
+  #root .directory-title { margin: 5px 0; }
+  #root .directory-title h1 { font-size: 25px; }
+  #root .main-pane:not(:has(.conversation-card, .reports)) { display: none; }
+  #root .desktop-shell:has(.conversation-card, .reports) { grid-template-rows: auto minmax(120px, 25dvh) minmax(0, 1fr); }
+  #root .desktop-shell:has(.conversation-card, .reports) .account-control { display: none; }
+  #root .desktop-shell:has(.reports) .directory { display: none; }
+  #root .desktop-shell:has(.reports) { grid-template-rows: auto minmax(0, 1fr); }
+  #root .conversation-header { min-height: 56px; padding: 8px 10px; }
+  #root .conversation-person { min-width: 0; }
+  #root .conversation-person h1 { overflow-wrap: anywhere; }
+  #root .conversation-tools { gap: 2px; }
+  #root .transcript-inner { padding-inline: 10px; }
+}
