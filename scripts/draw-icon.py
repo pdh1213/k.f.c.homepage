@@ -36,9 +36,9 @@ def sample(x, y):
     tail = 20 <= x <= 30 and 41 <= y <= 50 and y <= 50 - (x - 20)
     if body or tail:
         if any((x - cx) ** 2 + (y - 29) ** 2 <= 2.4 ** 2 for cx in (23, 32, 41)):
-            return (31, 35, 49)
-        return (169, 245, 212)
-    return (34, 64, 58)
+            return (56, 37, 29)
+        return (251, 227, 211)
+    return (169, 87, 61)
 
 
 def chunk(name, data):
@@ -73,7 +73,7 @@ def bitmap(size, rgba):
 
 
 def main():
-    (ROOT / "public" / "icon.png").write_bytes(png(64, icon(64)))
+    (ROOT / "public" / "icon.png").write_bytes(png(256, icon(256)))
     sizes = [16, 32, 48, 64]
     directory = bytearray(struct.pack("<HHH", 0, 1, len(sizes)))
     images = bytearray()

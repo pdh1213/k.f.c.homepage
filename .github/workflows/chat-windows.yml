@@ -5,7 +5,7 @@ on:
     paths:
       - ".github/workflows/chat-windows.yml"
       - "components/**"
-      - "desktop/kfc.ico"
+      - "public/icon.png"
       - "electron/**"
       - "lib/**"
       - "src/**"
