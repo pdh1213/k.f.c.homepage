@@ -1,3 +1,6 @@
 /outputs/
 /.vercel/
+/node_modules/
+/desktop-dist/
+/release/
 *.user

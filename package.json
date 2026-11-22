@@ -1,0 +1,67 @@
+{
+  "name": "kfc-chat",
+  "version": "2.0.0",
+  "description": "용인시청소년수련관 로봇동아리 K.F.C. 채팅",
+  "author": "K.F.C. 로봇동아리",
+  "private": true,
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "start": "electron .",
+    "pack:win": "npm run build && node scripts/build-electron.mjs",
+    "test": "node --test scripts/*.test.cjs"
+  },
+  "dependencies": {
+    "@radix-ui/react-avatar": "1.1.11",
+    "@radix-ui/react-dropdown-menu": "2.1.16",
+    "@radix-ui/react-scroll-area": "1.2.10",
+    "@radix-ui/react-slot": "1.2.4",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "electron-updater": "6.8.3",
+    "lucide-react": "0.577.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "tailwind-merge": "3.5.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.0",
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "5.1.4",
+    "electron": "42.3.3",
+    "electron-builder": "26.14.0",
+    "tailwindcss": "4.3.0",
+    "typescript": "5.9.3",
+    "vite": "7.3.3"
+  },
+  "build": {
+    "appId": "kr.kfcrobot.chat",
+    "productName": "K.F.C. Chat",
+    "directories": { "output": "release" },
+    "files": ["electron/**/*.cjs", "desktop-dist/**/*", "package.json"],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "artifactName": "KFC-Chat-Setup-${version}.exe",
+      "icon": "desktop/kfc.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "K.F.C. Chat",
+      "installerLanguages": ["ko_KR", "en_US"],
+      "language": "1042"
+    },
+    "npmRebuild": false,
+    "publish": {
+      "provider": "generic",
+      "url": "https://github.com/pdh1213/k.f.c.homepage/releases/download/chat-windows-latest/",
+      "useMultipleRangeRequest": false
+    }
+  }
+}

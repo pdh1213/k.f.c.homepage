@@ -1,17 +1,19 @@
 # K.F.C. Chat
 
-용인시청소년수련관 로봇동아리 K.F.C. 회원용 Windows 1:1 채팅 앱과 다운로드 안내 페이지입니다.
+용인시청소년수련관 로봇동아리의 Windows 메신저입니다. 기존 홈페이지의 승인된 계정으로 로그인하며, 대화 기록은 K.F.C. Chat에 보관된 내용을 이어서 사용합니다.
 
-- Windows 앱은 기존 홈페이지의 Supabase 로그인 API를 이용합니다. 승인된 계정은 로그인 후 친구 목록과 최근 채팅 목록을 이용할 수 있습니다.
-- 채팅은 홈페이지의 기존 대화와 별도의 테이블에 보관됩니다. 대화 내용을 이용할 수 있는 계정은 해당 대화의 두 당사자입니다. 앱은 접속 중 약 4초마다 새 메시지를 확인합니다.
-- 앱은 로그인 세션을 실행 중에만 메모리에 유지합니다.
-- Vercel은 `public/` 디렉터리만 제공합니다. 채팅은 Supabase의 앱 API에서 처리합니다.
-- 설치 파일은 현재 코드 서명 없이 배포합니다. Windows 10 또는 11 x64에서 시작 메뉴의 K.F.C. Chat을 열 수 있습니다.
+## Windows 앱
 
-## Windows 빌드
+- 기존 홈페이지와 같은 Electron 및 NSIS 방식으로 설치합니다. 설치 과정에서 폴더를 고를 수 있고 시작 메뉴와 바탕 화면에 바로가기가 생깁니다.
+- 채팅 버전 업데이트와 홈페이지 앱 업데이트는 각자의 GitHub 릴리스에서 관리합니다.
+- 기존 1.0 WinForms 설치판은 자동 업데이트가 없으므로 새 NSIS 설치 파일을 한 번 실행해야 합니다. 이전 앱을 제거하려면 새 앱 설치 전에 Windows의 설치된 앱 목록에서 제거하세요.
+- 친구 목록, 1:1 대화, 대화 검색, 이전 메시지, 답장, 복사, 수정, 모두에게서 삭제, 첨부, 반응, 읽음, 새 메시지 수, Windows 알림, 입력 중, 접속 상태, 대화 고정, 알림 끄기, 내 대화 지우기, 차단, 신고를 제공합니다. 신고로 접수된 내용은 관리자 계정에서 확인합니다.
+- 첨부 파일 한 개의 크기는 4 MB 이하입니다. 메시지와 파일은 대화 당사자에게만 제공됩니다. 메시지 신고 시 신고 사유와 선택한 메시지가 동아리 관리자에게 전달됩니다.
 
-64비트 Windows에서 `powershell -NoProfile -File scripts/build-windows.ps1`을 실행하면 `outputs/KfcChat.exe`와 `public/KFC-Chat-Setup.exe`가 생성됩니다. Windows에 포함된 .NET Framework 컴파일러를 사용합니다. 설치 프로그램은 현재 Windows 사용자에 설치합니다.
+## 빌드 및 배포
 
-## 배포
-
-Vercel 프로젝트 이름은 `kfcchat`이며 `vercel.json`의 출력 디렉터리를 배포합니다. Supabase는 기존 K.F.C. 홈페이지와 같은 프로젝트를 사용합니다. `supabase/kfc-chat-desktop.sql`을 적용하고 `supabase/functions/kfc-chat-desktop/index.ts`를 배포합니다. 함수가 Supabase Auth에서 직접 세션을 검증하므로 배포 시 `verify_jwt=false`를 사용합니다. Windows 앱에는 Supabase 공개 키만 포함됩니다.
+1. Windows x64 및 Node.js 24에서 `npm ci`, `npm test`, `npm run pack:win`을 실행합니다.
+2. `outputs/windows/`에 NSIS EXE, blockmap, 최신 버전 매니페스트가 생성됩니다.
+3. `codex/kfcchat` 브랜치의 GitHub Actions가 채팅 설치 EXE를 `chat-windows-latest` 릴리스에 게시합니다. 배포 버전을 바꿀 때 `package.json` 버전도 올려 주세요.
+4. Vercel은 `public/`만 배포합니다. React 채팅 UI는 Windows 앱에 포함되며, 인증 토큰과 네트워크 요청은 Electron 메인 프로세스가 처리합니다.
+5. Supabase 변경 순서는 `supabase/kfc-chat-desktop.sql`, `supabase/kfc-chat-v2.sql`, `supabase/functions/kfc-chat-desktop/index.ts`입니다. 마지막 함수가 서버에서 직접 토큰을 확인하므로 배포 시 `verify_jwt=false`를 사용합니다.

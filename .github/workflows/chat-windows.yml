@@ -1,0 +1,57 @@
+name: K.F.C. Chat Windows
+on:
+  push:
+    branches: [codex/kfcchat]
+    paths:
+      - ".github/workflows/chat-windows.yml"
+      - "components/**"
+      - "desktop/kfc.ico"
+      - "electron/**"
+      - "lib/**"
+      - "src/**"
+      - "scripts/**"
+      - "package*.json"
+      - "index.html"
+      - "vite.config.ts"
+      - "tsconfig.json"
+
+permissions:
+  contents: write
+concurrency:
+  group: kfc-chat-windows
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run pack:win
+      - name: Publish Chat installer and update metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $false
+          $tag = 'chat-windows-latest'
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "K.F.C. Chat Windows" --notes "K.F.C. Chat 설치 및 자동 업데이트" --latest=false --draft
+            if ($LASTEXITCODE -ne 0) { throw 'Release creation failed' }
+          }
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          gh release upload $tag "outputs/windows/KFC-Chat-Setup-$version.exe" "outputs/windows/KFC-Chat-Setup-$version.exe.blockmap" "outputs/windows/KFC-Chat-Setup.exe" --clobber --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw 'Installer upload failed' }
+          gh release upload $tag outputs/windows/latest.yml --clobber --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw 'Update manifest upload failed' }
+          gh release edit $tag --draft=false --latest=false --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }
