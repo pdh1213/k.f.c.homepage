@@ -247,3 +247,40 @@ a { color: inherit; }
 .code-compose-bar small { margin-left: auto; color: var(--muted); }
 .compose-row .code-input { max-height: min(34vh,200px); font-family: Consolas, "Cascadia Mono", monospace; white-space: pre; overflow-wrap: normal; tab-size: 4; }
 
+.chat-privacy { flex: none; margin: 0; border-bottom: 1px solid var(--line); padding: 6px 16px; color: var(--muted); background: var(--sidebar); font-size: 11px; line-height: 1.45; }
+.login-card .login-privacy { margin: 0 0 12px; font-size: 11px; }
+.session-boot { display: flex; min-height: 100%; flex-direction: column; justify-content: center; align-items: center; gap: 12px; text-align: center; padding: 22px; }
+.session-boot h1 { margin: 0; font: 400 28px var(--display); }
+.session-boot p { margin: 0; font-size: 13px; color: var(--muted); }
+.session-boot > div { display: flex; gap: 6px; }
+
+.desktop-shell.is-monitor { grid-template-columns: 65px minmax(0,1fr); }
+.desktop-shell.is-monitor > .directory { display: none; }
+.monitor-panel { display: flex; flex: 1; min-height: 0; flex-direction: column; }
+.monitor-banner { display: flex; align-items: flex-start; gap: 11px; padding: 16px 20px; background: var(--sidebar); border-bottom: 1px solid var(--line); }
+.monitor-banner > svg { flex: none; color: var(--accent); margin-top: 3px; }
+.monitor-banner h1 { margin: 0 0 3px; font: 400 23px var(--display); letter-spacing: -.06em; }
+.monitor-banner p { margin: 0; color: var(--muted); font-size: 12px; }
+.monitor-workspace { display: grid; grid-template-columns: minmax(235px,282px) minmax(0,1fr); flex: 1; min-height: 0; }
+.monitor-rooms, .monitor-transcript { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.monitor-rooms { background: var(--sidebar); border-right: 1px solid var(--line); }
+.monitor-search { display: flex; gap: 4px; padding: 10px 8px 6px; }
+.monitor-search .directory-search { flex: 1; min-width: 0; }
+.monitor-search .directory-search svg { flex: none; }
+.monitor-search .ui-icon { flex: none; width: 30px; }
+.monitor-entries { flex: 1; min-height: 0; overflow: auto; padding: 4px 5px; }
+.monitor-entries .row-text strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.monitor-pagination { display: flex; justify-content: space-between; padding: 8px; border-top: 1px solid var(--line); }
+.monitor-transcript-header { display: flex; align-items: center; gap: 7px; padding: 10px 13px; min-height: 58px; background: var(--paper); border-bottom: 1px solid var(--line); }
+.monitor-transcript-header > div { flex: 1; min-width: 0; }
+.monitor-transcript-header h2 { font-size: 15px; font-weight: 750; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
+.monitor-transcript-header small, .monitor-state { color: var(--muted); font-size: 12px; }
+.monitor-state, .monitor-error { margin: 12px; font-size: 12px; }
+.monitor-messages { flex: 1; min-height: 0; overflow: auto; padding: 5px clamp(13px,3vw,38px) 15px; }
+.monitor-message { padding: 9px 11px; margin: 0 0 7px; border-radius: 9px; background: var(--paper); border: 1px solid var(--line); }
+.monitor-message header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 5px; font-size: 12px; }
+.monitor-message time, .monitor-message small { color: var(--muted); font-size: 10px; }
+.monitor-message p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
+.monitor-message .deleted { color: var(--muted); font-style: italic; }
+.monitor-message blockquote { color: var(--muted); font-size: 11px; padding-left: 7px; border-left: 2px solid var(--accent); margin: 0 0 6px; overflow-wrap: anywhere; }
+@media (max-width: 930px) { .desktop-shell.is-monitor { grid-template-columns: 57px minmax(0,1fr); } .monitor-workspace { grid-template-columns: 235px minmax(0,1fr); } }

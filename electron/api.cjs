@@ -2,7 +2,7 @@ const BASE = "https://mzlqksaprteljlcjnxix.supabase.co";
 const PUBLIC_KEY = "sb_publishable_b2sm_UXIVP_3OUqzlAQJ6w_LM-RQsTf";
 const DESKTOP = "/functions/v1/kfc-chat-desktop";
 
-function makeApi(fetchImpl = fetch) {
+function makeApi(fetchImpl = fetch, store) {
   let session = null;
   let renewal = null;
   let generation = 0;
@@ -26,12 +26,34 @@ function makeApi(fetchImpl = fetch) {
     return { ok: false, status: 401, message: "다시 로그인해 주세요." };
   }
 
+  function valid(value) {
+    return typeof value?.access_token === "string" && value.access_token.length > 0 &&
+      typeof value.refresh_token === "string" && value.refresh_token.length > 0;
+  }
+
+  async function restore() {
+    if (!session && store) {
+      const attempt = generation;
+      const saved = await store.load().catch(() => null);
+      if (attempt === generation && !session && valid(saved)) session = saved;
+    }
+    return { ok: true, data: Boolean(session) };
+  }
+
+  async function clearStored() {
+    if (store) await store.clear().catch(() => {});
+  }
+
   async function login(username, password) {
     const attempt = ++generation;
     session = null;
+    renewal = null;
+    await clearStored();
     const result = await request("/functions/v1/kfc-api/auth/login", { username, password });
     if (!result.ok) return result;
-    if (attempt !== generation || !result.data.session?.access_token) return expired();
+    if (attempt !== generation || !valid(result.data.session)) return expired();
+    if (store) await store.save(result.data.session).catch(() => false);
+    if (attempt !== generation) return expired();
     session = result.data.session;
     return { ok: true };
   }
@@ -41,6 +63,7 @@ function makeApi(fetchImpl = fetch) {
     const previous = session;
     session = null;
     renewal = null;
+    await clearStored();
     if (previous) await request("/auth/v1/logout?scope=local", {}, previous.access_token);
     return { ok: true };
   }
@@ -55,8 +78,15 @@ function makeApi(fetchImpl = fetch) {
     if (session === previous) {
       if (!renewal || renewal.attempt !== attempt) {
         const pending = request("/auth/v1/token?grant_type=refresh_token", { refresh_token: previous.refresh_token })
-          .then(refresh => {
-            if (generation === attempt && refresh.ok && refresh.data.access_token) session = refresh.data;
+          .then(async refresh => {
+            if (generation !== attempt) return refresh;
+            if (refresh.ok && valid(refresh.data)) {
+              if (store) await store.save(refresh.data).catch(() => false);
+              if (generation === attempt) session = refresh.data;
+            } else if (refresh.ok || [400, 401, 403].includes(refresh.status)) {
+              session = null;
+              await clearStored();
+            }
             return refresh;
           });
         renewal = { attempt, pending };
@@ -71,7 +101,7 @@ function makeApi(fetchImpl = fetch) {
     return attempt === generation ? retried : expired();
   }
 
-  return { login, logout, chat };
+  return { login, logout, chat, restore };
 }
 
 module.exports = { makeApi };

@@ -8,7 +8,13 @@
 - 채팅 버전 업데이트와 홈페이지 앱 업데이트는 각자의 GitHub 릴리스에서 관리합니다.
 - 기존 1.0 WinForms 설치판은 자동 업데이트가 없으므로 새 NSIS 설치 파일을 한 번 실행해야 합니다. 이전 앱을 제거하려면 새 앱 설치 전에 Windows의 설치된 앱 목록에서 제거하세요.
 - 친구 목록, 1:1 대화, 그룹 채팅방 개설·초대·참여자 관리, 대화 검색, 이전 메시지, 답장, 복사, 수정, 모두에게서 삭제, 첨부, 반응, 읽음, 새 메시지 수, Windows 알림, 입력 중, 접속 상태, 대화 고정, 알림 끄기, 내 대화 지우기, 차단, 신고를 제공합니다. 신고로 접수된 내용은 관리자 계정에서 확인합니다.
-- 첨부 파일 한 개의 크기는 4 MB 이하입니다. 메시지와 파일은 대화 당사자에게만 제공됩니다. 메시지 신고 시 신고 사유와 선택한 메시지가 동아리 관리자에게 전달됩니다.
+- 첨부 파일 한 개의 크기는 4 MB 이하입니다. 메시지와 파일은 대화 당사자가 이용합니다. 동아리 관리자는 Windows 앱에서 대화 및 보관된 첨부 파일을 열람할 수 있으며, 열람 기록은 서버에 보관됩니다.
+
+## 로그인 유지와 Windows 알림
+
+- Windows 앱은 로그인을 현재 Windows 계정에 암호화해 저장합니다. 앱을 다시 열면 저장된 세션을 확인한 뒤 연결하며, 로그아웃을 누르면 저장된 세션을 지웁니다.
+- 창을 닫으면 Windows 시스템 트레이에 남아 메시지 알림을 받습니다. 알림을 클릭하면 해당 대화가 열립니다. 트레이 메뉴의 앱 완전히 종료는 백그라운드 수신도 종료합니다.
+- 승인된 관리자는 Windows 앱의 대화 열람 메뉴에서 1:1 및 그룹 대화를 읽기 전용으로 확인할 수 있습니다. 관리자 계정, 열람한 대화, 열람 시각과 첨부 파일 확인 내역은 Supabase에서 기록합니다.
 
 ## 코드와 채팅방
 
@@ -22,4 +28,4 @@
 2. `outputs/windows/`에 NSIS EXE, blockmap, 최신 버전 매니페스트가 생성됩니다.
 3. `codex/kfcchat` 브랜치의 GitHub Actions가 채팅 설치 EXE를 `chat-windows-latest` 릴리스에 게시합니다. 배포 버전을 바꿀 때 `package.json` 버전도 올려 주세요.
 4. Vercel은 `web/` 진입점에서 Windows 앱과 같은 React 채팅 화면을 빌드합니다. 웹과 앱은 별도 로그인 세션으로 같은 K.F.C. Chat 기록을 사용합니다. Windows 설치 안내는 `/download`에 있습니다. 브라우저의 채팅 API 요청은 `https://kfcchat.vercel.app`에서만 허용합니다.
-5. Supabase 변경 순서는 `supabase/kfc-chat-desktop.sql`, `supabase/kfc-chat-v2.sql`, `supabase/kfc-chat-v3.sql`, `supabase/functions/kfc-chat-desktop/index.ts`입니다. 마지막 함수가 서버에서 직접 토큰을 확인하므로 배포 시 `verify_jwt=false`를 사용합니다.
+5. Supabase 변경 순서는 `supabase/kfc-chat-desktop.sql`, `supabase/kfc-chat-v2.sql`, `supabase/kfc-chat-v3.sql`, `supabase/kfc-chat-v4.sql`, `supabase/functions/kfc-chat-desktop/index.ts`입니다. 마지막 함수가 서버에서 직접 토큰을 확인하므로 배포 시 `verify_jwt=false`를 사용합니다.

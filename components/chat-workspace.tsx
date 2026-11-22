@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, Bell, BellOff, ChevronRight, CircleHelp, Flag, LogOut, MessageCircle, Moon, Pin, Plus, Search, Settings2, Sun, Users, UsersRound } from 'lucide-react';
+import { ArrowUpRight, Bell, BellOff, ChevronRight, CircleHelp, Eye, Flag, LogOut, MessageCircle, Moon, Pin, Plus, Search, Settings2, Sun, Users, UsersRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import MessageConversation, { PersonAvatar, StatusBadge } from '@/components/ui/messaging-conversation';
 import { RoomDialog } from '@/components/room-dialog';
+import { ModerationPanel } from '@/components/moderation-panel';
 import { ChatError, errorText, request, scopeKey, STATUS_TEXT, time, type CodeLanguage, type History, type Overview, type Report, type Scope, type Status } from '@/lib/chat';
 
 type Theme = 'light' | 'dark';
-type Tab = 'chats' | 'rooms' | 'friends' | 'reports';
+type Tab = 'chats' | 'rooms' | 'friends' | 'reports' | 'monitor';
 type Draft = { text: string; language: CodeLanguage | null };
 const blankDraft: Draft = { text: '', language: null };
 type Props = { initial: Overview; theme: Theme; setTheme(theme: Theme): void; onLogout(message?: string): void };
@@ -52,6 +53,8 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
   const activeRoom = active && 'room' in active ? overview.rooms?.find(room => room.id === active.room) : undefined;
   const peer = active && 'peer' in active ? overview.friends.find(person => person.id === active.peer) : activeRoom;
   const self = overview.self;
+  const canMonitor = self.moderator && Boolean(window.kfcChat?.monitorDownload);
+  const monitoring = canMonitor && tab === 'monitor';
   const draft = drafts[activeKey] ?? blankDraft;
 
   useEffect(() => { onLogoutRef.current = onLogout; }, [onLogout]);
@@ -142,7 +145,7 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
     let stopped = false;
     let timer: number;
     async function tick() {
-      await Promise.all([syncOverview(), active && tab !== 'reports' ? syncHistory(active) : undefined]);
+      await Promise.all([syncOverview(), active && tab !== 'reports' && tab !== 'monitor' ? syncHistory(active) : undefined]);
       if (!stopped) timer = window.setTimeout(tick, 2800);
     }
     void tick();
@@ -223,13 +226,14 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
     save('kfc-chat-presence', next);
   }
 
-  return <main className="desktop-shell">
+  return <main className={monitoring ? "desktop-shell is-monitor" : "desktop-shell"}>
     <aside className="rail" aria-label="앱 메뉴">
       <div className="rail-brand" title="K.F.C. Chat"><MessageCircle size={22} /></div>
       <nav className="rail-main">
         <button type="button" className={tab === 'chats' ? 'active' : ''} aria-current={tab === 'chats' ? 'page' : undefined} aria-label="채팅" title="채팅" onClick={() => changeTab('chats')}><MessageCircle size={20} />{unread > 0 && <i />}</button>
         <button type="button" className={tab === 'friends' ? 'active' : ''} aria-current={tab === 'friends' ? 'page' : undefined} aria-label="친구" title="친구" onClick={() => changeTab('friends')}><Users size={20} /></button>
         <button type="button" className={tab === 'rooms' ? 'active' : ''} aria-current={tab === 'rooms' ? 'page' : undefined} aria-label="채팅방" title="채팅방" onClick={() => changeTab('rooms')}><UsersRound size={20} />{roomUnread > 0 && <i />}</button>
+        {canMonitor && <button type="button" className={monitoring ? 'active' : ''} aria-current={monitoring ? 'page' : undefined} aria-label="관리자 대화 열람" title="관리자 대화 열람" onClick={() => changeTab('monitor')}><Eye size={20} /></button>}
         {self.moderator && <button type="button" className={tab === 'reports' ? 'active' : ''} aria-current={tab === 'reports' ? 'page' : undefined} aria-label="신고 관리" title="신고 관리" onClick={() => changeTab('reports')}><Flag size={19} /></button>}
       </nav>
       <div className="rail-end">
@@ -290,7 +294,8 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
     </section>
     <section className="main-pane" aria-label="메신저">
       {connection && <div className="connection" role="status">{connection}</div>}
-      {tab === 'reports' && self.moderator ? <div className="reports">
+      {!monitoring && <p className="chat-privacy">동아리 관리자는 대화와 첨부 파일을 열람할 수 있습니다. 관리자 열람은 기록됩니다.</p>}
+      {monitoring ? <ModerationPanel /> : tab === 'reports' && self.moderator ? <div className="reports">
         <h2>접수된 신고</h2><p>신고 사유와 신고한 메시지를 확인할 수 있습니다.</p>
         {reportError && <p className="error-text" role="alert">{reportError}</p>}
         {!reports && !reportError && <p>신고 목록을 확인하고 있어요…</p>}
@@ -318,7 +323,7 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
             tab !== 'friends' && <Button variant="outline" onClick={() => changeTab('friends')}>친구 목록 열기 <ChevronRight size={16} /></Button>}
         </div>}
     </section>
-    {(roomDialog === 'create' || (roomDialog === 'people' && activeRoom)) && <RoomDialog
+    {!monitoring && (roomDialog === 'create' || (roomDialog === 'people' && activeRoom)) && <RoomDialog
       key={roomDialog === 'create' ? 'create' : activeRoom?.id} room={roomDialog === 'people' ? activeRoom : undefined}
       viewer={self.id} friends={overview.friends} avatars={avatars} close={() => setRoomDialog(undefined)} onChanged={syncOverview}
       onCreated={id => {

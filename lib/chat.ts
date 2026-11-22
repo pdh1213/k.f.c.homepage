@@ -32,6 +32,8 @@ type ApiResult<T> = { ok: true; data: T } | { ok: false; status?: number; messag
 type Command = { action: string; [key: string]: unknown };
 
 interface DesktopBridge {
+  restore?(): Promise<ApiResult<boolean>>;
+  monitorDownload?(key: string, id: number, review: string): Promise<ApiResult<boolean>>;
   login(username: string, password: string): Promise<ApiResult<void>>;
   logout(): Promise<void>;
   chat<T>(input: Command): Promise<ApiResult<T>>;

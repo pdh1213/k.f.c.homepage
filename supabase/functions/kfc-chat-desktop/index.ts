@@ -14,6 +14,8 @@ const systemErrors: Record<string, [number, string]> = {
   CHAT_ROOM_OWNER_REQUIRED: [403, "채팅방을 관리할 권한이 없습니다."],
   CHAT_INVALID_INVITE: [400, "초대할 수 있는 동아리원을 선택해 주세요."],
   CHAT_ROOM_LIMIT: [400, "채팅방에는 최대 50명까지 참여할 수 있습니다."],
+  CHAT_MONITOR_FORBIDDEN: [403, "승인된 관리자만 대화를 열람할 수 있습니다."],
+  CHAT_MONITOR_NOT_FOUND: [404, "대화 또는 첨부 파일을 찾을 수 없습니다."],
 };
 function messageInput(raw: unknown, requested: unknown): { content: string; language: string | null } | Response {
   if (requested != null && (typeof requested !== "string" || !languages.has(requested))) return fail(400, "코드 언어를 확인해 주세요.");
@@ -95,6 +97,41 @@ async function handleChat(request: Request) {
     try { input = JSON.parse(raw); } catch { return fail(400, "요청 내용을 확인해 주세요."); }
     if (!input || typeof input !== "object" || Array.isArray(input)) return fail(400, "요청 내용을 확인해 주세요.");
     const viewer = self.id;
+
+    if (typeof input.action === "string" && input.action.startsWith("monitor-")) {
+      if (self.role !== "admin") return fail(...systemErrors.CHAT_MONITOR_FORBIDDEN);
+      if (request.headers.has("origin")) return fail(403, "Windows 앱에서 관리자 대화 열람을 이용해 주세요.");
+      if (input.action === "monitor-catalog") {
+        const page = Number.isInteger(input.offset) && input.offset >= 0 && input.offset <= 2_000_000 ? input.offset : 0;
+        const catalog = data(await db.rpc("kfc_chat_monitor_catalog", {
+          viewer, search_text: text(input.query).slice(0, 100) || null, page_offset: page,
+        }));
+        return reply(200, catalog);
+      }
+      const key = typeof input.key === "string" && input.key.length < 40 ? input.key : "";
+      const roomMatch = /^r:([0-9]+)$/.exec(key);
+      const directMatch = /^d:([0-9]+):([0-9]+)$/.exec(key);
+      const room = roomMatch ? Number(roomMatch[1]) : null;
+      const low = directMatch ? Number(directMatch[1]) : null;
+      const high = directMatch ? Number(directMatch[2]) : null;
+      if ((!validId(room) && !(validId(low) && validId(high) && low < high))
+          || typeof input.review !== "string" || !uuid.test(input.review)) {
+        return fail(400, "열람할 대화를 확인해 주세요.");
+      }
+      const options = { viewer, low_user: low, high_user: high, room_key: room, review: input.review };
+      if (input.action === "monitor-history") {
+        const history = data(await db.rpc("kfc_chat_monitor_history", {
+          ...options, before_id: validId(input.before) ? input.before : null, search_text: text(input.query).slice(0, 100) || null,
+        }));
+        return reply(200, history);
+      }
+      if (input.action === "monitor-file" && validId(input.id)) {
+        const info = data(await db.rpc("kfc_chat_monitor_file", { ...options, target_id: input.id }));
+        const file = data(await bucket.download(info.path));
+        return reply(200, { name: info.name, base64: encode(await file.arrayBuffer()) });
+      }
+      return fail(400, "열람할 대화를 확인해 주세요.");
+    }
 
     if (input.action === "overview") {
       if (statuses.has(input.mode)) {
