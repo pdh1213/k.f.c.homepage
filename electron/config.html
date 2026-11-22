@@ -1,9 +1,0 @@
-<!doctype html>
-<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>K.F.C. 서버 연결</title>
-<link rel="stylesheet" href="./config.css"></head>
-<body><main class="card"><div class="brand"><img src="./kfc-logo.png" alt="K.F.C. 동아리 로고"></div><div class="tag">K.F.C. ROBOTICS CLUB</div><h1>서버에 연결해 주세요</h1><p>배포된 홈페이지 주소를 입력하면 웹과 같은 계정으로 이용할 수 있습니다. 로컬 개발 중에는 localhost 주소를 사용할 수 있습니다.</p>
-<form id="form"><label for="url">홈페이지 주소</label><input id="url" type="url" placeholder="https://kfc.example.kr" required><div class="hint">주소는 https://로 시작해야 합니다. 개발 환경은 http://localhost:4173</div><div id="error" class="error"></div><button>연결하고 시작하기 →</button></form></main>
-<script>
-(async()=>{const saved=await window.kfcDesktop.getServerUrl();if(saved)document.getElementById('url').value=saved;})();
-document.getElementById('form').addEventListener('submit',async e=>{e.preventDefault();const result=await window.kfcDesktop.setServerUrl(document.getElementById('url').value);if(!result.ok){const box=document.getElementById('error');box.textContent=result.message;box.style.display='block';}});
-</script></body></html>

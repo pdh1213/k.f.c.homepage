@@ -1,9 +1,0 @@
-node_modules
-work
-release
-outputs
-data
-.env
-.env.*
-electron.exe
-v38.8.6
