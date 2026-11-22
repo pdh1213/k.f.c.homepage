@@ -19,21 +19,15 @@
           "value": "default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
         }
       ]
-    },
-    {
-      "source": "/KFC-Chat-Setup.exe",
-      "headers": [
-        {
-          "key": "Content-Disposition",
-          "value": "attachment; filename=KFC-Chat-Setup.exe"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=300"
-        }
-      ]
     }
   ],
   "installCommand": "echo Static download site",
-  "buildCommand": "echo Static download site"
+  "buildCommand": "echo Static download site",
+  "redirects": [
+    {
+      "source": "/KFC-Chat-Setup.exe",
+      "destination": "https://github.com/pdh1213/k.f.c.homepage/releases/download/chat-windows-latest/KFC-Chat-Setup.exe",
+      "permanent": false
+    }
+  ]
 }
