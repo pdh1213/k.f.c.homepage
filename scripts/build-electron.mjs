@@ -6,7 +6,13 @@ import path from "node:path";
 const require = createRequire(import.meta.url);
 const runtime = path.join(path.dirname(require.resolve("electron/package.json")), "dist");
 const version = require("../package.json").version;
-if (!existsSync(path.join(runtime, "electron.exe"))) throw new Error("Install the Windows Electron runtime with npm ci.");
+if (!existsSync(path.join(runtime, "electron.exe"))) {
+  const install = path.join(path.dirname(require.resolve("electron/package.json")), "install.js");
+  const acquired = spawnSync(process.execPath, [install], { stdio: "inherit" });
+  if (acquired.status !== 0 || !existsSync(path.join(runtime, "electron.exe"))) {
+    throw acquired.error || new Error("The Windows Electron runtime could not be downloaded.");
+  }
+}
 const builder = path.join(path.dirname(require.resolve("electron-builder/package.json")), "cli.js");
 const built = spawnSync(process.execPath, [builder, "--win", "nsis", "--x64", "--publish", "never",
   "--config.electronDist=" + runtime], { stdio: "inherit" });
