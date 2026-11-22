@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { ArrowDownToLine, ArrowUp, Bell, BellOff, Check, CheckCheck, Copy, FileText, Flag, MessageCircle, MoreHorizontal, MoreVertical, Paperclip, Pencil, Pin, Reply, Search, SmilePlus, Trash2, UserMinus2, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowUp, Bell, BellOff, Check, CheckCheck, CodeXml, Copy, FileText, Flag, LogOut, MessageCircle, MoreHorizontal, MoreVertical, Paperclip, Pencil, Pin, Reply, Search, SmilePlus, Trash2, UserMinus2, Users, X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { day, EMOJI, errorText, request, size, STATUS_TEXT, time, value, type Account, type Attachment, type Friend, type History, type Message, type Quote } from '@/lib/chat';
+import { CodeMessage } from '@/components/ui/code-message';
+import { CODE_LANGUAGES, day, EMOJI, errorText, request, size, STATUS_TEXT, time, value, type Account, type Attachment, type CodeLanguage, type Friend, type History, type Message, type Quote, type Room, type Scope } from '@/lib/chat';
 
 export function PersonAvatar({ name, image, className }: { name: string; image?: string; className?: string }) {
   return <Avatar className={cn('person-avatar', className)}>
@@ -20,15 +21,19 @@ export function StatusBadge({ status }: { status: Friend['status'] }) {
 }
 
 type Preference = 'pinned' | 'muted' | 'blocked' | 'clear';
-type Confirm = { type: 'clear' } | { type: 'block' } | { type: 'delete'; message: Message } | { type: 'report'; message?: Message };
+type Confirm = { type: 'clear' } | { type: 'block' } | { type: 'leave' } | { type: 'delete'; message: Message } | { type: 'report'; message?: Message };
 type Props = {
   self: Account;
-  peer: Friend;
+  peer: Friend | Room;
   avatars: Record<number, string>;
   history: History | undefined;
   canRead: boolean;
   draft: string;
+  draftLanguage: CodeLanguage | null;
   setDraft(text: string): void;
+  setDraftLanguage(language: CodeLanguage | null): void;
+  onPeople?(): void;
+  onLeft?(): void;
   refresh(): Promise<void>;
   older(before: number): Promise<void>;
   markRead(id: number): Promise<boolean>;
@@ -37,19 +42,22 @@ type Props = {
 };
 
 function UserActions({ peer, onPreference, onConfirm }: {
-  peer: Friend; onPreference(field: Preference, enabled: boolean): void; onConfirm(confirm: Confirm): void;
+  peer: Friend | Room; onPreference(field: Preference, enabled: boolean): void; onConfirm(confirm: Confirm): void;
 }) {
+  const direct = 'status' in peer ? peer : undefined;
   return <DropdownMenu>
     <DropdownMenuTrigger asChild><Button variant="outline" size="icon" aria-label="대화 옵션"><MoreVertical size={17} /></Button></DropdownMenuTrigger>
     <DropdownMenuContent>
       <DropdownMenuItem onSelect={() => onPreference('pinned', !peer.pinned)}><Pin size={15} />{peer.pinned ? '상단 고정 해제' : '채팅 상단에 고정'}</DropdownMenuItem>
       <DropdownMenuItem onSelect={() => onPreference('muted', !peer.muted)}>{peer.muted ? <Bell size={15} /> : <BellOff size={15} />}{peer.muted ? '알림 켜기' : '이 대화 알림 끄기'}</DropdownMenuItem>
       <DropdownMenuSeparator className="ui-menu-divider" />
-      <DropdownMenuItem className="menu-danger" onSelect={() => peer.blocked ? onPreference('blocked', false) : onConfirm({ type: 'block' })}>
-        <UserMinus2 size={15} />{peer.blocked ? '차단 해제' : '대화 상대 차단'}
-      </DropdownMenuItem>
-      <DropdownMenuItem className="menu-danger" onSelect={() => onConfirm({ type: 'clear' })}><Trash2 size={15} />내 대화 목록에서 지우기</DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => onConfirm({ type: 'report' })}><Flag size={15} />대화 상대 신고</DropdownMenuItem>
+      {direct ? <>
+        <DropdownMenuItem className="menu-danger" onSelect={() => direct.blocked ? onPreference('blocked', false) : onConfirm({ type: 'block' })}>
+          <UserMinus2 size={15} />{direct.blocked ? '차단 해제' : '대화 상대 차단'}
+        </DropdownMenuItem>
+        <DropdownMenuItem className="menu-danger" onSelect={() => onConfirm({ type: 'clear' })}><Trash2 size={15} />내 대화 목록에서 지우기</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onConfirm({ type: 'report' })}><Flag size={15} />대화 상대 신고</DropdownMenuItem>
+      </> : <DropdownMenuItem className="menu-danger" onSelect={() => onConfirm({ type: 'leave' })}><LogOut size={15} />채팅방 나가기</DropdownMenuItem>}
     </DropdownMenuContent>
   </DropdownMenu>;
 }
@@ -70,19 +78,20 @@ function MessageActions({ mine, onReply, onCopy, onEdit, onDelete, onReport }: {
   </DropdownMenu>;
 }
 
-function ActionDialog({ action, peer, close, submit }: {
-  action: Confirm; peer: Friend; close(): void; submit(reason: string): Promise<void>;
+function ActionDialog({ action, name, close, submit }: {
+  action: Confirm; name: string; close(): void; submit(reason: string): Promise<void>;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => { dialog.current?.showModal(); }, []);
-  const title = { clear: '내 대화 목록에서 지울까요?', block: '대화 상대를 차단할까요?', delete: '메시지를 삭제할까요?', report: '신고 사유를 알려 주세요.' }[action.type];
+  const title = { clear: '내 대화 목록에서 지울까요?', block: '대화 상대를 차단할까요?', delete: '메시지를 삭제할까요?', leave: '채팅방에서 나갈까요?', report: '신고 사유를 알려 주세요.' }[action.type];
   const description = {
     clear: '지금까지의 대화가 내 화면에서 지워집니다. 상대방의 대화는 유지됩니다.',
-    block: `${peer.name}님과 새 메시지를 주고받을 수 없게 됩니다. 대화 옵션에서 차단을 해제할 수 있어요.`,
-    delete: '내 화면과 상대방 화면에 삭제된 메시지로 표시됩니다.',
+    block: `${name}님과 새 메시지를 주고받을 수 없게 됩니다. 대화 옵션에서 차단을 해제할 수 있어요.`,
+    delete: '모든 참여자 화면에 삭제된 메시지로 표시됩니다.',
+    leave: '나가면 채팅방이 목록에서 사라져요. 다시 초대받으면 초대 이후의 메시지를 볼 수 있습니다.',
     report: '신고 사유와 선택한 메시지는 동아리 관리자에게 전달됩니다.',
   }[action.type];
 
@@ -103,17 +112,18 @@ function ActionDialog({ action, peer, close, submit }: {
       <div className="dialog-actions">
         <Button variant="outline" autoFocus={action.type !== 'report'} disabled={busy} onClick={close}>취소</Button>
         <Button type="submit" variant={action.type === 'report' ? 'default' : 'destructive'} disabled={busy}>
-          {busy ? '처리 중…' : { clear: '대화 지우기', block: '차단', delete: '삭제', report: '신고 보내기' }[action.type]}
+          {busy ? '처리 중…' : { clear: '대화 지우기', block: '차단', delete: '삭제', leave: '나가기', report: '신고 보내기' }[action.type]}
         </Button>
       </div>
     </form>
   </dialog>;
 }
 
-export default function MessageConversation({ self, peer, avatars, history, canRead, draft, setDraft, refresh, older, markRead, onCleared, className }: Props) {
+export default function MessageConversation({ self, peer, avatars, history, canRead, draft, draftLanguage, setDraft, setDraftLanguage, refresh, older, markRead, onCleared, onPeople, onLeft, className }: Props) {
   const [quote, setQuote] = useState<Quote>();
   const [editing, setEditing] = useState<Message>();
   const [editText, setEditText] = useState('');
+  const [editLanguage, setEditLanguage] = useState<CodeLanguage | null>(null);
   const [attachment, setAttachment] = useState<Attachment | null>(null);
   const [busy, setBusy] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -131,9 +141,16 @@ export default function MessageConversation({ self, peer, avatars, history, canR
   const typingMode = useRef(canRead);
   const keepBottom = useRef(true);
   const restoreAnchor = useRef<{ height: number; top: number } | null>(null);
-  const pending = useRef<{ content: string; file: Attachment | null; quote?: number; id: string } | null>(null);
+  const pending = useRef<{ content: string; language: CodeLanguage | null; file: Attachment | null; quote?: number; id: string } | null>(null);
   const latest = history?.messages.at(-1)?.id;
-  const blocked = peer.blocked || peer.blocked_by;
+  const room = 'title' in peer ? peer : undefined;
+  const friend = 'status' in peer ? peer : undefined;
+  const scope: Scope = room ? { room: room.id } : { peer: peer.id };
+  const name = room?.title ?? friend?.name ?? '';
+  const blocked = friend?.blocked || friend?.blocked_by;
+  const language = editing ? editLanguage : draftLanguage;
+  const typing = history?.typing_people?.length ? `${history.typing_people.join(', ')}님이 입력하고 있어요…` :
+    history?.typing ? `${name}님이 입력하고 있어요…` : '';
   const visible = results ?? history;
   const canMark = !results && canRead && atBottom;
 
@@ -144,7 +161,7 @@ export default function MessageConversation({ self, peer, avatars, history, canR
       element.scrollTop = restoreAnchor.current.top + element.scrollHeight - restoreAnchor.current.height;
       restoreAnchor.current = null;
     } else if (!results && keepBottom.current) element.scrollTop = element.scrollHeight;
-  }, [visible?.messages.length, latest, results, history?.typing]);
+  }, [visible?.messages.length, latest, results, typing]);
 
   useEffect(() => {
     typingMode.current = canRead;
@@ -157,7 +174,7 @@ export default function MessageConversation({ self, peer, avatars, history, canR
   }, [latest, canMark, canRead, markRead]);
 
   async function command(input: { action: string; [key: string]: unknown }) {
-    return request({ peer: peer.id, ...input });
+    return request({ ...scope, ...input });
   }
 
   async function perform(run: () => Promise<unknown>, success?: string) {
@@ -180,6 +197,7 @@ export default function MessageConversation({ self, peer, avatars, history, canR
     if (!action) return;
     if (action.type === 'clear') await preference('clear', true);
     if (action.type === 'block') await preference('blocked', true);
+    if (action.type === 'leave') { await command({ action: 'room-leave' }); onLeft?.(); }
     if (action.type === 'delete') {
       await command({ action: 'delete', id: action.message.id });
       if (editing?.id === action.message.id) setEditing(undefined);
@@ -195,21 +213,25 @@ export default function MessageConversation({ self, peer, avatars, history, canR
 
   async function send(event?: FormEvent) {
     event?.preventDefault();
-    const content = (editing ? editText : draft).trim();
-    if (busy || blocked || (!content && (editing || !attachment))) return;
-    if (Array.from(content).length > 2000) { setNotice('메시지는 2,000자 이내로 입력해 주세요.'); return; }
+    const entered = editing ? editText : draft;
+    const content = language ? entered : entered.trim();
+    if (busy || blocked || (!content.trim() && (editing || language || !attachment))) return;
+    if (Array.from(content).length > (language ? 12000 : 2000)) {
+      setNotice(language ? '코드는 12,000자 이내로 보내 주세요.' : '메시지는 2,000자 이내로 입력해 주세요.');
+      return;
+    }
     setBusy(true);
     setNotice('');
     try {
       if (editing) {
-        await command({ action: 'edit', id: editing.id, content });
+        await command({ action: 'edit', id: editing.id, content, codeLanguage: language });
         if (results) setResults(undefined);
         setEditing(undefined);
       } else {
-        if (pending.current?.content !== content || pending.current.file !== attachment || pending.current.quote !== quote?.id) {
-          pending.current = { content, file: attachment, quote: quote?.id, id: crypto.randomUUID() };
+        if (pending.current?.content !== content || pending.current.language !== language || pending.current.file !== attachment || pending.current.quote !== quote?.id) {
+          pending.current = { content, language, file: attachment, quote: quote?.id, id: crypto.randomUUID() };
         }
-        await command({ action: 'send', content, quote: quote?.id, attachment, requestId: pending.current.id });
+        await command({ action: 'send', content, quote: quote?.id, attachment, requestId: pending.current.id, codeLanguage: language });
         pending.current = null;
         setDraft('');
         setQuote(undefined);
@@ -246,7 +268,7 @@ export default function MessageConversation({ self, peer, avatars, history, canR
     if (!query.trim() || searching) return;
     setSearching(true);
     try {
-      const next = await request<History>({ action: 'search', peer: peer.id, query });
+      const next = await request<History>({ action: 'search', ...scope, query });
       setResults(next);
       if (viewport.current) viewport.current.scrollTop = 0;
     } catch (error) { setNotice(errorText(error)); }
@@ -273,15 +295,16 @@ export default function MessageConversation({ self, peer, avatars, history, canR
     });
   }, [visible?.messages]);
 
-  return <Card className={cn('conversation-card', className)} aria-label={`${peer.name}님과의 대화`}>
+  return <Card className={cn('conversation-card', className)} aria-label={room ? `${name} 채팅방` : `${name}님과의 대화`}>
     <CardHeader className="conversation-header">
       <div className="conversation-person">
-        <PersonAvatar name={peer.name} image={avatars[peer.id]} className="size-11" />
-        <div><h1>{peer.name}</h1><span><StatusBadge status={peer.status} />{STATUS_TEXT[peer.status]}</span></div>
+        {room ? <span className="room-avatar size-11"><Users size={21} /></span> : <PersonAvatar name={name} image={avatars[peer.id]} className="size-11" />}
+        <div><h1>{name}</h1><span>{room ? `${room.member_count}명 참여 중` : friend && <><StatusBadge status={friend.status} />{STATUS_TEXT[friend.status]}</>}</span></div>
       </div>
       <div className="conversation-tools">
         <Button variant={searchOpen ? 'default' : 'outline'} size="icon" aria-label="대화 내용 검색" aria-pressed={searchOpen}
           onClick={() => { setSearchOpen(!searchOpen); if (searchOpen) { setResults(undefined); keepBottom.current = true; } }}><Search size={17} /></Button>
+        {room && <Button variant="outline" size="icon" aria-label="채팅방 참여자" title="채팅방 참여자" onClick={onPeople}><Users size={17} /></Button>}
         <UserActions peer={peer} onPreference={(field, enabled) => void perform(() => preference(field, enabled))} onConfirm={setAction} />
       </div>
     </CardHeader>
@@ -301,11 +324,11 @@ export default function MessageConversation({ self, peer, avatars, history, canR
         <div className="transcript-inner">
           {!visible && <p className="transcript-empty">대화를 불러오고 있어요…</p>}
           {visible && !groups.length && <div className="transcript-empty"><MessageCircle size={28} /><strong>{results ? '검색 결과가 없습니다.' : '대화를 시작해 보세요.'}</strong>
-            <p>{results ? '다른 검색어를 입력해 주세요.' : `${peer.name}님에게 첫 메시지를 보내 보세요.`}</p></div>}
+            <p>{results ? '다른 검색어를 입력해 주세요.' : room ? '채팅방에 첫 메시지를 보내 보세요.' : `${name}님에게 첫 메시지를 보내 보세요.`}</p></div>}
           {!results && history?.older && <Button className="load-older" variant="outline" size="sm" onClick={loadOlder} disabled={loadingOlder}>{loadingOlder ? '불러오는 중…' : '이전 메시지 불러오기'}</Button>}
           {groups.map(({ message, divider }) => {
             const mine = message.sender_id === self.id;
-            const person = mine ? self : peer;
+            const author = mine ? self.name : message.sender_name || friend?.name || '동아리원';
             const reactions = EMOJI.map(emoji => ({
               emoji, responses: message.reactions.filter(reaction => reaction.emoji === emoji),
             })).filter(reaction => reaction.responses.length);
@@ -317,13 +340,14 @@ export default function MessageConversation({ self, peer, avatars, history, canR
             return <div key={message.id}>
               {divider && <div className="date-divider"><span>{divider}</span></div>}
               <div className={cn('message-row group', mine && 'mine')}>
-                <PersonAvatar name={person.name} image={avatars[person.id]} className="size-8" />
-                <div className="message-body">
-                  <div className={cn('message-bubble', message.deleted_at && 'deleted')}>
-                    {message.quote && !message.deleted_at && <blockquote><b>{message.quote.sender_id === self.id ? '나' : peer.name}에게 답장</b><span>{message.quote.content}</span></blockquote>}
-                    <span>{message.content}</span>
+                <PersonAvatar name={author} image={avatars[message.sender_id]} className="size-8" />
+                <div className={cn('message-body', message.code_language && !message.deleted_at && 'has-code')}>
+                  {room && !mine && <span className="message-author">{author}</span>}
+                  <div className={cn('message-bubble', message.deleted_at && 'deleted', message.code_language && !message.deleted_at && 'has-code')}>
+                    {message.quote && !message.deleted_at && <blockquote><b>{message.quote.sender_id === self.id ? '나' : message.quote.sender_name || friend?.name || '동아리원'}에게 답장</b><span>{message.quote.content}</span></blockquote>}
+                    {message.code_language && !message.deleted_at ? <CodeMessage key={message.content} code={message.content} language={message.code_language} /> : <span>{message.content}</span>}
                     {message.attachment_name && <button type="button" className="attachment-tile"
-                      onClick={() => void perform(async () => { const bridge = window.kfcChat; if (bridge) value(await bridge.download(peer.id, message.id)); })}>
+                      onClick={() => void perform(async () => { const bridge = window.kfcChat; if (bridge) value(await bridge.download(scope, message.id)); })}>
                       <FileText size={18} /><span><b>{message.attachment_name}</b><small>{size(message.attachment_size ?? 0)}</small></span><ArrowDownToLine size={15} />
                     </button>}
                   </div>
@@ -340,9 +364,9 @@ export default function MessageConversation({ self, peer, avatars, history, canR
                         <DropdownMenuTrigger asChild><Button className="message-action" variant="ghost" size="icon" aria-label="이모지 반응"><SmilePlus size={15} /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent className="emoji-menu">{EMOJI.map(emoji => <DropdownMenuItem key={emoji} onSelect={() => void react(emoji)}>{emoji}</DropdownMenuItem>)}</DropdownMenuContent>
                       </DropdownMenu>
-                      <MessageActions mine={mine} onReply={() => { setQuote(message); setEditing(undefined); composer.current?.focus(); }}
+                      <MessageActions mine={mine} onReply={() => { setQuote(message.code_language ? { ...message, content: `코드 메시지 · ${CODE_LANGUAGES[message.code_language]}` } : message); setEditing(undefined); composer.current?.focus(); }}
                         onCopy={() => void perform(() => window.kfcChat?.copy(message.content) ?? Promise.resolve(), '메시지를 복사했어요.')}
-                        onEdit={() => { setEditing(message); setQuote(undefined); setEditText(message.content); composer.current?.focus(); }}
+                        onEdit={() => { setEditing(message); setQuote(undefined); setEditText(message.content); setEditLanguage(message.code_language ?? null); composer.current?.focus(); }}
                         onDelete={() => setAction({ type: 'delete', message })} onReport={() => setAction({ type: 'report', message })} />
                     </div>}
                   </div>
@@ -350,7 +374,7 @@ export default function MessageConversation({ self, peer, avatars, history, canR
               </div>
             </div>;
           })}
-          {!results && history?.typing && <p className="typing-status" role="status">{peer.name}님이 입력하고 있어요…</p>}
+          {!results && typing && <p className="typing-status" role="status">{typing}</p>}
         </div>
       </ScrollArea>
       {!atBottom && !results && <Button className="jump-bottom" variant="outline" size="sm" onClick={() => {
@@ -361,12 +385,20 @@ export default function MessageConversation({ self, peer, avatars, history, canR
       {notice && <p className="composer-notice" role="status">{notice}</p>}
       {(quote || editing) && <div className="compose-context">
         {editing ? <Pencil size={16} /> : <Reply size={16} />}
-        <span><b>{editing ? '메시지 수정' : `${quote?.sender_id === self.id ? '나' : peer.name}에게 답장`}</b><small>{(editing ?? quote)?.content}</small></span>
+        <span><b>{editing ? '메시지 수정' : `${quote?.sender_id === self.id ? '나' : quote?.sender_name || friend?.name || '동아리원'}에게 답장`}</b><small>{(editing ?? quote)?.content}</small></span>
         <Button variant="ghost" size="icon" aria-label="취소" onClick={() => { setQuote(undefined); setEditing(undefined); }}><X size={17} /></Button>
       </div>}
       {attachment && !editing && <div className="compose-context"><Paperclip size={16} /><span><b>{attachment.name}</b><small>{size(attachment.size)}</small></span>
         <Button variant="ghost" size="icon" aria-label="첨부 제거" onClick={() => setAttachment(null)}><X size={17} /></Button></div>}
+      {language && <div className="code-compose-bar">
+        <CodeXml size={17} /><label>언어 <select aria-label="코드 언어" value={language} onChange={event =>
+          (editing ? setEditLanguage : setDraftLanguage)(event.target.value as CodeLanguage)}>
+          {Object.entries(CODE_LANGUAGES).map(([key, label]) => <option value={key} key={key}>{label}</option>)}
+        </select></label><small>Ctrl+Enter로 보내기</small>
+      </div>}
       <div className="compose-row">
+        <Button variant={language ? 'default' : 'outline'} size="icon" aria-label="코드 모드" title="코드 모드" aria-pressed={Boolean(language)}
+          disabled={busy || blocked} onClick={() => { (editing ? setEditLanguage : setDraftLanguage)(language ? null : 'text'); composer.current?.focus(); }}><CodeXml size={18} /></Button>
         <Button variant="outline" size="icon" aria-label="파일 첨부" onClick={() => void chooseFile()} disabled={busy || blocked || Boolean(editing)}><Paperclip size={19} /></Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="outline" size="icon" aria-label="이모지 넣기" disabled={busy || blocked}><SmilePlus size={18} /></Button></DropdownMenuTrigger>
@@ -379,17 +411,19 @@ export default function MessageConversation({ self, peer, avatars, history, canR
             requestAnimationFrame(() => { field?.focus(); field?.setSelectionRange(start + emoji.length, start + emoji.length); });
           }}>{emoji}</DropdownMenuItem>)}</DropdownMenuContent>
         </DropdownMenu>
-        <textarea ref={composer} value={editing ? editText : draft} maxLength={4000} rows={2} aria-label="메시지 입력"
-          disabled={blocked} readOnly={busy} placeholder={blocked ? '현재 이 상대에게 메시지를 보낼 수 없습니다.' : '메시지를 입력해 주세요.'}
+        <textarea ref={composer} value={editing ? editText : draft} maxLength={language ? 24000 : 4000} rows={language ? 4 : 2}
+          className={language ? 'code-input' : undefined} spellCheck={!language} aria-label={language ? '코드 입력' : '메시지 입력'}
+          disabled={blocked} readOnly={busy} placeholder={blocked ? '현재 이 상대에게 메시지를 보낼 수 없습니다.' : language ? '보낼 코드를 붙여넣거나 입력해 주세요.' : '메시지를 입력해 주세요.'}
           onChange={event => changeDraft(event.target.value)} onKeyDown={event => {
-            if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) {
+            if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229 &&
+                (language ? event.ctrlKey || event.metaKey : !event.ctrlKey && !event.metaKey)) {
               event.preventDefault(); void send();
             }
           }} />
         <Button type="submit" size="icon" aria-label={editing ? '수정 저장' : '메시지 보내기'} title={editing ? '수정 저장' : '메시지 보내기'}
-          disabled={busy || blocked || !(editing ? editText.trim() : draft.trim() || attachment)}>{editing ? <Check size={20} /> : <ArrowUp size={20} />}</Button>
+          disabled={busy || blocked || !(editing ? editText.trim() : draft.trim() || (!language && attachment))}>{editing ? <Check size={20} /> : <ArrowUp size={20} />}</Button>
       </div>
     </form>
-    {action && <ActionDialog action={action} peer={peer} submit={confirm} close={() => setAction(undefined)} />}
+    {action && <ActionDialog action={action} name={name} submit={confirm} close={() => setAction(undefined)} />}
   </Card>;
 }

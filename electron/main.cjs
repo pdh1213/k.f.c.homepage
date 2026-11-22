@@ -12,6 +12,13 @@ const maxFile = 4 * 1024 * 1024;
 let window;
 let updates;
 
+function validScope(scope) {
+  if (!scope || typeof scope !== "object") return null;
+  const id = scope.room ?? scope.peer;
+  if (!Number.isSafeInteger(id) || id < 1 || (scope.room != null && scope.peer != null)) return null;
+  return scope.room != null ? { room: id } : { peer: id };
+}
+
 function handle(name, fn) {
   ipcMain.handle(`kfc:${name}`, (event, ...args) => {
     if (event.sender !== window?.webContents || event.senderFrame?.url !== indexUrl) {
@@ -32,7 +39,7 @@ handle("chat", input => api.chat(input));
 handle("club", async () => { await shell.openExternal("https://kfc-robot-club.vercel.app/"); });
 handle("update", () => updates.check(true));
 handle("copy", value => {
-  if (typeof value === "string" && value.length <= 12_000) clipboard.writeText(value);
+  if (typeof value === "string" && value.length <= 24_000) clipboard.writeText(value);
 });
 handle("pick", async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog(window, {
@@ -56,8 +63,10 @@ handle("pick", async () => {
   } catch { return { ok: false, message: "첨부 파일을 읽을 수 없습니다." }; }
 });
 
-handle("download", async (peer, id) => {
-  const result = await api.chat({ action: "download", peer, id });
+handle("download", async (scope, id) => {
+  const target = validScope(scope);
+  if (!target || !Number.isSafeInteger(id) || id < 1) return { ok: false, message: "첨부 파일을 확인해 주세요." };
+  const result = await api.chat({ action: "download", ...target, id });
   if (!result.ok) return result;
   try {
     const { name, base64 } = result.data;
@@ -70,15 +79,16 @@ handle("download", async (peer, id) => {
   } catch { return { ok: false, message: "첨부 파일을 저장할 수 없습니다." }; }
 });
 
-handle("notify", (peer, name) => {
-  if (window?.isFocused() || !Notification.isSupported() || !Number.isSafeInteger(peer) || typeof name !== "string") return;
+handle("notify", (scope, name) => {
+  const target = validScope(scope);
+  if (!target || window?.isFocused() || !Notification.isSupported() || typeof name !== "string") return;
   const notification = new Notification({ title: name.slice(0, 60), body: "K.F.C. Chat에 새 메시지가 도착했습니다." });
   notification.on("click", () => {
     if (!window) return;
     if (window.isMinimized()) window.restore();
     window.show();
     window.focus();
-    window.webContents.send("kfc:open-peer", peer);
+    window.webContents.send("kfc:open-peer", target);
   });
   notification.show();
 });

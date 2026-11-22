@@ -1,6 +1,6 @@
 {
   "name": "kfc-chat",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "용인시청소년수련관 로봇동아리 K.F.C. 채팅",
   "author": "K.F.C. 로봇동아리",
   "private": true,
@@ -21,6 +21,7 @@
     "clsx": "2.1.1",
     "electron-updater": "6.8.3",
     "lucide-react": "0.577.0",
+    "prism-react-renderer": "2.4.1",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "tailwind-merge": "3.5.0"
@@ -40,10 +41,23 @@
   "build": {
     "appId": "kr.kfcrobot.chat",
     "productName": "K.F.C. Chat",
-    "directories": { "output": "release" },
-    "files": ["electron/**/*.cjs", "desktop-dist/**/*", "package.json"],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*.cjs",
+      "desktop-dist/**/*",
+      "package.json"
+    ],
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "artifactName": "KFC-Chat-Setup-${version}.exe",
       "icon": "public/icon.png"
     },
@@ -54,7 +68,10 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "K.F.C. Chat",
-      "installerLanguages": ["ko_KR", "en_US"],
+      "installerLanguages": [
+        "ko_KR",
+        "en_US"
+      ],
       "language": "1042"
     },
     "npmRebuild": false,

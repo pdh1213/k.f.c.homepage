@@ -2,14 +2,27 @@ export type Status = 'online' | 'dnd' | 'offline';
 export type Account = { id: number; name: string; moderator: boolean };
 export type Friend = { id: number; name: string; status: Status; pinned: boolean; muted: boolean; blocked: boolean; blocked_by: boolean };
 export type Thread = { peer_id: number; last_id: number; content: string; created_at: string; unread: number };
-export type Overview = { self: Account; friends: Friend[]; chats: Thread[] };
-export type Quote = { id: number; sender_id: number; content: string };
+export type Room = {
+  id: number; title: string; owner_id: number | null; member_count: number; pinned: boolean; muted: boolean;
+  last_id: number; content: string | null; updated_at: string; unread: number;
+};
+export type RoomPerson = { id: number; name: string };
+export type Overview = { self: Account; friends: Friend[]; chats: Thread[]; rooms?: Room[] };
+export type Scope = { peer: number } | { room: number };
+export const scopeKey = (scope: Scope) => 'room' in scope ? `room:${scope.room}` : `peer:${scope.peer}`;
+export const CODE_LANGUAGES = {
+  text: '일반 텍스트', javascript: 'JavaScript', typescript: 'TypeScript', python: 'Python',
+  cpp: 'C++', c: 'C', csharp: 'C#', java: 'Java', json: 'JSON', bash: 'Bash',
+  html: 'HTML', css: 'CSS', sql: 'SQL', rust: 'Rust', arduino: 'Arduino', lua: 'Lua',
+} as const;
+export type CodeLanguage = keyof typeof CODE_LANGUAGES;
+export type Quote = { id: number; sender_id: number; sender_name?: string; content: string };
 export type Message = Quote & {
-  created_at: string; edited_at: string | null; deleted_at: string | null;
+  created_at: string; edited_at: string | null; deleted_at: string | null; code_language?: CodeLanguage | null;
   attachment_name: string | null; attachment_size: number | null;
   quote: Quote | null; reactions: { emoji: string; user_id: number }[];
 };
-export type History = { messages: Message[]; older: boolean; typing: boolean; read_through: number };
+export type History = { messages: Message[]; older: boolean; typing: boolean; typing_people?: string[]; read_through: number };
 export type Attachment = { name: string; size: number; base64: string };
 export type Report = {
   id: number; reason: string; excerpt: string | null; created_at: string; reviewed_at: string | null;
@@ -26,9 +39,9 @@ interface DesktopBridge {
   update(): Promise<void>;
   copy(text: string): Promise<void>;
   pickFile(): Promise<ApiResult<Attachment | null>>;
-  download(peer: number, id: number): Promise<ApiResult<boolean>>;
-  notify(peer: number, name: string): Promise<void>;
-  onOpenPeer(callback: (id: number) => void): () => void;
+  download(scope: Scope, id: number): Promise<ApiResult<boolean>>;
+  notify(scope: Scope, name: string): Promise<void>;
+  onOpenPeer(callback: (scope: Scope) => void): () => void;
 }
 declare global { interface Window { kfcChat?: DesktopBridge } }
 

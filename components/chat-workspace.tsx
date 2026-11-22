@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, Bell, BellOff, ChevronRight, CircleHelp, Flag, LogOut, MessageCircle, Moon, Pin, Search, Settings2, Sun, Users } from 'lucide-react';
+import { ArrowUpRight, Bell, BellOff, ChevronRight, CircleHelp, Flag, LogOut, MessageCircle, Moon, Pin, Plus, Search, Settings2, Sun, Users, UsersRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import MessageConversation, { PersonAvatar, StatusBadge } from '@/components/ui/messaging-conversation';
-import { ChatError, errorText, request, STATUS_TEXT, time, type History, type Overview, type Report, type Status } from '@/lib/chat';
+import { RoomDialog } from '@/components/room-dialog';
+import { ChatError, errorText, request, scopeKey, STATUS_TEXT, time, type CodeLanguage, type History, type Overview, type Report, type Scope, type Status } from '@/lib/chat';
 
 type Theme = 'light' | 'dark';
-type Tab = 'chats' | 'friends' | 'reports';
+type Tab = 'chats' | 'rooms' | 'friends' | 'reports';
+type Draft = { text: string; language: CodeLanguage | null };
+const blankDraft: Draft = { text: '', language: null };
 type Props = { initial: Overview; theme: Theme; setTheme(theme: Theme): void; onLogout(message?: string): void };
 
 function savedSetting<T extends string>(key: string, fallback: T, allowed: readonly T[]): T {
@@ -23,28 +26,33 @@ function save(key: string, value: string) {
 
 export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
   const [overview, setOverview] = useState(initial);
-  const [active, setActive] = useState<number>();
-  const [tab, setTab] = useState<Tab>(initial.chats.length ? 'chats' : 'friends');
+  const [active, setActive] = useState<Scope>();
+  const [tab, setTab] = useState<Tab>(initial.chats.length ? 'chats' : initial.rooms?.length ? 'rooms' : 'friends');
+  const [roomDialog, setRoomDialog] = useState<'create' | 'people'>();
   const [filter, setFilter] = useState('');
   const [mode, setMode] = useState<Status>(() => savedSetting('kfc-chat-presence', 'online', ['online', 'dnd', 'offline']));
   const [notices, setNotices] = useState(() => savedSetting('kfc-chat-notices', 'yes', ['yes', 'no']) === 'yes');
   const [connection, setConnection] = useState('');
   const [focused, setFocused] = useState(document.hasFocus());
-  const [histories, setHistories] = useState<Record<number, History>>({});
+  const [histories, setHistories] = useState<Record<string, History>>({});
   const [avatars, setAvatars] = useState<Record<number, string>>({});
-  const [drafts, setDrafts] = useState<Record<number, string>>({});
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [reports, setReports] = useState<Report[]>();
   const [reportError, setReportError] = useState('');
   const [reviewing, setReviewing] = useState<number>();
   const overviewRef = useRef(initial);
   const live = useRef(true);
-  const epochs = useRef(new Map<number, number>());
-  const historyRequests = useRef(new Map<number, number>());
+  const epochs = useRef(new Map<string, number>());
+  const historyRequests = useRef(new Map<string, number>());
   const overviewRequest = useRef(0);
+  const createdRoom = useRef<number | undefined>(undefined);
   const avatarIds = useRef(new Set<number>());
   const onLogoutRef = useRef(onLogout);
-  const peer = overview.friends.find(person => person.id === active);
+  const activeKey = active ? scopeKey(active) : '';
+  const activeRoom = active && 'room' in active ? overview.rooms?.find(room => room.id === active.room) : undefined;
+  const peer = active && 'peer' in active ? overview.friends.find(person => person.id === active.peer) : activeRoom;
   const self = overview.self;
+  const draft = drafts[activeKey] ?? blankDraft;
 
   useEffect(() => { onLogoutRef.current = onLogout; }, [onLogout]);
   useEffect(() => () => { live.current = false; }, []);
@@ -53,7 +61,7 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
     const lostFocus = () => setFocused(false);
     window.addEventListener('focus', gotFocus);
     window.addEventListener('blur', lostFocus);
-    const unsubscribe = window.kfcChat?.onOpenPeer(id => { setActive(id); setTab('chats'); setFilter(''); });
+    const unsubscribe = window.kfcChat?.onOpenPeer(scope => { setActive(scope); setTab('room' in scope ? 'rooms' : 'chats'); setFilter(''); });
     return () => {
       unsubscribe?.();
       window.removeEventListener('focus', gotFocus);
@@ -69,6 +77,10 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
       const last = overviewRef.current;
       overviewRef.current = result;
       setOverview(result);
+      if (createdRoom.current && result.rooms?.some(room => room.id === createdRoom.current)) {
+        setActive({ room: createdRoom.current });
+        createdRoom.current = undefined;
+      }
       setConnection('');
       if (notices && mode === 'online') {
         const old = new Map(last.chats.map(thread => [thread.peer_id, thread]));
@@ -77,7 +89,14 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
           if (person && !person.muted && !person.blocked && thread.unread > 0 &&
               thread.last_id > (old.get(thread.peer_id)?.last_id ?? 0) &&
               thread.unread > (old.get(thread.peer_id)?.unread ?? 0)) {
-            void window.kfcChat?.notify(person.id, person.name);
+            void window.kfcChat?.notify({ peer: person.id }, person.name);
+          }
+        }
+        const previousRooms = new Map(last.rooms?.map(room => [room.id, room]));
+        for (const room of result.rooms ?? []) {
+          const previous = previousRooms.get(room.id);
+          if (!room.muted && room.unread > (previous?.unread ?? 0) && room.last_id > (previous?.last_id ?? 0)) {
+            void window.kfcChat?.notify({ room: room.id }, room.title);
           }
         }
       }
@@ -88,12 +107,13 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
     }
   }, [mode, notices]);
 
-  const syncHistory = useCallback(async (id: number, before?: number) => {
+  const syncHistory = useCallback(async (scope: Scope, before?: number) => {
+    const id = scopeKey(scope);
     const epoch = epochs.current.get(id) ?? 0;
     const sequence = (historyRequests.current.get(id) ?? 0) + 1;
     if (!before) historyRequests.current.set(id, sequence);
     try {
-      const next = await request<History>({ action: 'history', peer: id, before });
+      const next = await request<History>({ action: 'history', ...scope, before });
       if (!live.current || (epochs.current.get(id) ?? 0) !== epoch ||
         (!before && historyRequests.current.get(id) !== sequence)) return;
       setHistories(current => {
@@ -113,7 +133,7 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
       if (!live.current) return;
       if (error instanceof ChatError && error.status === 401) onLogoutRef.current(error.message);
       else if (before) throw error;
-      else if (error instanceof ChatError && error.status === 404) setActive(current => current === id ? undefined : current);
+      else if (error instanceof ChatError && error.status === 404) setActive(current => current && scopeKey(current) === id ? undefined : current);
       else setConnection(errorText(error));
     }
   }, []);
@@ -129,8 +149,29 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
     return () => { stopped = true; window.clearTimeout(timer); };
   }, [active, tab, syncOverview, syncHistory]);
 
+  const discard = useCallback((key: string) => {
+    epochs.current.set(key, (epochs.current.get(key) ?? 0) + 1);
+    setHistories(current => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+    setDrafts(current => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
-    if (active && !overview.friends.some(person => person.id === active)) setActive(undefined);
+    if (active && !peer) {
+      discard(activeKey);
+      setActive(undefined);
+      setRoomDialog(undefined);
+    }
+  }, [active, activeKey, peer, discard]);
+
+  useEffect(() => {
     const ids = [self.id, ...overview.friends.map(person => person.id)].filter(id => !avatarIds.current.has(id)).slice(0, 24);
     if (!ids.length) return;
     ids.forEach(id => avatarIds.current.add(id));
@@ -140,7 +181,7 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
         .map(person => [person.id, person.avatar_data!]));
       setAvatars(current => ({ ...current, ...available }));
     }).catch(() => { ids.forEach(id => avatarIds.current.delete(id)); });
-  }, [active, overview.friends, self.id]);
+  }, [overview.friends, self.id]);
 
   async function refreshReports() {
     try {
@@ -167,6 +208,9 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
         (b.thread?.last_id ?? 0) - (a.thread?.last_id ?? 0) : a.person.name.localeCompare(b.person.name, 'ko'));
   }, [overview.chats, overview.friends, tab, filter]);
   const unread = overview.chats.reduce((count, thread) => count + thread.unread, 0);
+  const rooms = overview.rooms ?? [];
+  const roomUnread = rooms.reduce((count, room) => count + room.unread, 0);
+  const visibleRooms = rooms.filter(room => room.title.toLocaleLowerCase().includes(filter.trim().toLocaleLowerCase()));
 
   function changeTab(next: Tab) {
     setTab(next);
@@ -185,6 +229,7 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
       <nav className="rail-main">
         <button type="button" className={tab === 'chats' ? 'active' : ''} aria-current={tab === 'chats' ? 'page' : undefined} aria-label="채팅" title="채팅" onClick={() => changeTab('chats')}><MessageCircle size={20} />{unread > 0 && <i />}</button>
         <button type="button" className={tab === 'friends' ? 'active' : ''} aria-current={tab === 'friends' ? 'page' : undefined} aria-label="친구" title="친구" onClick={() => changeTab('friends')}><Users size={20} /></button>
+        <button type="button" className={tab === 'rooms' ? 'active' : ''} aria-current={tab === 'rooms' ? 'page' : undefined} aria-label="채팅방" title="채팅방" onClick={() => changeTab('rooms')}><UsersRound size={20} />{roomUnread > 0 && <i />}</button>
         {self.moderator && <button type="button" className={tab === 'reports' ? 'active' : ''} aria-current={tab === 'reports' ? 'page' : undefined} aria-label="신고 관리" title="신고 관리" onClick={() => changeTab('reports')}><Flag size={19} /></button>}
       </nav>
       <div className="rail-end">
@@ -205,17 +250,29 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
       <header className="directory-header">
         <div className="directory-brand">K.F.C. Chat</div>
         <div className="directory-title">
-          <h1>{tab === 'friends' ? '친구' : tab === 'reports' ? '신고 관리' : '채팅'}</h1>
+          <h1>{tab === 'friends' ? '친구' : tab === 'reports' ? '신고 관리' : tab === 'rooms' ? '채팅방' : '채팅'}</h1>
           {tab === 'friends' && <span>{overview.friends.length}</span>}
           {tab === 'chats' && unread > 0 && <span>{unread > 99 ? '99+' : unread}</span>}
+          {tab === 'rooms' && <Button className="new-room-button" variant="outline" size="icon" aria-label="채팅방 만들기" title="채팅방 만들기" onClick={() => setRoomDialog('create')}><Plus size={19} /></Button>}
         </div>
-        {tab !== 'reports' && <label className="directory-search"><Search size={17} /><input aria-label="친구 이름 검색" value={filter} onChange={event => setFilter(event.target.value)} placeholder="이름으로 검색" /></label>}
+        {tab !== 'reports' && <label className="directory-search"><Search size={17} /><input aria-label={tab === 'rooms' ? '채팅방 이름 검색' : '친구 이름 검색'} value={filter} onChange={event => setFilter(event.target.value)} placeholder={tab === 'rooms' ? '채팅방 이름으로 검색' : '이름으로 검색'} /></label>}
       </header>
-      {tab !== 'reports' && <ScrollArea className="directory-list" aria-label={tab === 'friends' ? '친구 목록' : '채팅 목록'}>
+      {tab === 'rooms' && <ScrollArea className="directory-list" aria-label="채팅방 목록">
+        {!visibleRooms.length && <div className="empty-list"><p>{filter ? '검색 결과가 없습니다.' : '아직 참여 중인 채팅방이 없습니다.'}</p>
+          {!filter && <Button variant="outline" size="sm" onClick={() => setRoomDialog('create')}>채팅방 만들기 <Plus size={14} /></Button>}</div>}
+        {visibleRooms.map(room => <button type="button" key={room.id} className={`directory-row${activeRoom?.id === room.id ? ' active' : ''}`}
+          aria-pressed={activeRoom?.id === room.id} onClick={() => setActive({ room: room.id })}>
+          <span className="room-avatar size-10"><UsersRound size={18} /></span>
+          <span className="row-text"><strong>{room.title}{room.pinned && <Pin size={13} />}{room.muted && <BellOff size={13} />}</strong>
+            <small>{room.content ?? `${room.member_count}명 참여 중`}</small></span>
+          <span className="row-meta"><time>{time(room.updated_at)}</time>{room.unread > 0 && <b>{room.unread > 99 ? '99+' : room.unread}</b>}</span>
+        </button>)}
+      </ScrollArea>}
+      {(tab === 'friends' || tab === 'chats') && <ScrollArea className="directory-list" aria-label={tab === 'friends' ? '친구 목록' : '채팅 목록'}>
         {rowList.length === 0 && <div className="empty-list"><p>{filter ? '검색 결과가 없습니다.' : tab === 'chats' ? '아직 대화가 없습니다.' : '목록에 표시할 친구가 없습니다.'}</p>
           {tab === 'chats' && !filter && <Button variant="outline" size="sm" onClick={() => changeTab('friends')}>친구 목록 열기 <ChevronRight size={14} /></Button>}</div>}
-        {rowList.map(({ person, thread }) => <button type="button" className={`directory-row${active === person.id ? ' active' : ''}`}
-          aria-pressed={active === person.id} onClick={() => setActive(person.id)} key={person.id}>
+        {rowList.map(({ person, thread }) => <button type="button" className={`directory-row${activeKey === scopeKey({ peer: person.id }) ? ' active' : ''}`}
+          aria-pressed={activeKey === scopeKey({ peer: person.id })} onClick={() => setActive({ peer: person.id })} key={person.id}>
           <span className="row-avatar"><PersonAvatar name={person.name} image={avatars[person.id]} /><StatusBadge status={person.status} /></span>
           <span className="row-text"><strong>{person.name}{person.pinned && <Pin size={13} />}{person.muted && <BellOff size={13} />}</strong>
             <small>{tab === 'chats' ? thread?.content : person.blocked ? '차단됨' : STATUS_TEXT[person.status]}</small></span>
@@ -243,25 +300,31 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
           <p>{report.reason}</p>{report.excerpt && <blockquote>{report.excerpt}</blockquote>}
           {report.reviewed_at ? <small>확인 완료</small> : <Button variant="outline" size="sm" disabled={reviewing != null} onClick={() => void review(report.id)}>확인 완료로 표시</Button>}
         </article>)}
-      </div> : peer ? <MessageConversation key={peer.id} self={self} peer={peer} avatars={avatars}
-        history={histories[peer.id]} canRead={focused} draft={drafts[peer.id] ?? ''}
-        setDraft={text => setDrafts(current => ({ ...current, [peer.id]: text }))}
-        older={before => syncHistory(peer.id, before)}
-        refresh={async () => { await Promise.all([syncHistory(peer.id), syncOverview()]); }}
-        markRead={id => request({ action: 'preference', peer: peer.id, field: 'read', through: id })
+      </div> : peer && active ? <MessageConversation key={activeKey} self={self} peer={peer} avatars={avatars}
+        history={histories[activeKey]} canRead={focused} draft={draft.text} draftLanguage={draft.language}
+        setDraft={text => setDrafts(current => ({ ...current, [activeKey]: { ...(current[activeKey] ?? blankDraft), text } }))}
+        setDraftLanguage={language => setDrafts(current => ({ ...current, [activeKey]: { ...(current[activeKey] ?? blankDraft), language } }))}
+        older={before => syncHistory(active, before)}
+        refresh={async () => { await Promise.all([syncHistory(active), syncOverview()]); }}
+        markRead={id => request({ action: 'preference', ...active, field: 'read', through: id })
           .then(async () => { await syncOverview(); return true; }).catch(() => false)}
-        onCleared={() => {
-          epochs.current.set(peer.id, (epochs.current.get(peer.id) ?? 0) + 1);
-          setHistories(current => {
-            const next = { ...current };
-            delete next[peer.id];
-            return next;
-          });
-          setDrafts(current => ({ ...current, [peer.id]: '' }));
+        onCleared={() => discard(activeKey)}
+        onPeople={() => setRoomDialog('people')}
+        onLeft={() => {
+          discard(activeKey); setActive(undefined); setRoomDialog(undefined); void syncOverview();
         }} /> : <div className="workspace-empty">
           <span><MessageCircle size={30} /></span><h2>대화를 시작해 보세요.</h2><p>친구나 최근 채팅을 선택하면 여기에 대화가 열립니다.</p>
-          {tab !== 'friends' && <Button variant="outline" onClick={() => changeTab('friends')}>친구 목록 열기 <ChevronRight size={16} /></Button>}
+          {tab === 'rooms' ? <Button variant="outline" onClick={() => setRoomDialog('create')}>채팅방 만들기 <Plus size={16} /></Button> :
+            tab !== 'friends' && <Button variant="outline" onClick={() => changeTab('friends')}>친구 목록 열기 <ChevronRight size={16} /></Button>}
         </div>}
     </section>
+    {(roomDialog === 'create' || (roomDialog === 'people' && activeRoom)) && <RoomDialog
+      key={roomDialog === 'create' ? 'create' : activeRoom?.id} room={roomDialog === 'people' ? activeRoom : undefined}
+      viewer={self.id} friends={overview.friends} avatars={avatars} close={() => setRoomDialog(undefined)} onChanged={syncOverview}
+      onCreated={id => {
+        setRoomDialog(undefined); setTab('rooms'); setFilter('');
+        createdRoom.current = id;
+        void syncOverview();
+      }} />}
   </main>;
 }
