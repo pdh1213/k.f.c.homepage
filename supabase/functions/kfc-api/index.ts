@@ -2,6 +2,35 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const env=JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS")||"{}"),serviceKey=env.default||env.service_role||Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,db=createClient(Deno.env.get("SUPABASE_URL")!,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}}),loginClient=createClient(Deno.env.get("SUPABASE_URL")!,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
 const H={"content-type":"application/json","cache-control":"no-store","access-control-allow-origin":"*","access-control-allow-headers":"authorization,apikey,content-type","access-control-allow-methods":"GET,POST,PUT,PATCH,DELETE,OPTIONS"},out=(x:any,s=200)=>new Response(JSON.stringify(x),{status:s,headers:H}),bad=(message:string,status=400,code?:string)=>out({message,...(code?{code}:{})},status);
 const all=async(q:any)=>{let r=await q;if(r.error)throw r.error;return r.data||[]},one=async(q:any)=>((await all(q.limit(1)))[0]||null),save=async(q:any)=>{let r=await q;if(r.error)throw r.error;return r.data},text=(v:any,n:number,k:string)=>{if(typeof v!=="string"||!v.trim()||v.trim().length>n)throw Error(k+"은(는) 1~"+n+"자로 입력해 주세요.");return v.trim()};
+const sessionProfile=(row:any)=>({
+  id:row.id,username:row.username,name:row.name,role:row.role,
+  mustChangePassword:row.must_change_password,
+  isOfficer:row.role==="admin"||!!row.is_officer,
+  siteUseConsent:row.role==="admin"||!!row.site_use_consented_at,
+  school:row.school,grade:row.grade,avatarData:row.avatar_data||null,
+});
+
+function validatedAvatar(value:unknown){
+  if(value===null)return null;
+  const prefix="data:image/jpeg;base64,";
+  const invalid=()=>Object.assign(new Error("프로필 사진을 다시 선택해 주세요."),{status:400});
+  if(typeof value!=="string"||!value.startsWith(prefix)||value.length>prefix.length+32768)throw invalid();
+  const encoded=value.slice(prefix.length);
+  if(!/^[A-Za-z0-9+/]+={0,2}$/.test(encoded))throw invalid();
+  let bytes:string;
+  try{bytes=atob(encoded)}catch{throw invalid()}
+  if(!bytes.startsWith("\xff\xd8\xff")||!bytes.endsWith("\xff\xd9"))throw invalid();
+  return value;
+}
+
+async function verifyCurrentPassword(profile:any,value:unknown){
+  if(typeof value!=="string"||!value||value.length>128)return false;
+  const verifier=createClient(Deno.env.get("SUPABASE_URL")!,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
+  const result=await verifier.auth.signInWithPassword({email:profile.auth_email,password:value});
+  if(result.error||!result.data.session)return false;
+  await verifier.auth.signOut({scope:"local"});
+  return true;
+}
 const safeImageTypes=new Set(["image/jpeg","image/png","image/gif","image/webp","image/avif"]);
 const chatbotLink=(value:any)=>{const url=String(value||"").trim();if(!url)return "";if(url.length>500||(!/^\/(?!\/)[a-zA-Z0-9/_?=&.%#-]*$/.test(url)&&!/^https:\/\/[a-z0-9.-]+(?::\d+)?(?:[/?#][^\s]*)?$/i.test(url)))throw Error("링크는 사이트 내부 경로 또는 HTTPS 주소로 입력해 주세요.");return url};
 const chatbotRichInput=(body:any,old:any,adminId:number)=>{const link_url=chatbotLink(body.linkUrl??old?.link_url),link_label=link_url?text(body.linkLabel??old?.link_label,80,"버튼 이름"):"";const image_path=String(body.imagePath??old?.image_path??"").trim();if(image_path&&image_path!==old?.image_path&&(!image_path.startsWith(`chatbot/${adminId}/`)||image_path.includes("..")||image_path.length>400))throw Error("챗봇 사진 경로를 확인해 주세요.");return{link_url,link_label,image_path:image_path||null}};
@@ -24,26 +53,72 @@ const buildPollQuestions=(raw:any)=>{if(!Array.isArray(raw)||raw.length<1||raw.l
 const cleanPollAnswers=(questions:any,raw:any)=>{if(!raw||typeof raw!=="object"||Array.isArray(raw))throw Error("설문 응답을 확인해 주세요.");const allowed=new Set(questions.map((q:any)=>q.id));if(Object.keys(raw).some(k=>!allowed.has(k)))throw Error("설문에 없는 질문 응답이 포함되어 있습니다.");const result:any={};for(const q of questions){let v=raw[q.id],empty=v===undefined||v===null||v===""||(Array.isArray(v)&&v.length===0);if(empty){if(q.required)throw Error("필수 질문에 답해 주세요: "+q.title);continue}if(q.type==="short_text"||q.type==="paragraph"){if(typeof v!=="string"||v.length>(q.type==="short_text"?500:5000))throw Error("답변은 5,000자 이내로 입력해 주세요.");result[q.id]=v.trim();continue}if(q.type==="single_choice"||q.type==="dropdown"){if(typeof v!=="string"||!q.options.includes(v))throw Error("선택 항목을 확인해 주세요: "+q.title);result[q.id]=v;continue}if(q.type==="multiple_choice"){if(!Array.isArray(v)||v.length>q.options.length||v.some((x:any)=>!q.options.includes(x))||new Set(v).size!==v.length)throw Error("복수 선택 응답을 확인해 주세요: "+q.title);result[q.id]=v;continue}if(q.type==="linear_scale"){let n=Number(v);if(!Number.isInteger(n)||n<q.scaleMin||n>q.scaleMax)throw Error("평가 척도 응답을 확인해 주세요: "+q.title);result[q.id]=n;continue}if(q.type==="date"){if(typeof v!=="string"||!/^\d{4}-\d{2}-\d{2}$/.test(v)||Number.isNaN(Date.parse(v)))throw Error("날짜 응답을 확인해 주세요: "+q.title);result[q.id]=v}}return result};
 Deno.serve(async req=>{
  if(req.method==="OPTIONS")return new Response(null,{headers:H});
- const pth=new URL(req.url).pathname.replace(/^\/functions\/v1(?=\/|$)/,"").replace(/^\/kfc-api(?=\/|$)/,"").replace(/^\/api(?=\/|$)/,"").replace(/^\/+/,"").replace(/\/$/,""),method=req.method;let b:any={};if(["POST","PATCH","PUT"].includes(method)){try{b=await req.json()}catch{return bad("요청 내용을 확인해 주세요.")}}
+ const pth=new URL(req.url).pathname.replace(/^\/functions\/v1(?=\/|$)/,"").replace(/^\/kfc-api(?=\/|$)/,"").replace(/^\/api(?=\/|$)/,"").replace(/^\/+/,"").replace(/\/$/,""),method=req.method;let b:any={};if(["POST","PATCH","PUT"].includes(method)){try{b=await req.json();if(!b||typeof b!=="object"||Array.isArray(b))return bad("요청 내용을 확인해 주세요.")}catch{return bad("요청 내용을 확인해 주세요.")}}
  try{
  if(pth==="auth/bootstrap-admin"&&method==="POST"){
   const token=String(b.bootstrapToken||""),password=String(b.password||"");if(token.length<32||password.length<12)return bad("초기 설정 정보를 확인해 주세요.",403);
   const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(token)),hash=Array.from(new Uint8Array(digest)).map(x=>x.toString(16).padStart(2,"0")).join("");
   const consume=await db.rpc("consume_admin_bootstrap_token",{token_sha256:hash});if(consume.error)throw consume.error;if(!consume.data)return bad("초기 관리자 설정 토큰이 만료되었거나 이미 사용되었습니다.",403);
-  const existing=await one(db.from("users").select("*").eq("username","admin").eq("role","admin"));
+  const existing=await one(db.from("users").select("*").or("auth_email.eq.admin@admins.kfc.invalid,username.eq.admin").eq("role","admin"));
   if(existing){const updated=await db.auth.admin.updateUserById(existing.auth_user_id,{password,email_confirm:true});if(updated.error)throw updated.error;const profile=await db.from("users").update({must_change_password:false,status:"approved"}).eq("id",existing.id);if(profile.error)throw profile.error;return out({message:"관리자 계정 설정을 갱신했습니다."});}
   const email="admin@admins.kfc.invalid",created=await db.auth.admin.createUser({email,password,email_confirm:true});if(created.error||!created.data.user)throw created.error;
   const r=await db.from("users").insert({auth_user_id:created.data.user.id,auth_email:email,username:"admin",name:"K.F.C. 관리자",age:30,school:"용인시청소년수련관",grade:"관리자",phone:"",status:"approved",role:"admin",must_change_password:false});
   if(r.error){await db.auth.admin.deleteUser(created.data.user.id);throw r.error}return out({message:"초기 관리자 계정을 만들었습니다."},201)
  }
- const bearer=req.headers.get("authorization")||"",jwt=bearer.startsWith("Bearer ")?bearer.slice(7):"";let auth:any=null,u:any=null;if(jwt){auth=(await db.auth.getUser(jwt)).data.user;if(auth)u=await one(db.from("users").select("*").eq("auth_user_id",auth.id))}
+ const bearer=req.headers.get("authorization")||"",jwt=bearer.startsWith("Bearer ")?bearer.slice(7):"";let auth:any=null,u:any=null;if(jwt){auth=(await db.auth.getUser(jwt)).data.user;if(auth){
+   const columns="id,auth_email,username,name,school,grade,status,role,must_change_password,is_officer,site_use_consented_at";
+   u=await one(db.from("users").select(pth==="auth/me"?columns+",avatar_data":columns).eq("auth_user_id",auth.id));
+ }}
  const member=()=>{if(!u||u.status!=="approved")throw Object.assign(Error("로그인이 필요합니다."),{status:401});if(u.must_change_password)throw Object.assign(Error("계속 이용하려면 비밀번호를 먼저 변경해 주세요."),{status:403});if(u.role==="member"&&!u.site_use_consented_at)throw Object.assign(Error("사이트 이용 안내에 동의한 뒤 계속 이용해 주세요."),{status:403});return u},admin=()=>{let x=member();if(x.role!=="admin")throw Object.assign(Error("관리자 권한이 필요합니다."),{status:403});return x};
- if(pth==="auth/register"&&method==="POST"){let username=String(b.username||"").trim().toLowerCase(),password=String(b.password||""),age=Number(b.age),phone=String(b.phone||"").trim();if(b.siteUseConsent!==true)return bad("사이트 이용 안내를 읽고 동의해 주세요.");if(!/^[a-z0-9_]{4,20}$/.test(username))throw Error("아이디는 영문, 숫자, 밑줄로 4~20자 입력해 주세요.");if(password.length<10||password.length>128)throw Error("비밀번호는 10~128자로 입력해 주세요.");if(!Number.isInteger(age)||age<8||age>99)throw Error("나이는 8~99 사이의 숫자로 입력해 주세요.");if(!/^01[016789]-?\d{3,4}-?\d{4}$/.test(phone))throw Error("전화번호 형식을 확인해 주세요.");if(await one(db.from("users").select("id").eq("username",username)))return bad("이미 사용 중인 아이디입니다.",409);let email=crypto.randomUUID()+"@members.kfc.invalid",c=await db.auth.admin.createUser({email,password,email_confirm:false});if(c.error||!c.data.user)throw c.error;let ins=await db.from("users").insert({auth_user_id:c.data.user.id,auth_email:email,username,name:text(b.name,40,"이름"),age,school:text(b.school,80,"학교"),grade:text(b.grade,30,"학년"),phone,status:"pending",role:"member",site_use_consented_at:new Date().toISOString()});if(ins.error){await db.auth.admin.deleteUser(c.data.user.id);throw ins.error}return out({message:"가입 신청을 접수했습니다. 관리자의 승인 후 로그인할 수 있습니다.",status:"pending"},201)}
- if(pth==="auth/login"&&method==="POST"){let x=await one(db.from("users").select("*").eq("username",String(b.username||"").toLowerCase().trim()));if(!x)return bad("아이디 또는 비밀번호를 확인해 주세요.",401);if(x.status==="pending")return bad("가입 신청이 승인 대기 중입니다. 승인 후 로그인할 수 있습니다.",403,"PENDING");if(x.status==="rejected")return bad("가입 신청이 반려되었습니다. 관리자에게 문의해 주세요.",403,"REJECTED");let r=await loginClient.auth.signInWithPassword({email:x.auth_email,password:String(b.password||"")});if(r.error||!r.data.session)return bad("아이디 또는 비밀번호를 확인해 주세요.",401);return out({user:{id:x.id,username:x.username,name:x.name,role:x.role,mustChangePassword:x.must_change_password,isOfficer:x.role==="admin"||!!x.is_officer,siteUseConsent:x.role==="admin"||!!x.site_use_consented_at},session:{access_token:r.data.session.access_token,refresh_token:r.data.session.refresh_token}})}
- if(pth==="auth/me"&&method==="GET")return u?.status==="approved"?out({user:{id:u.id,username:u.username,name:u.name,role:u.role,mustChangePassword:u.must_change_password,isOfficer:u.role==="admin"||!!u.is_officer,siteUseConsent:u.role==="admin"||!!u.site_use_consented_at}}):bad("로그인이 필요합니다.",401);
+ if(pth==="auth/register"&&method==="POST"){let username=String(b.username||"").trim().toLowerCase(),password=String(b.password||""),age=Number(b.age),phone=String(b.phone||"").trim();if(b.siteUseConsent!==true)return bad("사이트 이용 안내를 읽고 동의해 주세요.");if(!/^[a-z0-9_]{4,20}$/.test(username))throw Error("아이디는 영문, 숫자, 밑줄로 4~20자 입력해 주세요.");if(password.length<10||password.length>128)throw Error("비밀번호는 10~128자로 입력해 주세요.");if(!Number.isInteger(age)||age<8||age>99)throw Error("나이는 8~99 사이의 숫자로 입력해 주세요.");if(!/^01[016789]-?\d{3,4}-?\d{4}$/.test(phone))throw Error("전화번호 형식을 확인해 주세요.");if(username==="admin"||await one(db.from("users").select("id").eq("username",username)))return bad("이미 사용 중인 아이디입니다.",409);let email=crypto.randomUUID()+"@members.kfc.invalid",c=await db.auth.admin.createUser({email,password,email_confirm:false});if(c.error||!c.data.user)throw c.error;let ins=await db.from("users").insert({auth_user_id:c.data.user.id,auth_email:email,username,name:text(b.name,40,"이름"),age,school:text(b.school,80,"학교"),grade:text(b.grade,30,"학년"),phone,status:"pending",role:"member",site_use_consented_at:new Date().toISOString()});if(ins.error){await db.auth.admin.deleteUser(c.data.user.id);throw ins.error}return out({message:"가입 신청을 접수했습니다. 관리자의 승인 후 로그인할 수 있습니다.",status:"pending"},201)}
+ if(pth==="auth/login"&&method==="POST"){let x=await one(db.from("users").select("*").eq("username",String(b.username||"").toLowerCase().trim()));if(!x)return bad("아이디 또는 비밀번호를 확인해 주세요.",401);if(x.status==="pending")return bad("가입 신청이 승인 대기 중입니다. 승인 후 로그인할 수 있습니다.",403,"PENDING");if(x.status==="rejected")return bad("가입 신청이 반려되었습니다. 관리자에게 문의해 주세요.",403,"REJECTED");let r=await loginClient.auth.signInWithPassword({email:x.auth_email,password:String(b.password||"")});if(r.error||!r.data.session)return bad("아이디 또는 비밀번호를 확인해 주세요.",401);return out({user:sessionProfile(x),session:{access_token:r.data.session.access_token,refresh_token:r.data.session.refresh_token}})}
+ if(pth==="auth/me"&&method==="GET")return u?.status==="approved"?out({user:sessionProfile(u)}):bad("로그인이 필요합니다.",401);
  if(pth==="auth/site-use-consent"&&method==="POST"){if(!u||u.status!=="approved"||u.role!=="member")return bad("회원 로그인이 필요합니다.",401);if(b.accept!==true)return bad("이용 안내 동의를 확인해 주세요.");await save(db.from("users").update({site_use_consented_at:new Date().toISOString()}).eq("id",u.id));return out({message:"사이트 이용 안내에 동의했습니다."})}
  if(pth==="auth/logout"&&method==="POST"){if(!auth||!u)return bad("로그인이 필요합니다.",401);const result=await db.auth.admin.signOut(jwt,"local");if(result.error&&![401,403,404].includes(result.error.status))throw result.error;return out({message:"로그아웃했습니다."})}
- if(pth==="auth/change-password"&&method==="POST"){let x=u;if(!x||x.status!=="approved")return bad("로그인이 필요합니다.",401);let v=String(b.newPassword||"");if(v.length<10||v.length>128)return bad("새 비밀번호는 10~128자로 입력해 주세요.");let check=await loginClient.auth.signInWithPassword({email:x.auth_email,password:String(b.oldPassword||"")});if(check.error)return bad("현재 비밀번호가 일치하지 않습니다.");await db.auth.admin.updateUserById(auth.id,{password:v});await db.from("users").update({must_change_password:false}).eq("id",x.id);return out({message:"비밀번호를 변경했습니다."})}
+ if(pth==="auth/change-password"&&method==="POST"){
+   if(!u||u.status!=="approved")return bad("로그인이 필요합니다.",401);
+   const password=typeof b.newPassword==="string"?b.newPassword:"";
+   if(password.length<10||new TextEncoder().encode(password).length>72)return bad("새 비밀번호는 10자 이상, UTF-8 기준 72바이트 이하로 입력해 주세요.");
+   if(password===b.oldPassword)return bad("현재 비밀번호와 다른 새 비밀번호를 사용해 주세요.");
+   if(!await verifyCurrentPassword(u,b.oldPassword))return bad("현재 비밀번호가 일치하지 않습니다.",403);
+   const updated=await db.auth.admin.updateUserById(auth.id,{password});
+   if(updated.error)return bad("비밀번호를 변경하지 못했습니다. 더 강한 비밀번호로 다시 시도해 주세요.",422);
+   await save(db.from("users").update({must_change_password:false}).eq("id",u.id));
+   return out({message:"비밀번호를 변경했습니다. 다음 로그인부터 새 비밀번호를 사용하세요."});
+ }
+ if(pth==="account"&&method==="PATCH"){
+   const account=member();
+   let fields:Record<string,unknown>;
+   try{
+     fields={name:text(b.name,40,"이름"),school:text(b.school,80,"학교"),grade:text(b.grade,30,"학년"),updated_at:new Date().toISOString()};
+   }catch(error){
+     return bad((error as Error).message);
+   }
+   if("avatarData" in b)fields.avatar_data=validatedAvatar(b.avatarData);
+   const result=await db.from("users").update(fields).eq("id",account.id).eq("auth_user_id",auth.id).eq("status","approved").select("*").single();
+   if(result.error)throw result.error;
+   return out({user:sessionProfile(result.data),message:"프로필을 저장했습니다."});
+ }
+ if(pth==="account/username"&&method==="PATCH"){
+   const account=member();
+   const username=String(b.username||"").trim().toLowerCase();
+   if(!/^[a-z0-9_]{4,20}$/.test(username))return bad("아이디는 영문, 숫자, 밑줄로 4~20자 입력해 주세요.");
+   if(username===account.username)return bad("현재 아이디와 다른 새 아이디를 입력해 주세요.");
+   if(!await verifyCurrentPassword(account,b.currentPassword))return bad("현재 비밀번호가 일치하지 않습니다.",403);
+   if(username==="admin"&&account.role!=="admin")return bad("이미 사용 중인 아이디입니다.",409);
+   const result=await db.from("users").update({username,updated_at:new Date().toISOString()})
+     .eq("id",account.id).eq("auth_user_id",auth.id).eq("status","approved").select("*").single();
+   if(result.error?.code==="23505")return bad("이미 사용 중인 아이디입니다.",409);
+   if(result.error)throw result.error;
+   return out({user:sessionProfile(result.data),message:"아이디를 변경했습니다. 다음 로그인부터 새 아이디를 사용하세요."});
+ }
+ if(pth==="account/avatars"&&method==="GET"){
+   member();
+   const values=(new URL(req.url).searchParams.get("ids")||"").split(",");
+   if(values.length>40||values.some(value=>!/^\d+$/.test(value)||!Number.isSafeInteger(Number(value))||Number(value)<1))return bad("프로필 요청을 확인해 주세요.");
+   const rows=await all(db.from("users").select("id,avatar_data").in("id",[...new Set(values.map(Number))]).eq("status","approved").not("avatar_data","is",null));
+   return out({avatars:Object.fromEntries(rows.map((row:any)=>[row.id,row.avatar_data]))});
+ }
  if(pth==="demo-status"&&method==="GET"){const settings=await one(db.from("site_settings").select("demo_enabled").eq("id",true));return out({demoEnabled:!!settings?.demo_enabled})}
  if(pth==="download-status"&&method==="GET"){const installerUrl=Deno.env.get("KFC_WINDOWS_INSTALLER_URL")||"https://github.com/pdh1213/k.f.c.homepage/releases/download/windows-latest/KFC-Club-Setup.exe",portableUrl=Deno.env.get("KFC_WINDOWS_DOWNLOAD_URL")||"";return out({available:!!(installerUrl||portableUrl),installerAvailable:!!installerUrl,portableAvailable:!!portableUrl,installerUrl,portableUrl})}
 
@@ -339,7 +414,6 @@ if(k==="events"&&method==="GET"&&!id){let v=await all(db.from("events").select("
  return bad("요청 경로를 찾을 수 없습니다.",404)
  }catch(e){let x=e as any;console.error("kfc-api request failed",JSON.stringify({path:pth,method,code:x?.code,message:x?.message}));return bad(x?.message||"요청을 처리하지 못했습니다.",x?.status||500)}
 });
-
 
 
 

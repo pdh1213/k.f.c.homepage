@@ -4,6 +4,11 @@ import './release-notes.css';
 
 const version=packageInfo.version;
 const notes={
+  '3.2.0':[
+    'My account에서 프로필 사진, 이름, 학교, 학년을 수정할 수 있습니다.',
+    '현재 비밀번호를 확인해 로그인 아이디와 비밀번호를 변경할 수 있습니다.',
+    '사진을 등록하지 않은 계정에는 기본 프로필이 표시됩니다.'
+  ],
   '3.1.5':[
     '관리자 화면에서 동아리 운영을 열면 흰 화면이 나오던 문제를 고쳤습니다.',
     '관리 화면을 표시하는 중 오류가 발생해도 다른 메뉴를 열거나 다시 시도할 수 있습니다.'
@@ -107,4 +112,3 @@ export default function ReleaseNotes(){
   if(!open||!notes[version])return null;
   return <div className="release-notes-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)dismiss()}}><section className="release-notes" role="dialog" aria-modal="true" aria-labelledby="release-notes-title"><span className="release-notes-label">K.F.C. UPDATE</span><h2 id="release-notes-title">새로운 버전 {version}</h2><p>이번 업데이트에서 달라진 점을 알려드릴게요.</p><ul>{notes[version].map(item=><li key={item}>{item}</li>)}</ul><button type="button" className="button primary" onClick={dismiss} autoFocus>확인했어요</button></section></div>;
 }
-
