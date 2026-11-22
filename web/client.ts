@@ -36,6 +36,7 @@ function pickFile(): Promise<Result<Attachment | null>> {
 
 const api = makeApi();
 window.kfcChat = {
+  platform: 'web',
   login: api.login,
   chat: api.chat,
   async logout() { await api.logout(); },

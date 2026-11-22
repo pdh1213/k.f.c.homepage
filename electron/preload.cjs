@@ -11,7 +11,9 @@ contextBridge.exposeInMainWorld("kfcChat", {
   pickFile: () => ipcRenderer.invoke("kfc:pick"),
   monitorDownload: (key, id, review) => ipcRenderer.invoke("kfc:monitor-download", key, id, review),
   download: (scope, id) => ipcRenderer.invoke("kfc:download", scope, id),
-  notify: (scope, name) => ipcRenderer.invoke("kfc:notify", scope, name),
+  notify: (scope, name, after) => ipcRenderer.invoke("kfc:notify", scope, name, after),
+  startup: enabled => ipcRenderer.invoke("kfc:startup", enabled),
+  dismissPopups: () => ipcRenderer.invoke("kfc:dismiss-popups"),
   onOpenPeer: callback => {
     const listener = (_event, scope) => callback(scope);
     ipcRenderer.on("kfc:open-peer", listener);

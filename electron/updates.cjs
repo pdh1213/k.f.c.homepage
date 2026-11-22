@@ -21,6 +21,7 @@ function startAutoUpdates({app,dialog,getWindow}){
   });
   autoUpdater.on('update-downloaded',async()=>{
     busy=false;downloaded=true;manual=false;
+    if(!getWindow()?.isVisible())return;
     const result=await message({type:'info',title:'K.F.C. Chat 업데이트',message:'새 버전이 준비되었습니다.',detail:'작업을 마치고 다시 시작하면 적용됩니다. 나중에 설치를 선택하면 앱을 종료할 때 설치합니다.',buttons:['지금 다시 시작','나중에 설치'],defaultId:1,cancelId:1});
     if(result.response===0)autoUpdater.quitAndInstall(false,true);
   });

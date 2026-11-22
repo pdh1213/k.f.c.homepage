@@ -1,6 +1,6 @@
 {
   "name": "kfc-chat",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "용인시청소년수련관 로봇동아리 K.F.C. 채팅",
   "author": "K.F.C. 로봇동아리",
   "private": true,
@@ -47,7 +47,9 @@
     "files": [
       "electron/**/*.cjs",
       "desktop-dist/**/*",
-      "package.json"
+      "package.json",
+      "electron/popup/**/*",
+      "public/icon.png"
     ],
     "win": {
       "target": [
@@ -72,7 +74,8 @@
         "ko_KR",
         "en_US"
       ],
-      "language": "1042"
+      "language": "1042",
+      "include": "scripts/installer.nsh"
     },
     "npmRebuild": false,
     "publish": {

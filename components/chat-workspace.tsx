@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, Bell, BellOff, ChevronRight, CircleHelp, Eye, Flag, LogOut, MessageCircle, Moon, Pin, Plus, Search, Settings2, Sun, Users, UsersRound } from 'lucide-react';
+import { ArrowUpRight, Bell, BellOff, ChevronRight, ArrowDownToLine, CircleHelp, Eye, Flag, Laptop, LogOut, MessageCircle, Moon, Pin, Plus, Search, Settings2, Sun, Users, UsersRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -34,6 +34,7 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
   const [mode, setMode] = useState<Status>(() => savedSetting('kfc-chat-presence', 'online', ['online', 'dnd', 'offline']));
   const [notices, setNotices] = useState(() => savedSetting('kfc-chat-notices', 'yes', ['yes', 'no']) === 'yes');
   const [connection, setConnection] = useState('');
+  const [startup, setStartup] = useState<boolean>();
   const [focused, setFocused] = useState(document.hasFocus());
   const [histories, setHistories] = useState<Record<string, History>>({});
   const [avatars, setAvatars] = useState<Record<number, string>>({});
@@ -56,6 +57,8 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
   const canMonitor = self.moderator && Boolean(window.kfcChat?.monitorDownload);
   const monitoring = canMonitor && tab === 'monitor';
   const draft = drafts[activeKey] ?? blankDraft;
+
+  useEffect(() => { void window.kfcChat?.startup?.().then(setStartup).catch(() => {}); }, []);
 
   useEffect(() => { onLogoutRef.current = onLogout; }, [onLogout]);
   useEffect(() => () => { live.current = false; }, []);
@@ -92,14 +95,14 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
           if (person && !person.muted && !person.blocked && thread.unread > 0 &&
               thread.last_id > (old.get(thread.peer_id)?.last_id ?? 0) &&
               thread.unread > (old.get(thread.peer_id)?.unread ?? 0)) {
-            void window.kfcChat?.notify({ peer: person.id }, person.name);
+            void window.kfcChat?.notify({ peer: person.id }, person.name, old.get(thread.peer_id)?.last_id ?? 0);
           }
         }
         const previousRooms = new Map(last.rooms?.map(room => [room.id, room]));
         for (const room of result.rooms ?? []) {
           const previous = previousRooms.get(room.id);
           if (!room.muted && room.unread > (previous?.unread ?? 0) && room.last_id > (previous?.last_id ?? 0)) {
-            void window.kfcChat?.notify({ room: room.id }, room.title);
+            void window.kfcChat?.notify({ room: room.id }, room.title, previous?.last_id ?? 0);
           }
         }
       }
@@ -223,6 +226,7 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
 
   function updateMode(next: Status) {
     setMode(next);
+    if (next !== 'online') void window.kfcChat?.dismissPopups?.();
     save('kfc-chat-presence', next);
   }
 
@@ -241,7 +245,14 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
           <DropdownMenuTrigger asChild><button type="button" title="설정" aria-label="설정"><Settings2 size={20} /></button></DropdownMenuTrigger>
           <DropdownMenuContent side="right" align="end">
             <DropdownMenuItem onSelect={() => setTheme(theme === 'light' ? 'dark' : 'light')}>{theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}{theme === 'light' ? '나이트 모드' : '라이트 모드'}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => { setNotices(!notices); save('kfc-chat-notices', notices ? 'no' : 'yes'); }}>{notices ? <BellOff size={16} /> : <Bell size={16} />}{notices ? 'Windows 알림 끄기' : 'Windows 알림 켜기'}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => {
+              setNotices(!notices);
+              if (notices) void window.kfcChat?.dismissPopups?.();
+              save('kfc-chat-notices', notices ? 'no' : 'yes');
+            }}>{notices ? <BellOff size={16} /> : <Bell size={16} />}{notices ? '팝업 알림 끄기' : '팝업 알림 켜기'}</DropdownMenuItem>
+            {startup !== undefined && <DropdownMenuItem onSelect={() => {
+              void window.kfcChat?.startup?.(!startup).then(setStartup).catch(error => setConnection(errorText(error)));
+            }}><Laptop size={16} />{startup ? 'Windows 자동 시작 끄기' : 'Windows 자동 시작 켜기'}</DropdownMenuItem>}
             <DropdownMenuSeparator className="ui-menu-divider" />
             <DropdownMenuItem onSelect={() => void window.kfcChat?.update()}><CircleHelp size={16} />업데이트 확인</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => void window.kfcChat?.openClub()}><ArrowUpRight size={16} />동아리 홈페이지</DropdownMenuItem>
@@ -259,6 +270,7 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
           {tab === 'chats' && unread > 0 && <span>{unread > 99 ? '99+' : unread}</span>}
           {tab === 'rooms' && <Button className="new-room-button" variant="outline" size="icon" aria-label="채팅방 만들기" title="채팅방 만들기" onClick={() => setRoomDialog('create')}><Plus size={19} /></Button>}
         </div>
+        {window.kfcChat?.platform === 'web' && <a className="web-install directory-install" href="/download"><ArrowDownToLine size={15} /> Windows 앱 다운로드</a>}
         {tab !== 'reports' && <label className="directory-search"><Search size={17} /><input aria-label={tab === 'rooms' ? '채팅방 이름 검색' : '친구 이름 검색'} value={filter} onChange={event => setFilter(event.target.value)} placeholder={tab === 'rooms' ? '채팅방 이름으로 검색' : '이름으로 검색'} /></label>}
       </header>
       {tab === 'rooms' && <ScrollArea className="directory-list" aria-label="채팅방 목록">

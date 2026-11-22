@@ -57,12 +57,14 @@ test("a new app process restores encrypted sessions and saves rotated refresh to
   await assert.rejects(fs.stat(file), { code: "ENOENT" });
 });
 
-test("closing the window keeps the tray and notifications can reopen the conversation", async () => {
+test("closing the main window keeps the tray and the native reply popup", async () => {
   const handlers = new Map();
   const events = [];
   let openWindow;
   let trayItems;
-  let popup;
+  let otherWindow;
+  const sent = [];
+  const powerMonitor = new EventEmitter();
   class Window extends EventEmitter {
     constructor(options) {
       super();
@@ -70,13 +72,19 @@ test("closing the window keeps the tray and notifications can reopen the convers
       this.visible = true;
       this.focused = true;
       this.webContents = Object.assign(new EventEmitter(), {
-        send: (event, scope) => events.push({ event, room: scope.room }),
+        send: (event, payload) => events.push({ event, payload }),
         setWindowOpenHandler() {},
       });
-      openWindow = this;
+      if (!openWindow) openWindow = this;
+      else { otherWindow = this; this.visible = false; this.focused = false; }
     }
     setMenuBarVisibility() {}
-    loadFile(file) { this.file = file; }
+    async loadFile(file) { this.file = file; }
+    getBounds() { return { x: 0, y: 0, width: 800, height: 600 }; }
+    setPosition(x, y) { this.position = [x, y]; }
+    isVisible() { return this.visible; }
+    showInactive() { this.visible = true; }
+    destroy() { this.visible = false; this.emit("closed"); }
     hide() { this.visible = false; this.focused = false; }
     show() { this.visible = true; }
     focus() { this.focused = true; }
@@ -87,12 +95,6 @@ test("closing the window keeps the tray and notifications can reopen the convers
   class Tray extends EventEmitter {
     setToolTip() {}
     setContextMenu(items) { trayItems = items; }
-  }
-  class Notification extends EventEmitter {
-    static isSupported() { return true; }
-    constructor(options) { super(); this.options = options; popup = this; }
-    show() { this.shown = true; }
-    close() { this.emit("close"); }
   }
   const app = Object.assign(new EventEmitter(), {
     getPath: () => os.tmpdir(),
@@ -106,7 +108,8 @@ test("closing the window keeps the tray and notifications can reopen the convers
     },
   });
   const fake = {
-    app, BrowserWindow: Window, Tray, Notification,
+    app, BrowserWindow: Window, Tray, powerMonitor,
+    screen: { getDisplayMatching: () => ({ workArea: { x: -1024, y: 0, width: 1024, height: 680 } }) },
     nativeImage: { createFromPath: () => ({ isEmpty: () => false, resize: () => ({}) }) },
     ipcMain: { handle: (name, callback) => handlers.set(name, callback) },
     Menu: { buildFromTemplate: items => items, setApplicationMenu() {} },
@@ -116,10 +119,20 @@ test("closing the window keeps the tray and notifications can reopen the convers
   const source = await fs.readFile(path.join(root, "main.cjs"), "utf8");
   vm.runInNewContext(source, {
     __dirname: root,
-    fetch,
+    fetch, process,
     require: name => {
       if (name === "electron") return fake;
-      if (name === "./api.cjs") return { makeApi: () => ({}) };
+      if (name === "./api.cjs") return { makeApi: () => ({ chat: async input => {
+        if (input.action === "overview") return { ok: true, data: { self: { id: 1 } } };
+        if (input.action === "avatars") return { ok: true, data: { people: [] } };
+        if (input.action === "history") return { ok: true, data: { messages: [
+          { id: 11, sender_id: 2, sender_name: "테스트 발신자", content: "방금 도착한 메시지", created_at: "2026-11-22T11:00:00Z" },
+          { id: 12, sender_id: 1, sender_name: "나", content: "내 메시지" },
+        ] } };
+        sent.push(input);
+        return { ok: true, data: null };
+      } }) };
+      if (name === "./chat-popup.cjs") return require("../electron/chat-popup.cjs");
       if (name === "./updates.cjs") return { startAutoUpdates: () => ({}) };
       if (name === "./session-store.cjs") return { makeSessionStore: () => ({ flush: () => Promise.resolve() }) };
       return require(name);
@@ -132,12 +145,31 @@ test("closing the window keeps the tray and notifications can reopen the convers
   assert.equal(prevented, true);
   assert.equal(openWindow.visible, false);
 
-  handlers.get("kfc:notify")({ sender: openWindow.webContents, senderFrame: { url: pathToFileURL(openWindow.file).href } }, { room: 4 }, "테스트 방");
-  assert.equal(popup.shown, true);
-  assert.equal(popup.options.title, "테스트 방");
-  popup.emit("click");
+  const from = window => ({ sender: window.webContents, senderFrame: { url: pathToFileURL(window.file).href } });
+  await handlers.get("kfc:chat")(from(openWindow), { action: "overview" });
+  await handlers.get("kfc:notify")(from(openWindow), { room: 4 }, "테스트 방", 10);
+  const state = handlers.get("kfc:popup-read")(from(otherWindow));
+  assert.equal(otherWindow.visible, true);
+  assert.equal(otherWindow.isFocused(), false);
+  assert.equal(otherWindow.options.alwaysOnTop, true);
+  assert.equal(state.sender, "테스트 발신자");
+  assert.equal(state.text, "방금 도착한 메시지");
+  assert.equal(handlers.get("kfc:popup-reply")(from(openWindow), state.id, "unauthorized"), null);
+  assert.equal((await handlers.get("kfc:popup-reply")(from(otherWindow), state.id, " 확인했어요 ")).ok, true);
+  assert.equal(sent[0].action, "send");
+  assert.equal(sent[0].room, 4);
+  assert.equal(sent[0].content, "확인했어요");
+  assert.equal(otherWindow.visible, false);
+  await handlers.get("kfc:notify")(from(openWindow), { room: 5 }, "다음 방", 10);
+  const next = handlers.get("kfc:popup-read")(from(otherWindow));
+  handlers.get("kfc:popup-open")(from(otherWindow), next.id);
   assert.equal(openWindow.visible, true);
-  assert.deepEqual(events[0], { event: "kfc:open-peer", room: 4 });
+  assert.equal(events.find(item => item.event === "kfc:open-peer")?.payload.room, 5);
+  openWindow.hide();
+  powerMonitor.emit("lock-screen");
+  await handlers.get("kfc:notify")(from(openWindow), { room: 6 }, "Windows 잠금", 10);
+  assert.equal(otherWindow.visible, false);
+  powerMonitor.emit("unlock-screen");
 
   trayItems.at(-1).click();
   await new Promise(resolve => setImmediate(resolve));

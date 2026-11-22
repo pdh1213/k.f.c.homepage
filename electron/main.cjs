@@ -1,9 +1,10 @@
-const { app, BrowserWindow, ipcMain, Menu, Notification, Tray, nativeImage, safeStorage, clipboard, dialog, shell, session } = require("electron");
+const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, safeStorage, screen, powerMonitor, clipboard, dialog, shell, session } = require("electron");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { makeApi } = require("./api.cjs");
 const { makeSessionStore } = require("./session-store.cjs");
+const { makeChatPopup } = require("./chat-popup.cjs");
 const { startAutoUpdates } = require("./updates.cjs");
 
 const index = path.join(__dirname, "..", "desktop-dist", "index.html");
@@ -16,7 +17,16 @@ let window;
 let updates;
 let tray;
 let quitting = false;
-const notifications = new Map();
+let memberId;
+const startupArgs = ["--startup"];
+const startupItem = () => ({ name: "kr.kfcrobot.chat", path: process.execPath, args: startupArgs });
+const popup = makeChatPopup({
+  BrowserWindow, screen, api, mainWindow: () => window, viewerId: () => memberId,
+  openScope(scope) {
+    showWindow();
+    window?.webContents.send("kfc:open-peer", scope);
+  },
+});
 
 function showWindow() {
   if (!window || window.isDestroyed()) return;
@@ -36,11 +46,6 @@ function createTray() {
     { type: "separator" },
     { label: "앱 완전히 종료", click: () => app.quit() },
   ]));
-}
-
-function clearNotifications() {
-  for (const notification of notifications.values()) notification.close();
-  notifications.clear();
 }
 
 function validScope(scope) {
@@ -63,14 +68,28 @@ handle("login", (username, password) => {
   if (typeof username !== "string" || typeof password !== "string" || username.length > 80 || password.length > 128) {
     return { ok: false, status: 400, message: "아이디와 비밀번호를 확인해 주세요." };
   }
+  memberId = undefined;
+  popup.logout();
   return api.login(username, password);
 });
 handle("restore", () => api.restore());
 handle("logout", () => {
-  clearNotifications();
+  memberId = undefined;
+  popup.logout();
   return api.logout();
 });
-handle("chat", input => api.chat(input));
+handle("chat", async input => {
+  const result = await api.chat(input);
+  if (input?.action === "overview" && result.ok && Number.isSafeInteger(result.data?.self?.id)) memberId = result.data.self.id;
+  return result;
+});
+handle("startup", enabled => {
+  if (process.platform !== "win32" || !app.isPackaged) return false;
+  const options = startupItem();
+  if (typeof enabled === "boolean") app.setLoginItemSettings({ ...options, openAtLogin: enabled, enabled });
+  return app.getLoginItemSettings(options).executableWillLaunchAtLogin;
+});
+handle("dismiss-popups", () => popup.reset());
 handle("club", async () => { await shell.openExternal("https://kfc-robot-club.vercel.app/"); });
 handle("update", () => updates.check(true));
 handle("copy", value => {
@@ -123,28 +142,18 @@ async function saveAttachment(result) {
   } catch { return { ok: false, message: "첨부 파일을 저장할 수 없습니다." }; }
 }
 
-handle("notify", (scope, name) => {
+handle("notify", (scope, name, after) => {
   const target = validScope(scope);
-  if (!target || window?.isFocused() || !Notification.isSupported() || typeof name !== "string") return;
-  const key = target.room ? "room:" + target.room : "peer:" + target.peer;
-  notifications.get(key)?.close();
-  const notification = new Notification({ title: name.slice(0, 60), body: "K.F.C. Chat에 새 메시지가 도착했습니다.", icon });
-  notifications.set(key, notification);
-  const release = () => {
-    if (notifications.get(key) === notification) notifications.delete(key);
-  };
-  notification.once("close", release);
-  notification.once("failed", release);
-  notification.once("click", () => {
-    release();
-    if (!window || window.isDestroyed()) return;
-    showWindow();
-    window.webContents.send("kfc:open-peer", target);
-  });
-  notification.show();
+  if (target && typeof name === "string") return popup.offer(target, name.slice(0, 80), after);
 });
 
-function createWindow() {
+for (const [name, handler] of Object.entries({
+  read: popup.describe, open: popup.open, dismiss: popup.dismiss, next: popup.next, reply: popup.reply, hold: popup.hold,
+})) {
+  ipcMain.handle("kfc:popup-" + name, (event, ...args) => popup.accepts(event) ? handler(...args) : null);
+}
+
+function createWindow(startHidden) {
   window = new BrowserWindow({
     width: 1220, height: 820, minWidth: 760, minHeight: 540,
     backgroundColor: "#faf9f5", autoHideMenuBar: true, show: false,
@@ -154,7 +163,8 @@ function createWindow() {
     },
   });
   window.setMenuBarVisibility(false);
-  window.once("ready-to-show", () => window?.show());
+  if (!startHidden) window.once("ready-to-show", () => window?.show());
+  window.on("focus", () => popup.reset());
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-navigate", (event, url) => { if (url !== indexUrl) event.preventDefault(); });
   window.loadFile(index);
@@ -168,12 +178,14 @@ function createWindow() {
 
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
-  app.on("second-instance", showWindow);
+  app.on("second-instance", (_event, argv) => {
+    if (!argv.includes("--startup")) showWindow();
+  });
   app.on("before-quit", event => {
     if (quitting) return;
     event.preventDefault();
     quitting = true;
-    clearNotifications();
+    popup.close();
     void loginStore.flush().finally(() => app.quit());
   });
   app.whenReady().then(() => {
@@ -188,7 +200,10 @@ else {
       ] }, { label: "보기", submenu: [{ role: "togglefullscreen", label: "전체 화면" }] },
     ]));
     createTray();
-    createWindow();
+    powerMonitor.on("lock-screen", () => popup.onLock(true));
+    powerMonitor.on("unlock-screen", () => popup.onLock(false));
+    powerMonitor.on("suspend", () => popup.reset());
+    createWindow(Boolean(tray) && process.argv.includes("--startup"));
   });
   app.on("window-all-closed", () => app.quit());
 }

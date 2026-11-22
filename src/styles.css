@@ -284,3 +284,6 @@ a { color: inherit; }
 .monitor-message .deleted { color: var(--muted); font-style: italic; }
 .monitor-message blockquote { color: var(--muted); font-size: 11px; padding-left: 7px; border-left: 2px solid var(--accent); margin: 0 0 6px; overflow-wrap: anywhere; }
 @media (max-width: 930px) { .desktop-shell.is-monitor { grid-template-columns: 57px minmax(0,1fr); } .monitor-workspace { grid-template-columns: 235px minmax(0,1fr); } }
+
+.web-install{display:inline-flex;align-items:center;gap:7px;text-decoration:none;border:1px solid var(--line);background:var(--soft);color:var(--accent);padding:7px 9px;border-radius:8px;font-size:12px;font-weight:700;}
+.web-install:hover{background:var(--active)}.directory-install{margin:0 0 10px}.login-install{margin:0 0 12px}.web-install svg{flex:none}

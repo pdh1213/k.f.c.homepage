@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; base-uri 'none'; form-action 'none'">
+  <title>K.F.C. Chat 알림</title>
+  <link rel="stylesheet" href="./popup.css">
+  <script src="./popup.js" defer></script>
+</head>
+<body>
+  <section class="popup" aria-label="K.F.C. Chat 새 메시지">
+    <header class="bar">
+      <span class="mark" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.3 8.3 0 0 1-3.8-.9L3 21l1.9-5.7a8.3 8.3 0 0 1-.9-3.8A8.5 8.5 0 0 1 12.5 3H13a8.5 8.5 0 0 1 8 8z"/></svg></span>
+      <strong>K.F.C. Chat</strong>
+      <button id="next" type="button" title="다음 알림" aria-label="다음 알림" hidden></button>
+      <button id="close" type="button" class="close" title="알림 닫기" aria-label="알림 닫기">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+    </header>
+    <button id="open" type="button" class="message" aria-label="대화 열기">
+      <span class="avatar" id="avatar" aria-hidden="true"><span id="initial"></span><img id="photo" alt="" hidden></span>
+      <span class="meta">
+        <span class="line"><b id="sender"></b><time id="time"></time></span>
+        <small id="thread" hidden></small>
+        <span id="preview" class="preview"></span>
+      </span>
+      <svg class="open-arrow" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+    </button>
+    <p id="feedback" role="status" hidden></p>
+    <form id="reply">
+      <textarea id="draft" aria-label="빠른 답장" placeholder="메시지 입력" rows="1" maxlength="4000"></textarea>
+      <button id="send" type="submit" disabled>전송</button>
+    </form>
+  </section>
+</body>
+</html>

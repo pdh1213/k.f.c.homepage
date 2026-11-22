@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { ArrowUpRight, MessageCircle, MoveRight } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpRight, MessageCircle, MoveRight } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChatWorkspace } from '@/components/chat-workspace';
@@ -19,6 +19,7 @@ function App() {
   const [checking, setChecking] = useState(Boolean(window.kfcChat?.restore));
   const [retry, setRetry] = useState(0);
   const [restoreError, setRestoreError] = useState('');
+  const [autoRestore, setAutoRestore] = useState(true);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     try { localStorage.setItem('kfc-chat-theme', theme); } catch { /* theme is still applied */ }
@@ -26,9 +27,10 @@ function App() {
 
   useEffect(() => {
     const bridge = window.kfcChat;
-    if (!bridge?.restore) return;
+    if (!bridge?.restore || !autoRestore) return;
     const restore = bridge.restore;
     let cancelled = false;
+    let retryTimer: number | undefined;
     async function session() {
       setChecking(true);
       setRestoreError('');
@@ -42,12 +44,15 @@ function App() {
         if (failure instanceof ChatError && (failure.status === 401 || failure.status === 403)) {
           setExpired(failure.message);
           await bridge?.logout();
-        } else setRestoreError(errorText(failure));
+        } else {
+          setRestoreError(errorText(failure));
+          retryTimer = window.setTimeout(() => setRetry(value => value + 1), 15_000);
+        }
       } finally { if (!cancelled) setChecking(false); }
     }
     void session();
-    return () => { cancelled = true; };
-  }, [retry]);
+    return () => { cancelled = true; window.clearTimeout(retryTimer); };
+  }, [autoRestore, retry]);
 
   if (!window.kfcChat) return <main className="no-app"><h1>Windows 앱에서 이용해 주세요.</h1><a href="https://kfcchat.vercel.app/">설치 안내 ↗</a></main>;
   if (checking || restoreError) return <main className="session-boot">
@@ -57,6 +62,7 @@ function App() {
     {restoreError && <div>
       <Button onClick={() => setRetry(value => value + 1)}>다시 연결</Button>
       <Button variant="outline" onClick={() => {
+        setAutoRestore(false);
         void window.kfcChat?.logout().finally(() => setRestoreError(''));
       }}>다른 계정으로 로그인</Button>
     </div>}
@@ -107,6 +113,7 @@ function Login({ onLogin, expired }: { onLogin(value: Overview): void; expired: 
           <Button type="submit" disabled={busy}>{busy ? '확인 중…' : '로그인'}<MoveRight size={18} /></Button>
         </form>
         {(error || expired) && <p className="login-error" role="status">{error || expired}</p>}
+        {window.kfcChat?.platform === 'web' && <a className="web-install login-install" href="/download"><ArrowDownToLine size={16} /> Windows 앱 다운로드</a>}
         <p className="login-privacy">동아리 관리자는 대화와 첨부 파일을 열람할 수 있습니다. 관리자 열람은 기록됩니다.</p>
         <button className="club-text-link" type="button" onClick={() => void window.kfcChat?.openClub()}>동아리 홈페이지 열기 <ArrowUpRight size={14} /></button>
       </section>

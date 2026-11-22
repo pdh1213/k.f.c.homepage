@@ -32,6 +32,7 @@ type ApiResult<T> = { ok: true; data: T } | { ok: false; status?: number; messag
 type Command = { action: string; [key: string]: unknown };
 
 interface DesktopBridge {
+  platform?: 'web';
   restore?(): Promise<ApiResult<boolean>>;
   monitorDownload?(key: string, id: number, review: string): Promise<ApiResult<boolean>>;
   login(username: string, password: string): Promise<ApiResult<void>>;
@@ -42,7 +43,9 @@ interface DesktopBridge {
   copy(text: string): Promise<void>;
   pickFile(): Promise<ApiResult<Attachment | null>>;
   download(scope: Scope, id: number): Promise<ApiResult<boolean>>;
-  notify(scope: Scope, name: string): Promise<void>;
+  notify(scope: Scope, name: string, after?: number): Promise<void>;
+  startup?(enabled?: boolean): Promise<boolean>;
+  dismissPopups?(): Promise<void>;
   onOpenPeer(callback: (scope: Scope) => void): () => void;
 }
 declare global { interface Window { kfcChat?: DesktopBridge } }
