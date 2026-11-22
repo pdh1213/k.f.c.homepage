@@ -5,6 +5,7 @@ import LiquidNavbar,{NimbusIcons} from '../components/ui/liquid-glass-navbar.tsx
 import CalendarDatePicker from '../components/ui/calendar-date-picker.tsx';
 import ChatbotAdmin from './ChatbotAdmin.jsx';
 import ChatMonitor from './ChatMonitor.jsx';
+import {ChatLink} from './ChatLink.jsx';
 import RobotModelViewer from './RobotModelViewer.jsx';
 import LoadingIndicator from '../components/ui/loading-indicator.jsx';
 import './showroom.css';
@@ -13,7 +14,7 @@ import {AccountAvatar} from './AccountPanel.jsx';
 
 const tabs=[
   ['overview','개요'],['applications','승인'],['members','회원 관리'],['announcements','공지사항'],
-  ['events','전체 일정'],['polls','설문 관리'],['groups','그룹 관리'],['monitor','채팅 열람'],['showroom','쇼룸 관리'],['chatbot','챗봇 관리'],['settings','설정'],['account','My account']
+  ['events','전체 일정'],['polls','설문 관리'],['groups','그룹 관리'],['monitor','활동 열람'],['showroom','쇼룸 관리'],['chatbot','챗봇 관리'],['settings','설정'],['account','My account']
 ];
 const stateLabel={pending:'승인 대기',approved:'승인 완료',rejected:'반려'};
 const adminAreas=[
@@ -252,7 +253,7 @@ function GroupAdmin({data,refresh,notify}){
   const toggleActive=async g=>{try{await api('/api/admin/groups/'+g.id,{method:'PATCH',body:{active:!g.active}});notify(g.active?'그룹을 종료했습니다.':'그룹을 다시 열었습니다.');refresh();}catch(e){notify(e.message);}};
   const deleteGroup=async g=>{if(!window.confirm('그룹과 모든 대화, 일정, 할 일을 완전히 삭제할까요? 되돌릴 수 없습니다.'))return;try{await api('/api/admin/groups/'+g.id,{method:'DELETE'});notify('그룹과 관련 자료를 모두 삭제했습니다.');refresh();}catch(e){notify(e.message);}};
   const groups=data?.groups||[];
-  return <div className="admin-manager"><section className="surface"><div className="eyebrow">NEW TEAM</div><h1>그룹 채팅방 만들기</h1><form className="form-stack" onSubmit={create}><label>그룹 이름<input required maxLength="100" value={name} onChange={e=>setName(e.target.value)}/></label><label>소개<input value={description} onChange={e=>setDescription(e.target.value)}/></label><div className="assign-list"><b>승인 회원 배정</b>{members.length?members.map(m=><label className="check-row" key={m.id}><input type="checkbox" checked={Boolean(chosen[m.id])} onChange={e=>setChosen({...chosen,[m.id]:e.target.checked})}/><span>{m.name}</span><small>@{m.username} · {m.school}</small></label>):<small className="muted">승인된 회원이 없습니다.</small>}</div><button className="button primary">그룹 만들기</button></form></section>
+  return <div className="admin-manager"><section className="surface"><div className="eyebrow">NEW TEAM</div><h1>일정·할 일 그룹 만들기</h1><p className="muted">새 대화와 채팅방 관리는 K.F.C. Chat에서 이용하세요.</p><ChatLink className="button secondary"/><form className="form-stack" onSubmit={create}><label>그룹 이름<input required maxLength="100" value={name} onChange={e=>setName(e.target.value)}/></label><label>소개<input value={description} onChange={e=>setDescription(e.target.value)}/></label><div className="assign-list"><b>승인 회원 배정</b>{members.length?members.map(m=><label className="check-row" key={m.id}><input type="checkbox" checked={Boolean(chosen[m.id])} onChange={e=>setChosen({...chosen,[m.id]:e.target.checked})}/><span>{m.name}</span><small>@{m.username} · {m.school}</small></label>):<small className="muted">승인된 회원이 없습니다.</small>}</div><button className="button primary">그룹 만들기</button></form></section>
     <section className="surface"><div className="section-heading"><div><div className="eyebrow">TEAM ROOMS</div><h2>그룹 관리</h2></div><span className="count-pill">{groups.length}</span></div>{groups.length?groups.map(g=>{const assigned=editing[g.id]||Object.fromEntries(g.members.map(m=>[m.id,true]));return <article className="group-admin-card" key={g.id+'-'+revision}><div className="application-top"><div><h3>{g.name}</h3><span className={'status-pill '+(g.active?'approved':'rejected')}>{g.active?'운영 중':'종료'}</span></div><div className="button-row"><button className={g.active?'button danger-outline':'button secondary'} onClick={()=>toggleActive(g)}>{g.active?'그룹 종료':'다시 열기'}</button><button className="button danger-outline" onClick={()=>deleteGroup(g)}>완전 삭제</button></div></div><p className="muted">{g.description||'소개가 없습니다.'}</p><details><summary>구성원 배정 · 현재 {g.members.length}명</summary><div className="assign-list compact">{members.map(m=><label className="check-row" key={m.id}><input type="checkbox" checked={Boolean(assigned[m.id])} onChange={e=>setGroupMember(g,m.id,e.target.checked)}/><span>{m.name}</span><small>@{m.username}</small></label>)}</div><button className="button primary" onClick={async()=>{await saveMembers({...g,editing:assigned});setEditing(current=>{const next={...current};delete next[g.id];return next;});}}>구성원 저장</button></details></article>;}):<Empty title="등록된 그룹이 없습니다."/>}</section></div>;
 }
 function SettingsAdmin({data,notify,refresh,openAccount}){

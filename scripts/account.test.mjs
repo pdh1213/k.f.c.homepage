@@ -68,5 +68,8 @@ test('계정 설정은 본인 프로필만 갱신하고 로그인 정보 변경 
   assert.equal((await request('auth/change-password','POST',{oldPassword:password,newPassword:'new-password'}))[0],200);
   assert.equal((await request('auth/login','POST',{username:'changed',password:'old-password'},''))[0],401);
   assert.equal((await request('auth/login','POST',{username:'changed',password:'new-password'},''))[0],200);
+  assert.equal((await request('groups/1/messages','POST',{content:'test'}))[1].code,'CHAT_MOVED');
+  assert.equal((await request('direct-chats/1/messages/2/reactions','POST',{emoji:'thumbs up'}))[0],410);
+  assert.equal((await request('direct-chats','POST',{memberId:2},''))[0],401);
   assert.equal(temporarySignedOut,3);
 });

@@ -119,6 +119,10 @@ Deno.serve(async req=>{
    const rows=await all(db.from("users").select("id,avatar_data").in("id",[...new Set(values.map(Number))]).eq("status","approved").not("avatar_data","is",null));
    return out({avatars:Object.fromEntries(rows.map((row:any)=>[row.id,row.avatar_data]))});
  }
+ if(["POST","PATCH","PUT","DELETE"].includes(method)&&(/^(?:direct-chats(?:\/|$)|groups\/\d+\/messages(?:\/|$))/.test(pth))){
+   member();
+   return bad("새 메시지와 채팅방은 https://kfcchat.vercel.app/ 에서 이용해 주세요.",410,"CHAT_MOVED");
+ }
  if(pth==="demo-status"&&method==="GET"){const settings=await one(db.from("site_settings").select("demo_enabled").eq("id",true));return out({demoEnabled:!!settings?.demo_enabled})}
  if(pth==="download-status"&&method==="GET"){const installerUrl=Deno.env.get("KFC_WINDOWS_INSTALLER_URL")||"https://github.com/pdh1213/k.f.c.homepage/releases/download/windows-latest/KFC-Club-Setup.exe",portableUrl=Deno.env.get("KFC_WINDOWS_DOWNLOAD_URL")||"";return out({available:!!(installerUrl||portableUrl),installerAvailable:!!installerUrl,portableAvailable:!!portableUrl,installerUrl,portableUrl})}
 

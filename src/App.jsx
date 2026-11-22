@@ -2,7 +2,7 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {api,apiUrl,supabase,fmtDate,localInput,logoutCurrentSession,hasSupabaseConfig} from './api.js';
 import {AdminShell,AccessDenied,Toast} from './Admin.jsx';
 import '../components/ui/auth-portal.css';
-import GroupChat from '../components/ui/group-chat.tsx';
+import {ChatLink,openClubChat} from './ChatLink.jsx';
 import CalendarDatePicker from '../components/ui/calendar-date-picker.tsx';
 import {isDesktop} from './desktop.js';
 import LoginWelcome from '../components/ui/login-welcome.jsx';
@@ -21,13 +21,14 @@ const menu=[
   {path:'/announcements',label:'공지사항',icon:'▤'},
   {path:'/calendar',label:'동아리 일정',icon:'▦'},
   {path:'/surveys',label:'설문',icon:'☑'},
-  {path:'/groups',label:'채팅',icon:'◉'},
+  {path:'/chat',label:'K.F.C. Chat',icon:'◉'},
+  {path:'/groups',label:'내 그룹',icon:'◇'},
   {path:'/my-projects',label:'My Projects',icon:'✳'},
   {path:'/freeform',label:'Freeform',icon:'◇'},
   {path:'/account',label:'My account',icon:'○'},
 ];
 const officerMenu={path:'/officers',label:'임원 공간',icon:'✦'};
-const liquidMemberLabels={'/dashboard':'Home','/announcements':'Notices','/calendar':'Calendar','/surveys':'Surveys','/groups':'Chats','/my-projects':'My Projects','/freeform':'Freeform','/account':'My account','/officers':'Officers'};
+const liquidMemberLabels={'/dashboard':'Home','/announcements':'Notices','/calendar':'Calendar','/surveys':'Surveys','/chat':'Chats','/groups':'Teams','/my-projects':'My Projects','/freeform':'Freeform','/account':'My account','/officers':'Officers'};
 const statusText={pending:'승인 대기',approved:'승인 완료',rejected:'반려'};
 
 export default function App(){
@@ -104,7 +105,7 @@ function AuthScreen({go,onLogin,demoEnabled,onDemo}){
         </form>:<form onSubmit={submitRegister} className="form-stack signup-form"><div className="form-grid"><label>이름<input required maxLength="40" value={form.name} onChange={e=>change('name',e.target.value)} placeholder="홍길동"/></label>
           <label>나이<input required type="number" min="8" max="99" value={form.age} onChange={e=>change('age',e.target.value)} placeholder="15"/></label><label>학교<input required maxLength="80" value={form.school} onChange={e=>change('school',e.target.value)} placeholder="학교 이름"/></label><label>학년<input required maxLength="30" value={form.grade} onChange={e=>change('grade',e.target.value)} placeholder="예: 중학교 2학년"/></label></div>
           <label>전화번호<input required type="tel" value={form.phone} onChange={e=>change('phone',e.target.value)} placeholder="010-1234-5678"/></label><label>로그인 아이디<input required minLength="4" maxLength="20" autoComplete="username" value={form.username} onChange={e=>setForm(v=>({...v,username:e.target.value}))} placeholder="영문, 숫자, 밑줄 4~20자"/></label>
-          <label>비밀번호<input required type="password" minLength="10" maxLength="128" autoComplete="new-password" value={form.password} onChange={e=>change('password',e.target.value)} placeholder="10자 이상"/></label><div className="site-use-notice"><b>사이트 이용 안내</b><p>가입 정보는 회원 승인과 동아리 운영에 사용됩니다. 회원 채팅(1:1 및 그룹), Freeform 보드, 프로젝트 활동은 운영과 안전 관리를 위해 관리자 계정에서 열람할 수 있습니다. 다른 일반 회원에게 전화번호와 나이는 공개되지 않습니다.</p><label><input required type="checkbox" checked={form.siteUseConsent} onChange={e=>change('siteUseConsent',e.target.checked)}/> 위 안내를 읽고 동의합니다.</label></div><button className="button primary full" disabled={busy}>{busy?<LoadingIndicator className="kfc-loading-inline" text="접수 중…"/>:'가입 신청하기'} {!busy&&<span>→</span>}</button>
+          <label>비밀번호<input required type="password" minLength="10" maxLength="128" autoComplete="new-password" value={form.password} onChange={e=>change('password',e.target.value)} placeholder="10자 이상"/></label><div className="site-use-notice"><b>사이트 이용 안내</b><p>가입 정보는 회원 승인과 동아리 운영에 사용됩니다. K.F.C. Chat에서 메시지를 신고하면 신고 내용과 선택한 메시지가 관리자에게 전달됩니다. 관리자 계정은 홈페이지의 Freeform 보드와 프로젝트를 열람할 수 있습니다. 다른 일반 회원에게 전화번호와 나이는 공개되지 않습니다.</p><label><input required type="checkbox" checked={form.siteUseConsent} onChange={e=>change('siteUseConsent',e.target.checked)}/> 위 안내를 읽고 동의합니다.</label></div><button className="button primary full" disabled={busy}>{busy?<LoadingIndicator className="kfc-loading-inline" text="접수 중…"/>:'가입 신청하기'} {!busy&&<span>→</span>}</button>
         </form>}
         {mode==='login'&&demoEnabled&&<button type="button" className="button secondary full demo-entry" disabled={busy} onClick={enterDemo}>데모 모드 접속하기 <span>↗</span></button>}
         <div className="auth-footnote">가입 신청은 관리자의 승인 후 로그인할 수 있습니다.</div>{!isDesktop&&<a className="auth-windows-link" href="/download" onClick={e=>{e.preventDefault();go('/download');}}>Windows 앱 안내 ↗</a>}
@@ -118,7 +119,7 @@ export function RegistrationSuccess({onClose}){
 function SiteUseConsentScreen({done,logout}){
   const [accepted,setAccepted]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const submit=async e=>{e.preventDefault();setBusy(true);setError('');try{await api('/api/auth/site-use-consent',{method:'POST',body:{accept:accepted}});await done()}catch(err){setError(err.message)}finally{setBusy(false)}};
-  return <div className="center-page"><section className="surface access-card site-use-consent-card"><div className="brand-image large"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/></div><h1>사이트 이용 안내</h1><p>새 협업 기능과 채팅 운영 방식에 관한 안내입니다. 계속 이용하기 전에 확인해 주세요.</p><div className="site-use-notice"><p>회원 채팅(1:1 및 그룹), Freeform 아이디어 보드, 프로젝트 활동은 운영과 안전 관리를 위해 관리자 계정에서 열람할 수 있습니다. 이름·학교·전화번호·나이 등 가입 정보는 회원 승인과 동아리 운영에 사용됩니다. 일반 회원에게 다른 회원의 전화번호와 나이는 공개되지 않습니다.</p></div>{error&&<div className="error-box">{error}</div>}<form onSubmit={submit} className="form-stack"><label className="site-use-check"><input required type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/> 위 내용을 읽고 동의합니다.</label><button className="button primary full" disabled={busy}>{busy?'저장 중…':'동의하고 계속하기'}</button></form><button className="text-button" onClick={logout}>동의하지 않고 로그아웃</button></section></div>;
+  return <div className="center-page"><section className="surface access-card site-use-consent-card"><div className="brand-image large"><img src="/kfc-logo.png" alt="K.F.C. 동아리 로고"/></div><h1>사이트 이용 안내</h1><p>새 협업 기능과 채팅 운영 방식에 관한 안내입니다. 계속 이용하기 전에 확인해 주세요.</p><div className="site-use-notice"><p>K.F.C. Chat에서 메시지를 신고하면 신고 내용과 선택한 메시지가 관리자에게 전달됩니다. 관리자 계정은 홈페이지의 Freeform 보드와 프로젝트를 열람할 수 있습니다. 이름·학교·전화번호·나이 등 가입 정보는 회원 승인과 동아리 운영에 사용됩니다. 일반 회원에게 다른 회원의 전화번호와 나이는 공개되지 않습니다.</p></div>{error&&<div className="error-box">{error}</div>}<form onSubmit={submit} className="form-stack"><label className="site-use-check"><input required type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/> 위 내용을 읽고 동의합니다.</label><button className="button primary full" disabled={busy}>{busy?'저장 중…':'동의하고 계속하기'}</button></form><button className="text-button" onClick={logout}>동의하지 않고 로그아웃</button></section></div>;
 }
 function PasswordScreen({user,done,logout,notify}){
   const [oldPassword,setOld]=useState(''),[newPassword,setNew]=useState(''),[confirm,setConfirm]=useState(''),[error,setError]=useState('');
@@ -148,7 +149,7 @@ function DownloadPage({go,notify}){
   return <div className="download-page">
     <header className="public-header"><button className="brand-link" onClick={()=>go('/')}><span className="brand-image small"><img src="/kfc-logo.png" alt="K.F.C."/></span>K.F.C.</button><span className="eyebrow">WINDOWS APP</span></header>
     <main className="download-content"><div className="download-icon">▣</div><div className="eyebrow">K.F.C. DESKTOP</div><h1>Windows에서도<br/>함께 만들어요.</h1>
-      <p className="muted">홈페이지와 같은 계정, 공지사항, 일정, 그룹 채팅을 사용하는 Windows 앱입니다.</p>
+      <p className="muted">홈페이지와 같은 계정으로 공지사항과 일정을 이용할 수 있습니다.</p>
       {status===null?<div className="download-state"><LoadingIndicator text="Windows 앱 파일 확인 중…"/></div>:status.installerAvailable?
         <a className="button primary download-button" href={status.installerUrl}>Windows 설치 파일 다운로드 <span>↓</span></a>:status.portableAvailable?
         <><a className="button primary download-button" href={status.portableUrl}>Windows 앱 다운로드 (.zip) <span>↓</span></a><p className="small muted">압축을 푼 뒤 폴더의 K.F.C. 로봇동아리.exe를 실행해 주세요.</p></>:
@@ -162,47 +163,45 @@ function DownloadPage({go,notify}){
 
 function MemberShell({user,onAccountUpdate,path,go,logout,notify,toast,blocked,popupSession,onPopupsDone}){
   const section=menu.find(item=>item.path===path)?.path||(path==='/officers'&&user.isOfficer?'/officers':'/dashboard');
-  const [announcements,setAnnouncements]=useState([]),[events,setEvents]=useState([]),[polls,setPolls]=useState([]),[groups,setGroups]=useState([]),[directChats,setDirectChats]=useState([]),[directory,setDirectory]=useState([]);
+  const [announcements,setAnnouncements]=useState([]),[events,setEvents]=useState([]),[polls,setPolls]=useState([]),[groups,setGroups]=useState([]);
   const [loading,setLoading]=useState(true),[selectedGroup,setSelectedGroup]=useState(null),[boardToOpen,setBoardToOpen]=useState(null);
   const [popupItems,setPopupItems]=useState([]),[popupIndex,setPopupIndex]=useState(0),[linkedTarget,setLinkedTarget]=useState(null);
   useEffect(()=>{if(!popupSession)return;let active=true;api('/api/notice-popups').then(r=>{if(active){setPopupItems(r.popups||[]);setPopupIndex(0);if(!r.popups?.length)onPopupsDone()}}).catch(e=>{if(active){notify(e.message);onPopupsDone()}});return()=>{active=false}},[popupSession]);
   const load=async({quiet=false}={})=>{
     if(!quiet)setLoading(true);
-    const results=await Promise.allSettled([api('/api/announcements'),api('/api/events'),api('/api/polls'),api('/api/groups'),api('/api/direct-chats'),api('/api/directory')]);
-    const [a,e,p,g,d,people]=results;
+    const results=await Promise.allSettled([api('/api/announcements'),api('/api/events'),api('/api/polls'),api('/api/groups')]);
+    const [a,e,p,g]=results;
     if(a.status==='fulfilled')setAnnouncements(a.value.announcements||[]);
     if(e.status==='fulfilled')setEvents(e.value.events||[]);
     if(p.status==='fulfilled')setPolls(p.value.polls||[]);
-    if(g.status==='fulfilled')setGroups(g.value.groups||[]);if(d.status==='fulfilled')setDirectChats(d.value.chats||[]);if(people.status==='fulfilled')setDirectory(people.value.members||[]);
+    if(g.status==='fulfilled')setGroups(g.value.groups||[]);
     const failed=results.find(x=>x.status==='rejected');if(failed&&!quiet)notify(failed.reason?.message||'일부 정보를 불러오지 못했습니다.');
     if(!quiet)setLoading(false);
   };
   useEffect(()=>{load();const refresh=()=>{if(document.visibilityState==='visible')load({quiet:true});};const timer=window.setInterval(refresh,12000);window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);return()=>{window.clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};},[]);
   const navItems=user.isOfficer?[...menu,officerMenu]:menu;
   useEffect(()=>{if(path==='/officers'&&!user.isOfficer)go('/dashboard',{replace:true});},[path,user.isOfficer]);
-  const [selectedDirect,setSelectedDirect]=useState(null);
   useEffect(()=>{
-    const reset=()=>{setSelectedGroup(null);setSelectedDirect(null);setLinkedTarget(null);setBoardToOpen(null)};
+    const reset=()=>{setSelectedGroup(null);setLinkedTarget(null);setBoardToOpen(null)};
     window.addEventListener('popstate',reset);
     return()=>window.removeEventListener('popstate',reset);
   },[]);
   const navigate=(next,target=null)=>{
+    if(next==='/chat'){openClubChat();return;}
     setLinkedTarget(target);
     setSelectedGroup(null);
-    setSelectedDirect(null);
     if(next!=='/freeform')setBoardToOpen(null);
     go(next);
   };
   const dismissPopup=()=>{if(popupIndex+1>=popupItems.length){setPopupItems([]);onPopupsDone()}else setPopupIndex(i=>i+1)};
   const popupAction=item=>{if(item.linkType==='web'){try{const url=new URL(item.linkUrl);if(url.protocol==='https:')window.open(url.href,'_blank','noopener,noreferrer')}catch{notify('연결 주소를 열 수 없습니다.')}}else{const routes={poll:'/surveys',announcement:'/announcements',event:'/calendar'};const route=routes[item.linkType];if(route)navigate(route,{type:item.linkType,id:item.targetId})}dismissPopup()};
-  const groupOpen=(g)=>{setSelectedGroup(g);setSelectedDirect(null);go('/groups');};
-  const directOpen=chat=>{setSelectedDirect(chat);setSelectedGroup(null);go('/groups');};
+  const groupOpen=g=>{setSelectedGroup(g);go('/groups');};
   const openProjectGroup=async id=>{
     try{
       let group=groups.find(item=>item.id===id);
       if(!group){const result=await api('/api/groups');group=(result.groups||[]).find(item=>item.id===id)}
       if(group)groupOpen(group);
-      else notify('연결된 채팅방을 찾을 수 없습니다.');
+      else notify('연결된 그룹을 찾을 수 없습니다.');
     }catch(error){notify(error.message)}
   };
   const openProjectBoard=id=>{setBoardToOpen(id);navigate('/freeform')};
@@ -210,15 +209,13 @@ function MemberShell({user,onAccountUpdate,path,go,logout,notify,toast,blocked,p
     <main className="main-area"><header className="topbar"><div><span className="crumb">K.F.C. / {navItems.find(m=>m.path===section)?.label||'홈'}</span><strong>회원 공간</strong></div><div className="topbar-right"><AccountAvatar src={user.avatarData} name={user.name}/>{!isDesktop&&<button className="text-button member-download" onClick={()=>go('/download')}>Windows 앱</button>}<button className="topbar-logout" onClick={logout}>로그아웃</button></div></header>
       <div className="desktop-liquid-nav"><LiquidNavbar items={navItems.map((m,i)=>({label:liquidMemberLabels[m.path],icon:m.path==='/account'?NimbusIcons.user:[NimbusIcons.home,NimbusIcons.globe,NimbusIcons.drop,NimbusIcons.plane,NimbusIcons.user][i%5],fx:['glow','spin','drop','plane','wave'][i%5]}))} active={Math.max(0,navItems.findIndex(m=>m.path===section))} onChange={index=>navigate(navItems[index].path)} tone="light" sound={false}/></div>
       <div className="page-body">
-        {section==='/groups'&&<div className="site-use-notice chat-monitor-notice" role="note">운영과 안전 관리를 위해 관리자는 1:1 및 그룹 대화 내용을 열람할 수 있습니다.</div>}
-        {section==='/account'?<MyAccount user={user} onUpdate={onAccountUpdate}/>:loading?<div className="loading-card"><LoadingIndicator text="회원 정보를 불러오고 있어요…"/></div>:section==='/officers'?<OfficerHub notify={notify}/> :selectedDirect?
-          <DirectRoom key={selectedDirect.id} chat={selectedDirect} user={user} onBack={()=>{setSelectedDirect(null);load({quiet:true})}} notify={notify}/> :selectedGroup?
+        {section==='/chat'?<section className="surface"><h1>K.F.C. Chat</h1><p className="muted">동아리 계정으로 1:1 대화와 그룹 채팅을 이용하세요.</p><ChatLink/></section>:section==='/account'?<MyAccount user={user} onUpdate={onAccountUpdate}/>:loading?<div className="loading-card"><LoadingIndicator text="회원 정보를 불러오고 있어요…"/></div>:section==='/officers'?<OfficerHub notify={notify}/> :selectedGroup?
           <GroupRoom key={selectedGroup.id} group={selectedGroup} user={user} onBack={()=>setSelectedGroup(null)} notify={notify}/>:
           section==='/dashboard'?<Dashboard user={user} announcements={announcements} events={events} groups={groups} open={navigate} groupOpen={groupOpen}/>:
           section==='/announcements'?<Announcements key={linkedTarget?.type==='announcement'?linkedTarget.id:'list'} announcements={announcements} targetId={linkedTarget?.type==='announcement'?linkedTarget.id:null}/>:
           section==='/calendar'?<Calendar events={events} targetId={linkedTarget?.type==='event'?linkedTarget.id:null}/>:
           section==='/surveys'?<Surveys polls={polls} refresh={load} notify={notify} targetId={linkedTarget?.type==='poll'?linkedTarget.id:null}/>:
-          section==='/my-projects'?<MyProjects user={user} notify={notify} openBoard={openProjectBoard} openGroup={openProjectGroup} refreshGroups={()=>load({quiet:true})}/>:section==='/freeform'?<Freeform notify={notify} initialBoardId={boardToOpen} user={user}/>:<Groups groups={groups} directChats={directChats} directory={directory} open={groupOpen} directOpen={directOpen} notify={notify}/>}
+          section==='/my-projects'?<MyProjects user={user} notify={notify} openBoard={openProjectBoard} openGroup={openProjectGroup} refreshGroups={()=>load({quiet:true})}/>:section==='/freeform'?<Freeform notify={notify} initialBoardId={boardToOpen} user={user}/>:<Groups groups={groups} open={groupOpen}/>}
       </div>
     </main>
     {toast&&<Toast message={toast}/>}
@@ -313,123 +310,17 @@ function Surveys({polls,refresh,notify,targetId}){
   </section>;
 }
 
-function Groups({groups,directChats,directory,open,directOpen,notify}){
- const [selected,setSelected]=useState(''),[busy,setBusy]=useState(false),[localChats,setLocalChats]=useState(directChats);useEffect(()=>setLocalChats(directChats),[directChats]);
- const avatars=useAccountAvatars(localChats.map(chat=>chat.memberId));
- const start=async()=>{if(!selected)return;setBusy(true);try{const r=await api('/api/direct-chats',{method:'POST',body:{memberId:Number(selected)}});setLocalChats(old=>old.some(c=>c.id===r.chat.id)?old:[r.chat,...old]);directOpen(r.chat)}catch(e){notify(e.message)}finally{setBusy(false)}};
- return <div className="chat-directory"><section className="surface"><div className="section-heading"><div><h1>채팅</h1></div></div><h2 className="conversation-heading">그룹 채팅 <span className="count-pill">{groups.length}개</span></h2>
- {groups.length?<div className="group-cards">{groups.map(g=><button className="group-card large" key={g.id} onClick={()=>open(g)}><span className="group-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></span><span><b>{g.name}</b><small>{g.description||'함께 이야기하고 계획을 세워 보세요.'}</small><small>{g.members.map(m=>m.name).join(' · ')||'팀원'} · {g.members.length}명</small></span><span className="row-arrow">→</span></button>)}</div>:<Empty title="아직 배정된 그룹이 없습니다." detail="관리자가 그룹에 초대하면 이곳에 표시됩니다."/>}<div className="conversation-divider"/><h2 className="conversation-heading">1:1 대화</h2>
- {localChats.length?<div className="group-cards">{localChats.map(c=><button className="group-card" key={c.id} onClick={()=>directOpen(c)}><AccountAvatar className="account-avatar-room" src={avatars[c.memberId]} name={c.name}/><span><b>{c.name}</b><small>{c.lastMessage||'대화를 시작해 보세요.'}</small></span><span className="row-arrow">→</span></button>)}</div>:<Empty title="아직 1:1 대화가 없습니다."/>}
- <div className="direct-start"><label>대화할 동아리원<select value={selected} onChange={e=>setSelected(e.target.value)}><option value="">회원 선택</option>{directory.map(m=><option value={m.id} key={m.id}>{m.name}{localChats.some(c=>c.memberId===m.id)?' · 기존 대화':''}</option>)}</select></label><button className="button primary" disabled={!selected||busy} onClick={start}>{busy?'여는 중…':localChats.some(c=>c.memberId===Number(selected))?'대화 열기':'1:1 대화 시작'}</button></div></section></div>;
+function Groups({groups,open}){
+  return <section className="surface">
+    <div className="section-heading"><div><h1>내 그룹</h1><p className="muted">팀 일정과 공동 할 일을 확인하세요.</p></div><ChatLink/></div>
+    {groups.length?<div className="group-cards">{groups.map(group=><button className="group-card large" key={group.id} onClick={()=>open(group)}><span className="group-avatar"><img src="/kfc-logo.png" alt=""/></span><span><b>{group.name}</b><small>{group.description||'일정과 할 일을 함께 관리하세요.'}</small><small>{group.members.length}명</small></span><span className="row-arrow">→</span></button>)}</div>:<Empty title="아직 배정된 그룹이 없습니다."/>}
+  </section>;
 }
 
-function DirectRoom({chat,user,onBack,notify}){
- const members=[{id:String(user.id),name:user.name},{id:String(chat.memberId),name:chat.name}];
- const avatars=useAccountAvatars([chat.memberId]);
- return <div className="room-layout"><div className="room-heading"><button className="text-button" onClick={onBack}>← 대화 목록</button><div className="room-title"><AccountAvatar className="account-avatar-room" src={avatars[chat.memberId]} name={chat.name}/><div><h1>{chat.name}</h1><small>1:1 비공개 대화</small></div></div></div><ChatPanel scope="direct" scopeId={chat.id} channel={chat.name} members={members} user={user} notify={notify}/></div>;
-}
-const retiringChatChannels=new Map();
-
-function ChatPanel({scope,scopeId,channel,members,user,notify,onRoomSync}){
- const [messages,setMessages]=useState([]),[connected,setConnected]=useState(false),[content,setContent]=useState(''),[files,setFiles]=useState([]),[reply,setReply]=useState(null),[busy,setBusy]=useState(false),[typingMembers,setTypingMembers]=useState([]);const endRef=useRef(null),fileRef=useRef(null),typingChannelRef=useRef(null),typingConnectedRef=useRef(false),typingActiveRef=useRef(false),typingLastRef=useRef(0),typingIdleRef=useRef(0),remoteTypingRef=useRef(new Map()),membersRef=useRef(members),base=scope==='group'?'/api/groups/'+scopeId:'/api/direct-chats/'+scopeId;
- const avatars=useAccountAvatars([...members.map(member=>member.id),...messages.map(message=>message.userId)].filter(id=>String(id)!==String(user.id)));
- membersRef.current=members;
- const syncRoomRef=useRef(onRoomSync);
- syncRoomRef.current=onRoomSync;
- const syncRevision=useRef(0);
- const sync=async()=>{
-   const revision=++syncRevision.current;
-   try{
-     const result=await api(base+'/messages');
-     if(revision===syncRevision.current)setMessages(result.messages||[]);
-   }catch(error){if(revision===syncRevision.current)notify(error.message)}
- };
- const syncRoom=()=>{sync();syncRoomRef.current?.()};
- const publishTyping=(active,ch=typingChannelRef.current)=>{if(!ch||!typingConnectedRef.current)return;ch.send({type:'broadcast',event:'typing',payload:{userId:user.id,active}}).catch(()=>{});};
- const stopTyping=()=>{window.clearTimeout(typingIdleRef.current);if(typingActiveRef.current){typingActiveRef.current=false;publishTyping(false)}};
- const onMessageChange=e=>{const value=e.target.value;setContent(value);if(!value.trim()){stopTyping();return}const now=Date.now();if(!typingActiveRef.current||now-typingLastRef.current>1800){typingActiveRef.current=true;typingLastRef.current=now;publishTyping(true)}window.clearTimeout(typingIdleRef.current);typingIdleRef.current=window.setTimeout(stopTyping,2800)};
- useEffect(()=>{
-   let live=true;
-   let channelSubscription;
-   const topic=(scope==='group'?'kfc-group:':'kfc-direct:')+scopeId;
-   const remoteTyping=remoteTypingRef.current;
-   remoteTyping.clear();
-   setTypingMembers([]);
-
-   async function join(){
-     await retiringChatChannels.get(topic);
-     if(!live)return;
-     channelSubscription=supabase.channel(topic,{config:{private:true}});
-     typingChannelRef.current=channelSubscription;
-     channelSubscription
-       .on('broadcast',{event:'sync'},()=>{if(live)syncRoom()})
-       .on('broadcast',{event:'typing'},({payload})=>{
-         if(!live||typeof payload?.active!=='boolean')return;
-         const member=membersRef.current.find(item=>String(item.id)===String(payload.userId));
-         if(!member||String(member.id)===String(user.id))return;
-         if(payload.active)remoteTyping.set(String(member.id),{member,expires:Date.now()+5000});
-         else remoteTyping.delete(String(member.id));
-         setTypingMembers([...remoteTyping.values()].map(item=>item.member));
-       })
-       .subscribe(status=>{
-         if(!live)return;
-         const ready=status==='SUBSCRIBED';
-         typingConnectedRef.current=ready;
-         setConnected(ready);
-         if(ready){
-           syncRoom();
-           if(typingActiveRef.current)publishTyping(true,channelSubscription);
-         }else{
-           remoteTyping.clear();
-           setTypingMembers([]);
-         }
-       });
-   }
-
-   join().catch(()=>{if(live)setConnected(false)});
-   syncRoom();
-   const refresh=()=>{if(live&&document.visibilityState==='visible')syncRoom()};
-   const refreshTimer=window.setInterval(refresh,12000);
-   const expiryTimer=window.setInterval(()=>{
-     let changed=false;
-     for(const [id,item] of remoteTyping){
-       if(item.expires<=Date.now()){remoteTyping.delete(id);changed=true}
-     }
-     if(changed&&live)setTypingMembers([...remoteTyping.values()].map(item=>item.member));
-   },1000);
-   window.addEventListener('online',refresh);
-   window.addEventListener('focus',refresh);
-
-   return()=>{
-     if(typingActiveRef.current)publishTyping(false,channelSubscription);
-     live=false;
-     syncRevision.current++;
-     typingConnectedRef.current=false;
-     typingActiveRef.current=false;
-     window.clearTimeout(typingIdleRef.current);
-     clearInterval(refreshTimer);
-     clearInterval(expiryTimer);
-     window.removeEventListener('online',refresh);
-     window.removeEventListener('focus',refresh);
-     remoteTyping.clear();
-     typingChannelRef.current=null;
-     if(channelSubscription){
-       const removal=supabase.removeChannel(channelSubscription).catch(()=>{}).finally(()=>{
-         if(retiringChatChannels.get(topic)===removal)retiringChatChannels.delete(topic);
-       });
-       retiringChatChannels.set(topic,removal);
-     }
-   };
- },[scope,scopeId,user.id]);
- useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'})},[messages]);
- const send=async e=>{e.preventDefault();if(busy||(!content.trim()&&!files.length))return;if(files.length>8)return notify('파일은 한 번에 8개까지 첨부할 수 있습니다.');stopTyping();setBusy(true);try{const attachments=[];for(const file of files){if(file.size>25*1024*1024)throw new Error('파일당 최대 크기는 25MB입니다.');const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'_').slice(-120)||'file';const folder=scope==='group'?'group':'direct',path=folder+'/'+scopeId+'/'+user.id+'/'+crypto.randomUUID()+'/'+safe;const result=await supabase.storage.from('chat-attachments').upload(path,file,{upsert:false,contentType:file.type||'application/octet-stream'});if(result.error)throw result.error;attachments.push({path,name:file.name.slice(0,180),type:file.type||'application/octet-stream',size:file.size})}await api(base+'/messages',{method:'POST',body:{content,attachments,replyToId:reply?.id||null}});setContent('');setFiles([]);setReply(null);if(fileRef.current)fileRef.current.value='';await sync()}catch(e){notify(e.message||'메시지 전송에 실패했습니다.')}finally{setBusy(false)}};
- const react=async(id,emoji)=>{try{await api(base+'/messages/'+id+'/reactions',{method:'POST',body:{emoji}});await sync()}catch(e){notify(e.message)}};
- const chooseFiles=e=>{const picked=Array.from(e.target.files||[]);if(files.length+picked.length>8){notify('파일은 한 번에 8개까지 첨부할 수 있습니다.');e.target.value='';return}setFiles([...files,...picked]);e.target.value=''};
- return <GroupChat messages={messages.map(m=>({id:m.id,userId:String(m.userId),name:m.name,text:m.content,createdAt:m.createdAt,attachments:m.attachments,reply:m.reply,reactions:m.reactions}))} channel={channel} members={members} avatars={{...avatars,[user.id]:user.avatarData}} direct={scope==="direct"} currentUserId={String(user.id)} connected={connected} connectionLabel={connected?'실시간 연결됨':'연결 복구 중 · 기록 동기화 중'} typing={typingMembers} footerRef={endRef} onReply={setReply} onReact={react} composer={<div className="chat-compose-wrap">{reply&&<div className="reply-compose"><span><b>{reply.name}에게 답장</b><small>{reply.content||'첨부 파일'}</small></span><button type="button" className="icon-button" aria-label="답장 취소" onClick={()=>setReply(null)}>×</button></div>}{files.length>0&&<div className="pending-files">{files.map((f,i)=><span key={f.name+i}>{f.name}<button type="button" onClick={()=>setFiles(files.filter((_,n)=>n!==i))}>×</button></span>)}</div>}<form className="chat-compose" onSubmit={send}><button type="button" className="chat-attach-button" onClick={()=>fileRef.current?.click()} aria-label="파일 첨부">＋</button><input ref={fileRef} className="visually-hidden" type="file" multiple onChange={chooseFiles}/><input aria-label="메시지" value={content} onChange={onMessageChange} onBlur={stopTyping} maxLength="2000" placeholder="메시지 입력 또는 파일 첨부…"/><button className="button primary" disabled={busy||(!content.trim()&&!files.length)}>{busy?'전송 중…':'보내기 ↑'}</button></form></div>} />;
-}
+const retiringGroupChannels=new Map();
 
 function GroupRoom({group,user,onBack,notify}){
-  const [tab,setTab]=useState('chat'),[events,setEvents]=useState([]),[todos,setTodos]=useState([]);
+  const [tab,setTab]=useState('schedule'),[events,setEvents]=useState([]),[todos,setTodos]=useState([]);
   const [todoTitle,setTodoTitle]=useState(''),[editingTodo,setEditingTodo]=useState(null),[eventForm,setEventForm]=useState({title:'',description:'',startAt:localInput(),endAt:localInput(new Date(Date.now()+3600000))});
   const base='/api/groups/'+group.id;
   const avatars=useAccountAvatars(tab==='people'?group.members.filter(member=>member.id!==user.id).map(member=>member.id):[]);
@@ -439,6 +330,35 @@ function GroupRoom({group,user,onBack,notify}){
       setEvents(e.events);setTodos(t.todos);
     }catch(err){notify(err.message);}
   };
+  useEffect(()=>{
+    let active=true,channel;
+    const topic='kfc-group:'+group.id;
+    const refresh=()=>{if(active&&document.visibilityState==='visible')sync()};
+    async function subscribe(){
+      await retiringGroupChannels.get(topic);
+      if(!active)return;
+      channel=supabase.channel(topic,{config:{private:true}}).on('broadcast',{event:'sync'},refresh).subscribe(status=>{
+        if(status==='SUBSCRIBED')refresh();
+      });
+    }
+    sync();
+    subscribe().catch(()=>{});
+    const timer=window.setInterval(refresh,12000);
+    window.addEventListener('online',refresh);
+    window.addEventListener('focus',refresh);
+    return ()=>{
+      active=false;
+      window.clearInterval(timer);
+      window.removeEventListener('online',refresh);
+      window.removeEventListener('focus',refresh);
+      if(channel){
+        const removal=supabase.removeChannel(channel).catch(()=>{}).finally(()=>{
+          if(retiringGroupChannels.get(topic)===removal)retiringGroupChannels.delete(topic);
+        });
+        retiringGroupChannels.set(topic,removal);
+      }
+    };
+  },[group.id]);
   const addTodo=async e=>{e.preventDefault();if(!todoTitle.trim())return;
     try{await api(base+'/todos',{method:'POST',body:{title:todoTitle}});setTodoTitle('');await sync();}
     catch(e){notify(e.message);}
@@ -452,9 +372,8 @@ function GroupRoom({group,user,onBack,notify}){
   const saveTodo=async e=>{e.preventDefault();if(!editingTodo?.title?.trim())return;try{await api(base+'/todos/'+editingTodo.id,{method:'PATCH',body:{title:editingTodo.title,done:editingTodo.done}});setEditingTodo(null);await sync();notify('할 일을 수정했습니다.');}catch(err){notify(err.message);}};
   return <div className="room-layout">
     <div className="room-heading"><button className="text-button" onClick={onBack}>← 그룹 목록</button><div className="room-title"><div className="group-avatar"><img src="/kfc-logo.png" alt="K.F.C."/></div><div><h1>{group.name}</h1><small>{group.members.length}명의 팀원 · {group.description||'K.F.C. 그룹 공간'}</small></div></div></div>
-    <div className="room-tabs">{[['chat','대화'],['schedule','그룹 일정'],['todos','공동 할 일'],['people','구성원']].map(([k,label])=><button key={k} className={tab===k?'active':''} onClick={()=>setTab(k)}>{label}</button>)}</div>
-    <div hidden={tab!=='chat'}><ChatPanel scope="group" scopeId={group.id} channel={group.name} members={group.members.map(m=>({id:String(m.id),name:m.name}))} user={user} notify={notify} onRoomSync={sync}/></div>
-    {tab==='chat'?null:tab==='schedule'?<div className="room-panel"><section className="surface inset"><div className="section-heading"><div><div className="eyebrow">TEAM SCHEDULE</div><h2>그룹 일정</h2></div></div>
+    <div className="room-tabs">{[['schedule','그룹 일정'],['todos','공동 할 일'],['people','구성원']].map(([k,label])=><button key={k} className={tab===k?'active':''} onClick={()=>setTab(k)}>{label}</button>)}<ChatLink className="button subtle"/></div>
+    {tab==='schedule'?<div className="room-panel"><section className="surface inset"><div className="section-heading"><div><div className="eyebrow">TEAM SCHEDULE</div><h2>그룹 일정</h2></div></div>
       {events.length?events.map(e=><EventDetail key={e.id} event={e}/>):<Empty title="그룹 일정이 없습니다."/>}
       <form className="inline-form" onSubmit={addEvent}><h3>일정 추가</h3><label>제목<input required value={eventForm.title} onChange={e=>setEventForm({...eventForm,title:e.target.value})}/></label><label>상세 내용<input value={eventForm.description} onChange={e=>setEventForm({...eventForm,description:e.target.value})}/></label><div className="form-grid"><label>시작<CalendarDatePicker mode="datetime" required label="그룹 일정 시작" value={eventForm.startAt} onChange={value=>setEventForm({...eventForm,startAt:value})}/></label><label>종료<CalendarDatePicker mode="datetime" required label="그룹 일정 종료" value={eventForm.endAt} onChange={value=>setEventForm({...eventForm,endAt:value})}/></label></div><button className="button secondary">그룹 일정 저장</button></form>
     </section></div>:
