@@ -1,13 +1,15 @@
 import { ArrowDownToLine, ChevronLeft, ChevronRight, Eye, FileText, MessageCircle, RefreshCw, Search, ShieldCheck, UsersRound } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
+import { isStickerKey } from '@/lib/stickers';
+import { MascotMessage } from '@/components/ui/mascot-sticker';
 import { CodeMessage } from '@/components/ui/code-message';
 import { ChatError, day, errorText, request, size, time, value, type Message } from '@/lib/chat';
 
 type Entry = { kind: 'direct' | 'room'; key: string; title: string; updated_at: string };
 type Catalog = { entries: Entry[]; more: boolean };
 type ReadMessage = Pick<Message, 'id' | 'sender_id' | 'sender_name' | 'content' | 'code_language' |
-  'created_at' | 'edited_at' | 'deleted_at' | 'attachment_name' | 'attachment_size'> & {
+  'created_at' | 'edited_at' | 'deleted_at' | 'attachment_name' | 'attachment_size' | 'sticker_key'> & {
   quote?: { id: number; sender_name?: string; content: string };
 };
 type Transcript = { messages: ReadMessage[]; older: boolean };
@@ -193,7 +195,7 @@ function MonitorTranscript({ entry }: { entry: Entry }) {
           <article className="monitor-message">
             <header><b>{message.sender_name ?? '동아리원'}</b><time dateTime={message.created_at}>{time(message.created_at)}</time>{message.edited_at && !message.deleted_at && <small>수정됨</small>}</header>
             {message.quote && <blockquote>{message.quote.sender_name ?? '동아리원'} · {message.quote.content}</blockquote>}
-            {message.code_language && !message.deleted_at ?
+            {!message.deleted_at && isStickerKey(message.sticker_key) ? <MascotMessage sticker={message.sticker_key} /> : message.code_language && !message.deleted_at ?
               <CodeMessage key={message.content} code={message.content} language={message.code_language} /> :
               <p className={message.deleted_at ? 'deleted' : ''}>{message.content}</p>}
             {message.attachment_name && <button type="button" className="attachment-tile" disabled={downloadId != null} onClick={() => void download(message)}>

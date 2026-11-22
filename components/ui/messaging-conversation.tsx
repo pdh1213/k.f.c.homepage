@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { ArrowDownToLine, ArrowUp, Bell, BellOff, Check, CheckCheck, CodeXml, Copy, FileText, Flag, LogOut, MessageCircle, MoreHorizontal, MoreVertical, Paperclip, Pencil, Pin, Reply, Search, SmilePlus, Trash2, UserMinus2, Users, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowUp, Bell, BellOff, Check, CheckCheck, CodeXml, Copy, FileText, Flag, LogOut, MessageCircle, MoreHorizontal, MoreVertical, Paperclip, Pencil, Pin, Reply, Search, SmilePlus, Sticker, Trash2, UserMinus2, Users, X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -7,6 +7,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { CodeMessage } from '@/components/ui/code-message';
+import { MascotMessage, MascotSticker } from '@/components/ui/mascot-sticker';
+import { isStickerKey, STICKERS, stickerKeys, type StickerKey } from '@/lib/stickers';
 import { CODE_LANGUAGES, day, EMOJI, errorText, request, size, STATUS_TEXT, time, value, type Account, type Attachment, type CodeLanguage, type Friend, type History, type Message, type Quote, type Room, type Scope } from '@/lib/chat';
 
 export function PersonAvatar({ name, image, className }: { name: string; image?: string; className?: string }) {
@@ -63,7 +65,7 @@ function UserActions({ peer, onPreference, onConfirm }: {
 }
 
 function MessageActions({ mine, onReply, onCopy, onEdit, onDelete, onReport }: {
-  mine: boolean; onReply(): void; onCopy(): void; onEdit(): void; onDelete(): void; onReport(): void;
+  mine: boolean; onReply(): void; onCopy(): void; onEdit?(): void; onDelete(): void; onReport(): void;
 }) {
   return <DropdownMenu>
     <DropdownMenuTrigger asChild><Button className="message-action" variant="ghost" size="icon" aria-label="메시지 옵션"><MoreHorizontal size={16} /></Button></DropdownMenuTrigger>
@@ -71,7 +73,7 @@ function MessageActions({ mine, onReply, onCopy, onEdit, onDelete, onReport }: {
       <DropdownMenuItem onSelect={onReply}><Reply size={15} />답장</DropdownMenuItem>
       <DropdownMenuItem onSelect={onCopy}><Copy size={15} />복사</DropdownMenuItem>
       {mine ? <>
-        <DropdownMenuItem onSelect={onEdit}><Pencil size={15} />수정</DropdownMenuItem>
+        {onEdit && <DropdownMenuItem onSelect={onEdit}><Pencil size={15} />수정</DropdownMenuItem>}
         <DropdownMenuItem className="menu-danger" onSelect={onDelete}><Trash2 size={15} />모두에게서 삭제</DropdownMenuItem>
       </> : <DropdownMenuItem onSelect={onReport}><Flag size={15} />메시지 신고</DropdownMenuItem>}
     </DropdownMenuContent>
@@ -140,6 +142,7 @@ export default function MessageConversation({ self, peer, avatars, history, canR
   const lastRead = useRef(0);
   const typingMode = useRef(canRead);
   const keepBottom = useRef(true);
+  const pendingSticker = useRef<{ sticker: StickerKey; quote?: number; id: string } | null>(null);
   const restoreAnchor = useRef<{ height: number; top: number } | null>(null);
   const pending = useRef<{ content: string; language: CodeLanguage | null; file: Attachment | null; quote?: number; id: string } | null>(null);
   const latest = history?.messages.at(-1)?.id;
@@ -245,6 +248,26 @@ export default function MessageConversation({ self, peer, avatars, history, canR
     finally { setBusy(false); composer.current?.focus(); }
   }
 
+  async function sendSticker(sticker: StickerKey) {
+    if (busy || blocked || editing) return;
+    setBusy(true);
+    setNotice('');
+    const originalQuote = quote?.id;
+    if (pendingSticker.current?.sticker !== sticker || pendingSticker.current.quote !== originalQuote) {
+      pendingSticker.current = { sticker, quote: originalQuote, id: crypto.randomUUID() };
+    }
+    try {
+      await command({ action: 'send', sticker, quote: originalQuote, requestId: pendingSticker.current.id });
+      pendingSticker.current = null;
+      if (originalQuote) setQuote(current => current?.id === originalQuote ? undefined : current);
+      setResults(undefined);
+      keepBottom.current = true;
+      setAtBottom(true);
+      await refresh();
+    } catch (error) { setNotice(errorText(error)); }
+    finally { setBusy(false); }
+  }
+
   function changeDraft(text: string) {
     if (editing) { setEditText(text); return; }
     setDraft(text);
@@ -328,6 +351,7 @@ export default function MessageConversation({ self, peer, avatars, history, canR
           {!results && history?.older && <Button className="load-older" variant="outline" size="sm" onClick={loadOlder} disabled={loadingOlder}>{loadingOlder ? '불러오는 중…' : '이전 메시지 불러오기'}</Button>}
           {groups.map(({ message, divider }) => {
             const mine = message.sender_id === self.id;
+            const sticker = !message.deleted_at && isStickerKey(message.sticker_key) ? message.sticker_key : undefined;
             const author = mine ? self.name : message.sender_name || friend?.name || '동아리원';
             const reactions = EMOJI.map(emoji => ({
               emoji, responses: message.reactions.filter(reaction => reaction.emoji === emoji),
@@ -343,9 +367,10 @@ export default function MessageConversation({ self, peer, avatars, history, canR
                 <PersonAvatar name={author} image={avatars[message.sender_id]} className="size-8" />
                 <div className={cn('message-body', message.code_language && !message.deleted_at && 'has-code')}>
                   {room && !mine && <span className="message-author">{author}</span>}
-                  <div className={cn('message-bubble', message.deleted_at && 'deleted', message.code_language && !message.deleted_at && 'has-code')}>
+                  <div className={cn('message-bubble', message.deleted_at && 'deleted', message.code_language && !message.deleted_at && 'has-code', sticker && 'has-mascot')}>
                     {message.quote && !message.deleted_at && <blockquote><b>{message.quote.sender_id === self.id ? '나' : message.quote.sender_name || friend?.name || '동아리원'}에게 답장</b><span>{message.quote.content}</span></blockquote>}
-                    {message.code_language && !message.deleted_at ? <CodeMessage key={message.content} code={message.content} language={message.code_language} /> : <span>{message.content}</span>}
+                    {sticker ? <MascotMessage sticker={sticker} /> : message.code_language && !message.deleted_at
+                      ? <CodeMessage key={message.content} code={message.content} language={message.code_language} /> : <span>{message.content}</span>}
                     {message.attachment_name && <button type="button" className="attachment-tile"
                       onClick={() => void perform(async () => { const bridge = window.kfcChat; if (bridge) value(await bridge.download(scope, message.id)); })}>
                       <FileText size={18} /><span><b>{message.attachment_name}</b><small>{size(message.attachment_size ?? 0)}</small></span><ArrowDownToLine size={15} />
@@ -366,7 +391,7 @@ export default function MessageConversation({ self, peer, avatars, history, canR
                       </DropdownMenu>
                       <MessageActions mine={mine} onReply={() => { setQuote(message.code_language ? { ...message, content: `코드 메시지 · ${CODE_LANGUAGES[message.code_language]}` } : message); setEditing(undefined); composer.current?.focus(); }}
                         onCopy={() => void perform(() => window.kfcChat?.copy(message.content) ?? Promise.resolve(), '메시지를 복사했어요.')}
-                        onEdit={() => { setEditing(message); setQuote(undefined); setEditText(message.content); setEditLanguage(message.code_language ?? null); composer.current?.focus(); }}
+                        onEdit={sticker ? undefined : () => { setEditing(message); setQuote(undefined); setEditText(message.content); setEditLanguage(message.code_language ?? null); composer.current?.focus(); }}
                         onDelete={() => setAction({ type: 'delete', message })} onReport={() => setAction({ type: 'report', message })} />
                     </div>}
                   </div>
@@ -410,6 +435,15 @@ export default function MessageConversation({ self, peer, avatars, history, canR
             changeDraft(current.slice(0, start) + emoji + current.slice(end));
             requestAnimationFrame(() => { field?.focus(); field?.setSelectionRange(start + emoji.length, start + emoji.length); });
           }}>{emoji}</DropdownMenuItem>)}</DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild><Button variant="outline" size="icon" aria-label="마스코트 이모티콘" title="마스코트 이모티콘"
+            disabled={busy || blocked || Boolean(editing)}><Sticker size={18} /></Button></DropdownMenuTrigger>
+          <DropdownMenuContent className="mascot-menu" side="top" align="start" aria-label="마스코트 이모티콘 선택">
+            <div className="mascot-grid">{stickerKeys.map(sticker => <DropdownMenuItem key={sticker} onSelect={() => void sendSticker(sticker)}>
+              <MascotSticker sticker={sticker} />{STICKERS[sticker]}
+            </DropdownMenuItem>)}</div>
+          </DropdownMenuContent>
         </DropdownMenu>
         <textarea ref={composer} value={editing ? editText : draft} maxLength={language ? 24000 : 4000} rows={language ? 4 : 2}
           className={language ? 'code-input' : undefined} spellCheck={!language} aria-label={language ? '코드 입력' : '메시지 입력'}

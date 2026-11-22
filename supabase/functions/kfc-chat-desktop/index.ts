@@ -7,6 +7,10 @@ const messages = "kfc_desktop_messages";
 const bucket = db.storage.from("kfc-chat-attachments");
 const maxFile = 4 * 1024 * 1024;
 const emojiSet = new Set(["👍", "❤️", "😂", "🎉", "😮", "👀"]);
+const stickerLabels = new Map([
+  ["wave","인사하는 마스코트"],["laugh","웃는 마스코트"],["cheer","응원하는 마스코트"],
+  ["thumb","엄지를 든 마스코트"],["heart","하트를 보내는 마스코트"],["build","수리하는 마스코트"],
+]);
 const statuses = new Set(["online", "dnd", "offline"]);
 const languages = new Set(["text","javascript","typescript","python","cpp","c","csharp","java","json","bash","html","css","sql","rust","arduino","lua"]);
 const systemErrors: Record<string, [number, string]> = {
@@ -250,7 +254,11 @@ async function handleChat(request: Request) {
       const flags = await preferences();
       if (flags.some(p => p.blocked)) return fail(403, "현재 이 상대에게 메시지를 보낼 수 없습니다.");
       const cutoff = room ? roomCutoff : flags.find(p => p.user_id === viewer)?.hidden_through ?? 0;
-      const parsed = messageInput(input.content, input.codeLanguage);
+      const sticker = typeof input.sticker === "string" ? stickerLabels.get(input.sticker) : undefined;
+      if (input.sticker != null && (!sticker || text(input.content) || input.codeLanguage != null || input.attachment != null)) {
+        return fail(400, "보낼 마스코트 이모티콘을 확인해 주세요.");
+      }
+      const parsed = messageInput(sticker ?? input.content, input.codeLanguage);
       if (parsed instanceof Response) return parsed;
       const { content, language } = parsed;
       let quoteId: number | null = null;
@@ -281,7 +289,7 @@ async function handleChat(request: Request) {
       if (!content && !attachment) return fail(400, "메시지를 입력해 주세요.");
       const savedMessage = await db.from(messages).insert({
         sender_id: viewer, recipient_id: peer, room_id: room, content: content || "파일을 보냈습니다.",
-        request_id: requestId, reply_to: quoteId, code_language: language, ...attachment,
+        request_id: requestId, reply_to: quoteId, code_language: language, sticker_key: sticker ? input.sticker : null, ...attachment,
       }).select("id").single();
       if (savedMessage.error?.message === "CHAT_ROOM_FORBIDDEN") {
         if (attachment) await bucket.remove([attachment.attachment_path]);
@@ -305,7 +313,7 @@ async function handleChat(request: Request) {
     if (validId(input.id)) {
       const flags = await preferences();
       const cutoff = room ? roomCutoff : flags.find(p => p.user_id === viewer)?.hidden_through ?? 0;
-      const lookup = db.from(messages).select("id,sender_id,content,code_language,attachment_path,attachment_name,deleted_at")
+      const lookup = db.from(messages).select("id,sender_id,content,code_language,sticker_key,attachment_path,attachment_name,deleted_at")
         .eq("id", input.id).gt("id", cutoff);
       target = data(await (room ? lookup.eq("room_id", room) : lookup.or(pair)).maybeSingle());
       if (!target || target.deleted_at) return fail(404, "메시지를 찾을 수 없습니다.");
@@ -341,6 +349,7 @@ async function handleChat(request: Request) {
     }
     if (target.sender_id !== viewer) return fail(403, "내가 보낸 메시지만 수정하거나 삭제할 수 있습니다.");
     if (input.action === "edit") {
+      if (target.sticker_key) return fail(400, "보낸 이모티콘은 삭제할 수 있어요.");
       const parsed = messageInput(input.content, input.codeLanguage === undefined ? target.code_language : input.codeLanguage);
       if (parsed instanceof Response) return parsed;
       if (!parsed.content) return fail(400, "메시지를 입력해 주세요.");
@@ -351,7 +360,7 @@ async function handleChat(request: Request) {
     if (input.action === "delete") {
       data(await db.from(messages).update({
         content: "삭제된 메시지입니다.", deleted_at: new Date().toISOString(), attachment_path: null,
-        attachment_name: null, attachment_size: null, code_language: null,
+        attachment_name: null, attachment_size: null, code_language: null, sticker_key: null,
       }).eq("id", target.id).eq("sender_id", viewer).is("deleted_at", null));
       if (target.attachment_path) await bucket.remove([target.attachment_path]);
       return reply(200, { ok: true });

@@ -23,10 +23,14 @@
 - 채팅방 목록에서 방을 만들고 승인된 동아리원을 초대할 수 있습니다. 방장은 참여자를 초대하거나 내보낼 수 있습니다. 초대한 동아리원은 초대 이후의 메시지부터 볼 수 있습니다.
 - 채팅방을 나간 방장의 권한은 남은 승인 회원에게 넘어갑니다. 1:1 차단 관계에 있는 회원에게 새 초대를 보낼 수 없습니다.
 
+## 마스코트 이모티콘
+
+채팅 입력창의 마스코트 버튼에서 인사, 웃음, 응원, 엄지 척, 하트, 수리 동작을 골라 보낼 수 있습니다. 받은 이모티콘을 클릭하면 모션이 다시 재생됩니다. [스티커 원화](assets/kfc-sticker-sheet.webp)는 동아리 지구본 로고를 참조해 손그림 느낌의 2D 로봇을 그린 여섯 자세입니다.
+
 ## 빌드 및 배포
 
 1. Windows x64 및 Node.js 24에서 `npm ci`, `npm test`, `npm run pack:win`을 실행합니다.
 2. `outputs/windows/`에 NSIS EXE, blockmap, 최신 버전 매니페스트가 생성됩니다.
 3. `codex/kfcchat` 브랜치의 GitHub Actions가 채팅 설치 EXE를 `chat-windows-latest` 릴리스에 게시합니다. 배포 버전을 바꿀 때 `package.json` 버전도 올려 주세요.
 4. Vercel은 `web/` 진입점에서 Windows 앱과 같은 React 채팅 화면을 빌드합니다. 웹과 앱은 별도 로그인 세션으로 같은 K.F.C. Chat 기록을 사용합니다. Windows 설치 안내는 `/download`에 있습니다. 브라우저의 채팅 API 요청은 `https://kfcchat.vercel.app`에서만 허용합니다.
-5. Supabase 변경 순서는 `supabase/kfc-chat-desktop.sql`, `supabase/kfc-chat-v2.sql`, `supabase/kfc-chat-v3.sql`, `supabase/kfc-chat-v4.sql`, `supabase/functions/kfc-chat-desktop/index.ts`입니다. 마지막 함수가 서버에서 직접 토큰을 확인하므로 배포 시 `verify_jwt=false`를 사용합니다.
+5. Supabase 변경 순서는 `supabase/kfc-chat-desktop.sql`, `supabase/kfc-chat-v2.sql`, `supabase/kfc-chat-v3.sql`, `supabase/kfc-chat-v4.sql`, `supabase/kfc-chat-v5.sql`, `supabase/functions/kfc-chat-desktop/index.ts`입니다. 마지막 함수가 서버에서 직접 토큰을 확인하므로 배포 시 `verify_jwt=false`를 사용합니다.

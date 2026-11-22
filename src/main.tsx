@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ChatWorkspace } from '@/components/chat-workspace';
 import { ChatError, errorText, request, value, type Overview } from '@/lib/chat';
 import './styles.css';
+import './mascot.css';
 
 type Theme = 'light' | 'dark';
 function getTheme(): Theme {

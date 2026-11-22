@@ -18,6 +18,7 @@ export const CODE_LANGUAGES = {
 export type CodeLanguage = keyof typeof CODE_LANGUAGES;
 export type Quote = { id: number; sender_id: number; sender_name?: string; content: string };
 export type Message = Quote & {
+  sticker_key?: string | null;
   created_at: string; edited_at: string | null; deleted_at: string | null; code_language?: CodeLanguage | null;
   attachment_name: string | null; attachment_size: number | null;
   quote: Quote | null; reactions: { emoji: string; user_id: number }[];
