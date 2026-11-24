@@ -63,6 +63,7 @@ test("closing the main window keeps the tray and the native reply popup", async 
   let openWindow;
   let trayItems;
   let otherWindow;
+  let miniBackground = 0;
   const sent = [];
   const powerMonitor = new EventEmitter();
   class Window extends EventEmitter {
@@ -134,6 +135,7 @@ test("closing the main window keeps the tray and the native reply popup", async 
       } }) };
       if (name === "./mini-chat.cjs") return { makeMiniChat: () => ({
         visible: () => false, update() {}, clear() {}, close() {}, showIfEnabled() {}, protect() {},
+        enterBackground() { miniBackground++; }, leaveBackground() {},
       }) };
       if (name === "./chat-popup.cjs") return require("../electron/chat-popup.cjs");
       if (name === "./updates.cjs") return { startAutoUpdates: () => ({}) };
@@ -147,6 +149,7 @@ test("closing the main window keeps the tray and the native reply popup", async 
   openWindow.emit("close", { preventDefault: () => { prevented = true; } });
   assert.equal(prevented, true);
   assert.equal(openWindow.visible, false);
+  assert.equal(miniBackground, 1);
 
   const from = window => ({ sender: window.webContents, senderFrame: { url: pathToFileURL(window.file).href } });
   await handlers.get("kfc:chat")(from(openWindow), { action: "overview" });

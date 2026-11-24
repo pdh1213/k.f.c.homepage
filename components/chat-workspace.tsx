@@ -273,6 +273,9 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
           {tab === 'chats' && unread > 0 && <span>{unread > 99 ? '99+' : unread}</span>}
           {tab === 'rooms' && <Button className="new-room-button" variant="outline" size="icon" aria-label="채팅방 만들기" title="채팅방 만들기" onClick={() => setRoomDialog('create')}><Plus size={19} /></Button>}
         </div>
+        {window.kfcChat?.showMini && <Button variant="outline" size="sm" className="directory-install" onClick={() => {
+          void window.kfcChat?.showMini?.().catch(error => setConnection(errorText(error)));
+        }}><PanelRight size={15} />미니 채팅 열기</Button>}
         {window.kfcChat?.platform === 'web' && <a className="web-install directory-install" href="/download"><ArrowDownToLine size={15} /> Windows 앱 다운로드</a>}
         {tab !== 'reports' && <label className="directory-search"><Search size={17} /><input aria-label={tab === 'rooms' ? '채팅방 이름 검색' : '친구 이름 검색'} value={filter} onChange={event => setFilter(event.target.value)} placeholder={tab === 'rooms' ? '채팅방 이름으로 검색' : '이름으로 검색'} /></label>}
       </header>

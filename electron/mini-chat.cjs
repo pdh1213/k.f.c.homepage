@@ -8,8 +8,13 @@ const width = 342;
 const height = 460;
 
 function makeMiniChat({ BrowserWindow, screen, api, preferences, mainWindow, openScope }) {
-  let enabled = false;
-  try { enabled = readFileSync(preferences, "utf8").trim() === "on"; } catch {}
+  let preference = "auto";
+  try {
+    const saved = readFileSync(preferences, "utf8").trim();
+    if (saved === "on" || saved === "off") preference = saved;
+  } catch {}
+  let background = false;
+  const shouldShow = () => preference === "on" || (preference === "auto" && background);
   let win, bounds, account;
   let locked = false, suspended = false, ready = false, epoch = 0;
   let targets = new Map();
@@ -58,6 +63,7 @@ function makeMiniChat({ BrowserWindow, screen, api, preferences, mainWindow, ope
     win = current;
     current.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     current.webContents.on("will-navigate", event => event.preventDefault());
+    current.on("close", event => { event.preventDefault(); setEnabled(false); });
     current.on("closed", () => { win = undefined; ready = false; });
     current.on("show", publish);
     current.on("hide", publish);
@@ -66,22 +72,33 @@ function makeMiniChat({ BrowserWindow, screen, api, preferences, mainWindow, ope
       if (win !== current) return;
       ready = true;
       publish();
-      if (enabled && !locked && !suspended) current.showInactive();
+      if (shouldShow() && !locked && !suspended) current.showInactive();
     }).catch(() => { if (win === current) current.destroy(); });
   }
   function showIfEnabled() {
-    if (!enabled || locked || suspended) return;
+    if (!shouldShow() || locked || suspended) return;
     if (!win) create();
     else if (ready) win.showInactive();
   }
+  function enterBackground() {
+    background = true;
+    showIfEnabled();
+  }
+  function leaveBackground() {
+    background = false;
+    if (preference !== "on") win?.hide();
+  }
   function setEnabled(value) {
-    if (typeof value !== "boolean" || enabled === value) return enabled;
-    mkdirSync(path.dirname(preferences), { recursive: true });
-    writeFileSync(preferences, value ? "on" : "off");
-    enabled = value;
-    if (enabled) showIfEnabled();
+    if (typeof value !== "boolean") return shouldShow();
+    const next = value ? "on" : "off";
+    if (preference !== next) {
+      mkdirSync(path.dirname(preferences), { recursive: true });
+      writeFileSync(preferences, next);
+      preference = next;
+    }
+    if (value) showIfEnabled();
     else win?.hide();
-    return enabled;
+    return value;
   }
   function protect(kind, value) {
     if (kind === "lock") locked = value;
@@ -114,7 +131,7 @@ function makeMiniChat({ BrowserWindow, screen, api, preferences, mainWindow, ope
     return conversation(key, "preference", { field: "read", through });
   }
   function open(key) { if (!locked && !suspended) openScope(targets.get(key)?.scope); }
-  return { accepts, visible, update, clear, protect, close, showIfEnabled, setEnabled, snapshot, send, read, open,
+  return { accepts, visible, update, clear, protect, close, showIfEnabled, enterBackground, leaveBackground, setEnabled, snapshot, send, read, open,
     history: key => conversation(key, "history") };
 }
 module.exports = { makeMiniChat };

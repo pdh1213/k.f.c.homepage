@@ -196,6 +196,7 @@ function createWindow(startHidden) {
   window.setMenuBarVisibility(false);
   if (!startHidden) window.once("ready-to-show", () => window?.show());
   window.on("focus", () => popup.reset());
+  window.on("show", () => mini.leaveBackground());
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-navigate", (event, url) => { if (url !== indexUrl) event.preventDefault(); });
   window.loadFile(index);
@@ -203,6 +204,7 @@ function createWindow(startHidden) {
     if (quitting || !tray) return;
     event.preventDefault();
     window.hide();
+    mini.enterBackground();
   });
   window.on("closed", () => { window = undefined; });
 }
@@ -236,8 +238,10 @@ else {
     powerMonitor.on("unlock-screen", () => { popup.onLock(false); mini.protect("lock", false); });
     powerMonitor.on("suspend", () => { popup.reset(); mini.protect("suspend", true); });
     powerMonitor.on("resume", () => mini.protect("suspend", false));
-    createWindow(Boolean(tray) && process.argv.includes("--startup"));
-    mini.showIfEnabled();
+    const startHidden = Boolean(tray) && process.argv.includes("--startup");
+    createWindow(startHidden);
+    if (startHidden) mini.enterBackground();
+    else mini.showIfEnabled();
   });
   app.on("window-all-closed", () => app.quit());
 }

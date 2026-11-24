@@ -40,6 +40,12 @@ test("mini chat persists its setting, routes only known recipients, and clears d
   const mini = makeMiniChat(options);
   mini.showIfEnabled();
   assert.equal(window, undefined);
+  mini.enterBackground();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(mini.visible(), true);
+  mini.leaveBackground();
+  assert.equal(mini.visible(), false);
+  mini.enterBackground();
   mini.setEnabled(true);
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(mini.visible(), true);
@@ -75,5 +81,8 @@ test("mini chat persists its setting, routes only known recipients, and clears d
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(restarted.visible(), true);
   restarted.setEnabled(false);
+  assert.equal(restarted.visible(), false);
+  restarted.leaveBackground();
+  restarted.enterBackground();
   assert.equal(restarted.visible(), false);
 });
