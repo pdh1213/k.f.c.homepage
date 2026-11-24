@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'">
+<title>K.F.C. Chat 미니 채팅</title>
+<link rel="stylesheet" href="mini.css">
+<script defer src="mini.js"></script>
+</head>
+<body>
+<header><span class="brand"><i></i>K.F.C. Chat</span><button id="open" type="button" title="채팅 앱 열기" aria-label="채팅 앱 열기">↗</button><button id="hide" type="button" title="미니 채팅 끄기" aria-label="미니 채팅 끄기">×</button></header>
+<main>
+  <div class="top"><button id="back" type="button" title="대화 목록" aria-label="대화 목록" hidden>‹</button>
+  <label><span>받는 사람 <small id="new-count" hidden></small></span><select id="target" aria-label="친구 또는 채팅방 선택" disabled><option value="">친구 또는 채팅방 선택</option></select></label></div>
+  <section id="inbox"><h1>새 메시지 <span id="total"></span></h1><div id="threads"></div><p id="empty">로그인하면 새 메시지를 확인할 수 있어요.</p></section>
+  <section id="history" aria-label="대화 기록" hidden></section>
+  <p id="notice" role="status" hidden></p>
+  <form id="compose" hidden><textarea id="draft" rows="2" maxlength="4000" aria-label="메시지 입력" placeholder="메시지 입력"></textarea><button id="send" type="submit" aria-label="메시지 보내기">↑</button></form>
+</main>
+</body>
+</html>

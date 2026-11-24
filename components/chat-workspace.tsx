@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, Bell, BellOff, ChevronRight, ArrowDownToLine, CircleHelp, Eye, Flag, Laptop, LogOut, MessageCircle, Moon, Pin, Plus, Search, Settings2, Sun, Users, UsersRound } from 'lucide-react';
+import { ArrowUpRight, Bell, BellOff, ChevronRight, ArrowDownToLine, CircleHelp, Eye, Flag, Laptop, LogOut, PanelRight, MessageCircle, Moon, Pin, Plus, Search, Settings2, Sun, Users, UsersRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -250,6 +250,9 @@ export function ChatWorkspace({ initial, theme, setTheme, onLogout }: Props) {
               if (notices) void window.kfcChat?.dismissPopups?.();
               save('kfc-chat-notices', notices ? 'no' : 'yes');
             }}>{notices ? <BellOff size={16} /> : <Bell size={16} />}{notices ? '팝업 알림 끄기' : '팝업 알림 켜기'}</DropdownMenuItem>
+            {window.kfcChat?.showMini && <DropdownMenuItem onSelect={() => {
+              void window.kfcChat?.showMini?.().catch(error => setConnection(errorText(error)));
+            }}><PanelRight size={16} />미니 채팅 열기</DropdownMenuItem>}
             {startup !== undefined && <DropdownMenuItem onSelect={() => {
               void window.kfcChat?.startup?.(!startup).then(setStartup).catch(error => setConnection(errorText(error)));
             }}><Laptop size={16} />{startup ? 'Windows 자동 시작 끄기' : 'Windows 자동 시작 켜기'}</DropdownMenuItem>}

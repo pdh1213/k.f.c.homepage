@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld("kfcChat", {
   download: (scope, id) => ipcRenderer.invoke("kfc:download", scope, id),
   notify: (scope, name, after) => ipcRenderer.invoke("kfc:notify", scope, name, after),
   startup: enabled => ipcRenderer.invoke("kfc:startup", enabled),
+  showMini: () => ipcRenderer.invoke("kfc:show-mini"),
   dismissPopups: () => ipcRenderer.invoke("kfc:dismiss-popups"),
   onOpenPeer: callback => {
     const listener = (_event, scope) => callback(scope);

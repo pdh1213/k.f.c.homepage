@@ -5,6 +5,7 @@ const { pathToFileURL } = require("node:url");
 const { makeApi } = require("./api.cjs");
 const { makeSessionStore } = require("./session-store.cjs");
 const { makeChatPopup } = require("./chat-popup.cjs");
+const { makeMiniChat } = require("./mini-chat.cjs");
 const { startAutoUpdates } = require("./updates.cjs");
 
 const index = path.join(__dirname, "..", "desktop-dist", "index.html");
@@ -28,6 +29,20 @@ const popup = makeChatPopup({
   },
 });
 
+const mini = makeMiniChat({
+  BrowserWindow, screen, api, mainWindow: () => window,
+  preferences: path.join(app.getPath("userData"), "mini-chat.pref"),
+  openScope(scope) {
+    showWindow();
+    if (scope) window?.webContents.send("kfc:open-peer", scope);
+  },
+});
+
+function showMini() {
+  popup.reset();
+  return mini.setEnabled(true);
+}
+
 function showWindow() {
   if (!window || window.isDestroyed()) return;
   if (window.isMinimized()) window.restore();
@@ -43,6 +58,7 @@ function createTray() {
   tray.on("click", showWindow);
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: "K.F.C. Chat 열기", click: showWindow },
+    { label: "미니 채팅 열기", click: showMini },
     { type: "separator" },
     { label: "앱 완전히 종료", click: () => app.quit() },
   ]));
@@ -70,17 +86,24 @@ handle("login", (username, password) => {
   }
   memberId = undefined;
   popup.logout();
+  mini.clear();
   return api.login(username, password);
 });
 handle("restore", () => api.restore());
 handle("logout", () => {
   memberId = undefined;
   popup.logout();
+  mini.clear();
   return api.logout();
 });
 handle("chat", async input => {
   const result = await api.chat(input);
-  if (input?.action === "overview" && result.ok && Number.isSafeInteger(result.data?.self?.id)) memberId = result.data.self.id;
+  if (input?.action === "overview") {
+    if (result.ok && Number.isSafeInteger(result.data?.self?.id)) {
+      memberId = result.data.self.id;
+      mini.update(result.data);
+    } else if ([401, 403].includes(result.status)) mini.clear();
+  }
   return result;
 });
 handle("startup", enabled => {
@@ -89,6 +112,7 @@ handle("startup", enabled => {
   if (typeof enabled === "boolean") app.setLoginItemSettings({ ...options, openAtLogin: enabled, enabled });
   return app.getLoginItemSettings(options).executableWillLaunchAtLogin;
 });
+handle("show-mini", showMini);
 handle("dismiss-popups", () => popup.reset());
 handle("club", async () => { await shell.openExternal("https://kfc-robot-club.vercel.app/"); });
 handle("update", () => updates.check(true));
@@ -144,13 +168,20 @@ async function saveAttachment(result) {
 
 handle("notify", (scope, name, after) => {
   const target = validScope(scope);
-  if (target && typeof name === "string") return popup.offer(target, name.slice(0, 80), after);
+  if (!mini.visible() && target && typeof name === "string") return popup.offer(target, name.slice(0, 80), after);
 });
 
 for (const [name, handler] of Object.entries({
   read: popup.describe, open: popup.open, dismiss: popup.dismiss, next: popup.next, reply: popup.reply, hold: popup.hold,
 })) {
   ipcMain.handle("kfc:popup-" + name, (event, ...args) => popup.accepts(event) ? handler(...args) : null);
+}
+
+for (const [name, handler] of Object.entries({
+  state: mini.snapshot, history: mini.history, send: mini.send, read: mini.read,
+  open: mini.open, hide: () => mini.setEnabled(false),
+})) {
+  ipcMain.handle("kfc:mini-" + name, (event, ...args) => mini.accepts(event) ? handler(...args) : null);
 }
 
 function createWindow(startHidden) {
@@ -186,6 +217,7 @@ else {
     event.preventDefault();
     quitting = true;
     popup.close();
+    mini.close();
     void loginStore.flush().finally(() => app.quit());
   });
   app.whenReady().then(() => {
@@ -200,10 +232,12 @@ else {
       ] }, { label: "보기", submenu: [{ role: "togglefullscreen", label: "전체 화면" }] },
     ]));
     createTray();
-    powerMonitor.on("lock-screen", () => popup.onLock(true));
-    powerMonitor.on("unlock-screen", () => popup.onLock(false));
-    powerMonitor.on("suspend", () => popup.reset());
+    powerMonitor.on("lock-screen", () => { popup.onLock(true); mini.protect("lock", true); });
+    powerMonitor.on("unlock-screen", () => { popup.onLock(false); mini.protect("lock", false); });
+    powerMonitor.on("suspend", () => { popup.reset(); mini.protect("suspend", true); });
+    powerMonitor.on("resume", () => mini.protect("suspend", false));
     createWindow(Boolean(tray) && process.argv.includes("--startup"));
+    mini.showIfEnabled();
   });
   app.on("window-all-closed", () => app.quit());
 }

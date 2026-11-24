@@ -46,6 +46,7 @@ interface DesktopBridge {
   download(scope: Scope, id: number): Promise<ApiResult<boolean>>;
   notify(scope: Scope, name: string, after?: number): Promise<void>;
   startup?(enabled?: boolean): Promise<boolean>;
+  showMini?(): Promise<boolean>;
   dismissPopups?(): Promise<void>;
   onOpenPeer(callback: (scope: Scope) => void): () => void;
 }

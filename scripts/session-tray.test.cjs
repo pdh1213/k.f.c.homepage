@@ -132,6 +132,9 @@ test("closing the main window keeps the tray and the native reply popup", async 
         sent.push(input);
         return { ok: true, data: null };
       } }) };
+      if (name === "./mini-chat.cjs") return { makeMiniChat: () => ({
+        visible: () => false, update() {}, clear() {}, close() {}, showIfEnabled() {}, protect() {},
+      }) };
       if (name === "./chat-popup.cjs") return require("../electron/chat-popup.cjs");
       if (name === "./updates.cjs") return { startAutoUpdates: () => ({}) };
       if (name === "./session-store.cjs") return { makeSessionStore: () => ({ flush: () => Promise.resolve() }) };
